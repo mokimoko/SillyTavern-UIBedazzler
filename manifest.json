@@ -1,0 +1,12 @@
+{
+    "display_name": "UI Bedazzler",
+    "loading_order": 15,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Cee & Claude",
+    "version": "0.1.0",
+    "homePage": "",
+    "description": "ST interface upgrades: drawer reorganization, tabbed layouts, Chat Design styling, and per-character visual customization."
+}

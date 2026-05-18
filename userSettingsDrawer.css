@@ -1,0 +1,212 @@
+/* ============================================
+   User Settings Drawer — Tabbed Layout Takeover
+   ============================================ */
+
+#wl-usd-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* ============================================
+   Tab Bar
+   ============================================ */
+
+#wl-usd-tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    padding: 0;
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
+.wl-usd-tab {
+    background: none;
+    border: none;
+    padding: 7px 16px;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.9em;
+    font-weight: 500;
+    position: relative;
+    opacity: 0.6;
+    transition: opacity 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+.wl-usd-tab:hover { opacity: 0.85; }
+
+.wl-usd-tab.active {
+    opacity: 1;
+    color: var(--SmartThemeBodyColor, #fff);
+}
+
+.wl-usd-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    border-radius: 2px 2px 0 0;
+}
+
+/* ============================================
+   Tab Content
+   ============================================ */
+
+#wl-usd-tab-content {
+    min-height: 0;
+    padding-top: 8px;
+}
+
+.wl-usd-tab-pane {
+    display: none;
+}
+
+.wl-usd-tab-pane.active {
+    display: block;
+}
+
+/* ============================================
+   CRITICAL: undo ST's display:contents on these elements,
+   which causes their children to leak into parent layouts
+   ============================================ */
+
+.wl-usd-app-columns > [name="MiscellaneousToggles"] {
+    display: block !important;
+}
+
+#wl-usd-css-wrapper #CustomCSS-block,
+#wl-usd-css-wrapper #CustomCSS-textAreaBlock {
+    display: block !important;
+}
+
+/* ============================================
+   Shared: checkbox grid
+   ============================================ */
+
+.wl-usd-toggle-grid {
+    display: grid;
+    gap: 2px 16px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    width: 100%;
+}
+
+.wl-usd-cols-2 { grid-template-columns: 1fr 1fr; }
+.wl-usd-cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+.wl-usd-toggle-grid > label,
+.wl-usd-toggle-grid > .checkbox-container {
+    min-width: 0;
+}
+
+/* ============================================
+   Theme Tab
+   ============================================ */
+
+/* Top row: col1 content + Custom CSS textarea */
+#wl-usd-theme-top {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#wl-usd-theme-top > [name="UserSettingsFirstColumn"] {
+    flex: 1.5;
+    min-width: 0;
+    width: auto !important; /* override ST wide100p */
+}
+
+#wl-usd-css-wrapper {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    padding-top: 2px;
+}
+
+#wl-usd-css-wrapper #customCSS {
+    height: 340px !important;
+    resize: vertical;
+}
+
+/* Bottom row: theme toggles span full tab width */
+#wl-usd-theme-toggles-row {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+}
+
+#wl-usd-theme-toggles-row [name="themeToggles"] {
+    width: 100%;
+}
+
+/* ============================================
+   App Tab
+   ============================================ */
+
+.wl-usd-app-columns {
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+}
+
+.wl-usd-app-columns > [name="CharacterHandlingToggles"] {
+    flex: 1;
+    min-width: 0;
+    padding-right: 20px;
+    border-right: 1px solid var(--SmartThemeBorderColor, #444);
+}
+
+.wl-usd-app-columns > [name="MiscellaneousToggles"] {
+    flex: 1;
+    min-width: 0;
+    padding-left: 20px;
+}
+
+.wl-usd-app-columns select {
+    max-width: 200px;
+}
+
+/* ============================================
+   Chat Tab
+   ============================================ */
+
+/* Three dropdowns on one line */
+.wl-usd-dropdown-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.wl-usd-dropdown-row > div {
+    flex: 1;
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* Enter-to-send already has its own flex-container row — override to column to match siblings */
+.wl-usd-dropdown-row > div.flex-container {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+}
+
+.wl-usd-dropdown-row select {
+    width: 100%;
+}
+
+/* Constrain selects outside the dropdown row too */
+.wl-usd-tab-pane[data-tab="chat"] [name="ChatMessageHandlingToggles"] select {
+    max-width: 220px;
+}

@@ -1,0 +1,632 @@
+/* ============================================
+   Persona Lore — Drawer Takeover
+   Namespace: wl-pl-
+   ============================================ */
+
+/* Fixed height drawer with independent scroll columns */
+#persona-management-block.wl-pl-active {
+    height: 75vh;
+    max-height: 75vh;
+    overflow: hidden;
+}
+
+#persona-management-block.wl-pl-active .persona_management_left_column {
+    flex: 0 0 260px !important;
+    max-width: 260px;
+    overflow: hidden;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Search/create/pagination bar stays pinned */
+#persona-management-block.wl-pl-active .persona_management_left_column > .flex-container:first-child {
+    flex-shrink: 0;
+}
+
+/* Persona avatar list scrolls independently */
+#persona-management-block.wl-pl-active #user_avatar_block {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+/* Right column fills height, scrolls independently */
+#persona-management-block.wl-pl-active .persona_management_right_column {
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+/* Push persona name/title left */
+#persona-management-block.wl-pl-active .character_name_block {
+    text-align: left;
+    padding-left: 2px;
+}
+
+#persona-management-block.wl-pl-active .ch_name {
+    justify-content: flex-start;
+}
+
+/* Main container */
+#wl-pl-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 4px;
+}
+
+/* ============================================
+   Top Bar — Persona Name + Controls
+   ============================================ */
+
+#wl-pl-top-bar {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
+    margin-bottom: 4px;
+}
+
+#wl-pl-top-bar #persona_controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#wl-pl-top-bar #persona_controls .persona_name {
+    flex: 1;
+    margin: 0;
+    font-size: 1.1em;
+}
+
+#wl-pl-top-bar .persona_controls_buttons_block {
+    display: flex;
+    gap: 2px;
+}
+
+/* ============================================
+   Tab Bar
+   ============================================ */
+
+#wl-pl-tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    padding: 0;
+}
+
+.wl-pl-tab {
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.9em;
+    font-weight: 500;
+    position: relative;
+    opacity: 0.65;
+    transition: opacity 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wl-pl-tab:hover {
+    opacity: 0.85;
+}
+
+.wl-pl-tab.active {
+    opacity: 1;
+    color: var(--SmartThemeBodyColor, #fff);
+}
+
+.wl-pl-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Lore count badge */
+.wl-pl-badge {
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    color: #fff;
+    font-size: 0.7em;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 600;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ============================================
+   Tab Content
+   ============================================ */
+
+#wl-pl-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.wl-pl-tab-pane {
+    display: none;
+    padding: 8px 2px;
+}
+
+.wl-pl-tab-pane.active {
+    display: block;
+}
+
+/* Description tab — give the textarea room */
+.wl-pl-tab-pane[data-tab="description"] #persona_description {
+    min-height: 300px;
+    height: 50vh;
+    resize: vertical;
+}
+
+.wl-pl-tab-pane[data-tab="description"] .flex-container {
+    margin-top: 4px;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.wl-pl-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.6;
+}
+
+.wl-pl-empty-state i {
+    font-size: 2.5em;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.wl-pl-empty-state p {
+    margin: 4px 0;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.wl-pl-hint {
+    font-size: 0.8em !important;
+    font-style: italic;
+    opacity: 0.7;
+}
+
+/* ============================================
+   Advanced Tab
+   ============================================ */
+
+/* ============================================
+   Design Tab — Persona-specific ID rules
+   (Layout classes reuse wl-cd- from charDrawer.css)
+   ============================================ */
+
+#wl-pd-banner-position-row {
+    margin-top: 6px;
+}
+
+#wl-pd-banner-position-row > label {
+    display: block;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    margin-bottom: 4px;
+}
+
+/* ============================================
+   Advanced Tab Content
+   ============================================ */
+
+#wl-pl-advanced-content h4 {
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+#wl-pl-advanced-content h4:first-child {
+    margin-top: 0;
+}
+
+#wl-pl-advanced-content .persona_management_global_settings {
+    margin-top: 8px;
+}
+
+#wl-pl-advanced-content .persona_management_global_settings h4 {
+    margin-top: 4px;
+}
+
+/* ============================================
+   Lore Entry Cards
+   ============================================ */
+
+.wl-pl-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.wl-pl-card {
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: border-color 0.15s;
+}
+
+.wl-pl-card:hover {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-card.wl-pl-confirming {
+    border-color: #e74c3c;
+}
+
+.wl-pl-card-content {
+    font-size: 0.88em;
+    line-height: 1.45;
+    color: var(--SmartThemeBodyColor, #ddd);
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.wl-pl-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* ============================================
+   Known By Display
+   ============================================ */
+
+.wl-pl-known-by {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+}
+
+.wl-pl-narrator-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.wl-pl-narrator-badge i {
+    font-size: 0.85em;
+}
+
+.wl-pl-avatar-row {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.wl-pl-char-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1.5px solid var(--SmartThemeBorderColor, #555);
+    flex-shrink: 0;
+}
+
+.wl-pl-char-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wl-pl-known-names {
+    font-size: 0.75em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================
+   Card Action Buttons
+   ============================================ */
+
+.wl-pl-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.wl-pl-action-btn {
+    background: none;
+    border: none;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.4;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 3px;
+    transition: opacity 0.15s, color 0.15s;
+    font-size: 0.85em;
+}
+
+.wl-pl-action-btn:hover {
+    opacity: 0.8;
+}
+
+.wl-pl-action-delete:hover {
+    color: #e74c3c;
+    opacity: 0.9;
+}
+
+.wl-pl-confirming .wl-pl-action-delete {
+    color: #e74c3c;
+    opacity: 1;
+}
+
+/* ============================================
+   Add Lore Entry
+   ============================================ */
+
+#wl-pl-add-container {
+    padding: 4px 0 8px;
+}
+
+.wl-pl-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: 1px dashed var(--SmartThemeBorderColor, #555);
+    border-radius: 6px;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.6;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: opacity 0.15s, border-color 0.15s;
+}
+
+.wl-pl-add-btn:hover {
+    opacity: 1;
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+    border: 1px solid var(--SmartThemeQuoteColor, #7b68ee);
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.wl-pl-add-textarea,
+.wl-pl-edit-textarea {
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #ddd);
+    padding: 8px;
+    font-size: 0.88em;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
+.wl-pl-add-textarea:focus,
+.wl-pl-edit-textarea:focus {
+    outline: none;
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-add-textarea::placeholder {
+    color: var(--SmartThemeBodyColor, #888);
+    opacity: 0.5;
+}
+
+.wl-pl-add-buttons,
+.wl-pl-edit-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.wl-pl-save-btn,
+.wl-pl-cancel-btn {
+    padding: 4px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    font-size: 0.82em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.wl-pl-save-btn {
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    color: #fff;
+    border-color: transparent;
+}
+
+.wl-pl-save-btn:hover {
+    filter: brightness(1.15);
+}
+
+.wl-pl-cancel-btn {
+    background: none;
+    color: var(--SmartThemeBodyColor, #aaa);
+}
+
+.wl-pl-cancel-btn:hover {
+    border-color: var(--SmartThemeBodyColor, #aaa);
+}
+
+/* ============================================
+   Edit Mode Card
+   ============================================ */
+
+.wl-pl-card-editing {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-edit-textarea {
+    margin-bottom: 6px;
+}
+
+/* ============================================
+   Character Selector
+   ============================================ */
+
+.wl-pl-selector-wrapper {
+    position: relative;
+}
+
+.wl-pl-selector-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 8px;
+    background: none;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #aaa);
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    min-height: 30px;
+}
+
+.wl-pl-selector-trigger:hover {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-selector-trigger .wl-pl-avatar-row {
+    gap: 1px;
+}
+
+.wl-pl-selector-trigger .wl-pl-char-thumb {
+    width: 18px;
+    height: 18px;
+}
+
+.wl-pl-selector-label {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wl-pl-selector-caret {
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+/* Dropdown panel */
+.wl-pl-selector-dropdown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 100;
+    margin-top: 2px;
+    background: var(--SmartThemeChatTintColor, #1a1a2e);
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.wl-pl-selector-divider {
+    height: 1px;
+    background: var(--SmartThemeBorderColor, #333);
+    margin: 2px 0;
+}
+
+.wl-pl-selector-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.wl-pl-selector-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.wl-pl-selector-row.wl-pl-selector-active {
+    background: rgba(123, 104, 238, 0.12);
+}
+
+.wl-pl-selector-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--SmartThemeBorderColor, #555);
+    flex-shrink: 0;
+}
+
+.wl-pl-selector-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wl-pl-selector-check {
+    font-size: 0.75em;
+    color: var(--SmartThemeQuoteColor, #7b68ee);
+    opacity: 0;
+    transition: opacity 0.1s;
+    flex-shrink: 0;
+}
+
+.wl-pl-selector-active .wl-pl-selector-check {
+    opacity: 1;
+}
+
+.wl-pl-selector-narrator {
+    gap: 6px;
+    opacity: 0.7;
+}
+
+.wl-pl-selector-narrator.wl-pl-selector-active {
+    opacity: 1;
+}
+
+.wl-pl-selector-empty {
+    padding: 10px;
+    text-align: center;
+    font-size: 0.78em;
+    color: var(--SmartThemeBodyColor, #888);
+    opacity: 0.6;
+}

@@ -1,0 +1,89 @@
+/* ============================================================
+   UI Bedazzler — Styles
+   Imports component CSS + provides CSS variables and drawer menu styles.
+   Note: --wl-* variables are kept for compatibility with
+   component CSS files carried over from White Lotus.
+   ============================================================ */
+
+@import url('./presetDrawer.css');
+@import url('./userSettingsDrawer.css');
+@import url('./personaLore.css');
+@import url('./charDrawer.css');
+@import url('./chatDesign.css');
+@import url('./worldInfoDrawer.css');
+
+/* ── Shared CSS Variables (used by component CSS) ────────── */
+:root {
+    --wl-bg: rgba(18, 18, 22, 0.95);
+    --wl-bg-section: rgba(0, 0, 0, 0.2);
+    --wl-border: rgba(255, 255, 255, 0.08);
+    --wl-border-hover: rgba(255, 255, 255, 0.15);
+    --wl-text: rgba(207, 203, 197, 1);
+    --wl-text-muted: rgba(207, 203, 197, 0.5);
+    --wl-accent: rgba(151, 167, 198, 1);
+    --wl-accent-dim: rgba(151, 167, 198, 0.4);
+    --wl-toggle-on: rgba(151, 167, 198, 0.85);
+    --wl-toggle-off: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Extensions Drawer Menu ──────────────────────────────── */
+.bd-settings-container {
+    margin-bottom: 10px;
+}
+
+.bd-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bd-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 0.9em;
+    position: relative;
+}
+
+.bd-toggle-row input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.bd-toggle-row span {
+    flex: 1;
+}
+
+/* Info icon — dim, brightens on hover, triggers native title tooltip */
+.bd-info-icon {
+    font-size: 0.72em;
+    opacity: 0.3;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+.bd-toggle-row:hover .bd-info-icon {
+    opacity: 0.7;
+}
+
+.bd-divider {
+    margin: 10px 0;
+    border: none;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+}
+
+.bd-chat-design-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bd-chat-design-btn-row {
+    padding-top: 6px;
+}
+
+.bd-open-chat-design {
+    width: 100%;
+    justify-content: center;
+}

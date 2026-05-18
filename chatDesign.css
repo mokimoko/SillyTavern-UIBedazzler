@@ -1,0 +1,612 @@
+/* chatDesign.css — Chat Design modal + editor styles */
+/* Nebula Dark aesthetic: dark transparency, sharp corners, muted palette */
+
+/* ============================================================
+   Overlay
+   ============================================================ */
+
+.wl-cdm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+.wl-cdm-overlay.wl-cdm-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ============================================================
+   Modal Container
+   ============================================================ */
+
+.wl-cdm-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: min(740px, 90vw);
+    height: min(680px, 85vh);
+    background: rgba(20, 20, 24, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    overflow: hidden;
+}
+.wl-cdm-modal.wl-cdm-visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+/* ── Header ── */
+
+.wl-cdm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+.wl-cdm-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.3px;
+}
+.wl-cdm-close {
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 16px;
+    padding: 4px 6px;
+    transition: color 0.15s;
+}
+.wl-cdm-close:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Body (sidebar + content) ── */
+
+.wl-cdm-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ============================================================
+   Sidebar Navigation
+   ============================================================ */
+
+.wl-cdm-sidebar {
+    width: 56px;
+    flex-shrink: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.wl-cdm-nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.15s, background 0.15s;
+    border-left: 2px solid transparent;
+}
+.wl-cdm-nav-item:hover {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.03);
+}
+.wl-cdm-nav-item.wl-cdm-nav-active {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.06);
+    border-left-color: rgba(180, 160, 140, 0.6);
+}
+.wl-cdm-nav-item i {
+    font-size: 20px;
+}
+.wl-cdm-nav-item span {
+    display: none;
+}
+
+/* ============================================================
+   Content Area
+   ============================================================ */
+
+.wl-cdm-content {
+    flex: 1;
+    padding: 18px 22px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* ── Core / Overview ── */
+
+.wl-cdm-core {
+}
+
+.wl-cdm-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.wl-cdm-setting-title {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+}
+.wl-cdm-setting-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 3px;
+}
+
+.wl-cdm-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 16px 0;
+}
+
+.wl-cdm-overview-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.wl-cdm-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.wl-cdm-overview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-align: center;
+}
+.wl-cdm-overview-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.wl-cdm-overview-card i {
+    color: rgba(180, 160, 140, 0.6);
+    font-size: 16px;
+}
+.wl-cdm-overview-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.wl-cdm-overview-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+}
+.wl-cdm-overview-count {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.wl-cdm-info-block {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.5;
+}
+.wl-cdm-info-block i {
+    color: rgba(180, 160, 140, 0.4);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.wl-cdm-info-block strong {
+    color: rgba(255, 255, 255, 0.6);
+}
+.wl-cdm-info-block p {
+    margin: 0;
+}
+.wl-cdm-cascade-note {
+    margin-top: 6px !important;
+}
+
+/* ============================================================
+   Element List View
+   ============================================================ */
+
+.wl-cdm-element-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.wl-cdm-element-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.wl-cdm-style-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.wl-cdm-style-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.wl-cdm-style-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.wl-cdm-card-body {
+    flex: 1;
+    min-width: 0;
+}
+.wl-cdm-card-name {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wl-cdm-card-assign {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 3px;
+}
+.wl-cdm-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.wl-cdm-style-card:hover .wl-cdm-card-actions {
+    opacity: 1;
+}
+.wl-cdm-card-actions button {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 12px;
+    transition: color 0.15s;
+}
+.wl-cdm-card-actions button:hover {
+    color: rgba(255, 255, 255, 0.75);
+}
+.wl-cdm-card-del:hover {
+    color: rgba(220, 80, 80, 0.8) !important;
+}
+
+.wl-cdm-empty {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 13px;
+    padding: 30px 0;
+}
+.wl-cdm-empty-small {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 11px;
+    padding: 6px 0;
+}
+
+/* ============================================================
+   Editor
+   ============================================================ */
+
+.wl-cdm-editor {
+}
+
+.wl-cdm-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.wl-cdm-editor-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wl-cdm-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+.wl-cdm-subsection {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 14px 0 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Fields ── */
+
+.wl-cdm-field {
+    margin-bottom: 10px;
+}
+.wl-cdm-field-label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 5px;
+}
+.wl-cdm-field-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.25);
+    margin-top: -6px;
+    margin-bottom: 10px;
+}
+
+.wl-cdm-input {
+    width: 100%;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.wl-cdm-input:focus {
+    border-color: rgba(180, 160, 140, 0.4);
+}
+
+.wl-cdm-select {
+    width: 100%;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+}
+.wl-cdm-select optgroup {
+    background: rgb(30, 30, 36);
+    color: rgba(255, 255, 255, 0.5);
+    font-style: normal;
+}
+.wl-cdm-select option {
+    background: rgb(25, 25, 30);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Range Slider ── */
+
+.wl-cdm-range-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.wl-cdm-range {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    outline: none;
+    cursor: pointer;
+}
+.wl-cdm-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: rgba(180, 160, 140, 0.7);
+    border: none;
+    cursor: pointer;
+}
+.wl-cdm-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: rgba(180, 160, 140, 0.7);
+    border: none;
+    cursor: pointer;
+}
+.wl-cdm-range-val {
+    min-width: 42px;
+    text-align: right;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: monospace;
+}
+
+/* ── Color Picker ── */
+
+.wl-cdm-color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.wl-cdm-color {
+    width: 32px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+.wl-cdm-color-hex {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: monospace;
+}
+
+/* ============================================================
+   Assignment Panel
+   ============================================================ */
+
+.wl-cdm-assign-targets {
+    margin-top: 10px;
+}
+
+.wl-cdm-assign-group {
+    margin-bottom: 14px;
+}
+.wl-cdm-assign-group-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 6px;
+}
+
+.wl-cdm-checkbox-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px 8px;
+    max-height: 160px;
+    overflow-y: auto;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.wl-cdm-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 2px 0;
+    white-space: nowrap;
+}
+.wl-cdm-checkbox-item input[type="checkbox"] {
+    accent-color: rgba(180, 160, 140, 0.7);
+}
+
+.wl-cdm-verse-personas-toggle {
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.wl-cdm-default-row .wl-cdm-checkbox-item {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.wl-cdm-btn {
+    padding: 7px 14px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.wl-cdm-btn-accent {
+    background: rgba(180, 160, 140, 0.2);
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(180, 160, 140, 0.25);
+}
+.wl-cdm-btn-accent:hover {
+    background: rgba(180, 160, 140, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+.wl-cdm-btn-ghost {
+    background: none;
+    color: rgba(255, 255, 255, 0.5);
+}
+.wl-cdm-btn-ghost:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ============================================================
+   Shared Toggle (reuse WL toggle classes)
+   ============================================================ */
+
+/* The modal reuses .wl-toggle / .wl-toggle-slider from style.css */
+
+/* ============================================================
+   Mobile Responsive
+   ============================================================ */
+
+@media (max-width: 640px) {
+    .wl-cdm-modal {
+        width: 96vw;
+        height: 92vh;
+    }
+    .wl-cdm-sidebar {
+        width: 46px;
+    }
+    .wl-cdm-nav-item {
+        width: 36px;
+        height: 36px;
+    }
+    .wl-cdm-nav-item i {
+        font-size: 15px;
+    }
+    .wl-cdm-content {
+        padding: 14px 16px;
+    }
+    .wl-cdm-overview-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .wl-cdm-checkbox-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .wl-cdm-style-list {
+        grid-template-columns: 1fr;
+    }
+}

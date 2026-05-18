@@ -1,0 +1,135 @@
+/* ============================================
+   Preset Drawer — Tabbed Layout Takeover
+   Reorganizes Chat Completion settings into
+   Overview (sliders/settings) + Sections (prompt manager)
+   ============================================ */
+
+/* ============================================
+   Anti-flash: Pre-hide native ST elements that
+   takeoverDrawer() will reorganize. CSS loads
+   synchronously, so this applies before the
+   drawer ever opens. Once our JS creates
+   #wl-pd-container the :has() condition flips
+   and native elements display normally (inside
+   our tabbed container).
+
+   Belt-and-suspenders: visibility + opacity +
+   max-height + !important. Even if ST sets
+   inline styles (jQuery .show()), these
+   properties don't conflict with display and
+   will still suppress the flash.
+   ============================================ */
+#left-nav-panel:not(:has(#wl-pd-container)) #range_block_openai,
+#left-nav-panel:not(:has(#wl-pd-container)) #openai_settings,
+#left-nav-panel:not(:has(#wl-pd-container)) .range-block:has(#completion_prompt_manager) {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    transition: none !important;
+}
+
+/* Main container */
+#wl-pd-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* ============================================
+   Tab Bar
+   ============================================ */
+
+#wl-pd-tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    padding: 0;
+    margin-top: 4px;
+}
+
+.wl-pd-tab {
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.9em;
+    font-weight: 500;
+    position: relative;
+    opacity: 0.65;
+    transition: opacity 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wl-pd-tab:hover {
+    opacity: 0.85;
+}
+
+.wl-pd-tab.active {
+    opacity: 1;
+    color: var(--SmartThemeBodyColor, #fff);
+}
+
+.wl-pd-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Tab badge (prompt count, group count, etc.) */
+.wl-pd-badge {
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    color: #fff;
+    font-size: 0.7em;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 600;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ============================================
+   Tab Content
+   ============================================ */
+
+#wl-pd-tab-content {
+    min-height: 0;
+}
+
+.wl-pd-tab-pane {
+    display: none;
+}
+
+.wl-pd-tab-pane.active {
+    display: block;
+}
+
+/* ============================================
+   Overview Tab — Sliders + Settings
+   Keep ST's original styling, just organize it
+   ============================================ */
+
+.wl-pd-tab-pane[data-tab="overview"] #range_block_openai {
+    margin-top: 4px;
+}
+
+.wl-pd-tab-pane[data-tab="overview"] #openai_settings {
+    margin-top: 4px;
+}
+
+/* ============================================
+   Sections Tab — Prompt Manager
+   ============================================ */
+
+.wl-pd-tab-pane[data-tab="sections"] {
+    padding-top: 4px;
+}

@@ -1,0 +1,403 @@
+/* ============================================
+   Character Drawer — Tabbed Takeover
+   Namespace: wl-cd-
+   ============================================ */
+
+/* ============================================
+   Container
+   ============================================ */
+
+#wl-cd-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+/* Hide orphaned HRs when takeover active */
+#character_popup.wl-cd-active > hr {
+    display: none !important;
+}
+
+/* ============================================
+   Tab Bar
+   ============================================ */
+
+#wl-cd-tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    padding: 0;
+}
+
+.wl-cd-tab {
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.85em;
+    font-weight: 500;
+    position: relative;
+    opacity: 0.6;
+    transition: opacity 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.wl-cd-tab i {
+    font-size: 0.9em;
+}
+
+.wl-cd-tab:hover {
+    opacity: 0.85;
+}
+
+.wl-cd-tab.active {
+    opacity: 1;
+    color: var(--SmartThemeBodyColor, #fff);
+}
+
+.wl-cd-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    border-radius: 2px 2px 0 0;
+}
+
+/* ============================================
+   Tab Content
+   ============================================ */
+
+#wl-cd-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.wl-cd-tab-pane {
+    display: none;
+    padding: 8px 2px;
+}
+
+.wl-cd-tab-pane.active {
+    display: block;
+}
+
+/* Force inline-drawer content visible inside tabs — ST hides it by default */
+.wl-cd-tab-pane .inline-drawer .inline-drawer-content {
+    display: block !important;
+}
+
+/* ============================================
+   Relocated Element Adjustments
+   ============================================ */
+
+.wl-cd-tab-pane[data-tab="prompts"] .inline-drawer {
+    border: none;
+    padding: 0;
+}
+
+.wl-cd-tab-pane[data-tab="prompts"] #depth_prompt_div {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+}
+
+.wl-cd-tab-pane[data-tab="metadata"] .inline-drawer {
+    border: none;
+    padding: 0;
+}
+
+.wl-cd-tab-pane[data-tab="metadata"] #talkativeness_div {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+}
+
+.wl-cd-tab-pane[data-tab="char-info"] > div + div {
+    margin-top: 6px;
+}
+
+/* Give textareas proper height */
+.wl-cd-tab-pane textarea.text_pole {
+    min-height: 80px;
+}
+
+/* ============================================
+   Design Tab — Layout
+   ============================================ */
+
+.wl-cd-design {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0;
+}
+
+.wl-cd-design-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wl-cd-design-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, #ddd);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
+}
+
+.wl-cd-design-section-title i {
+    opacity: 0.6;
+    font-size: 0.9em;
+}
+
+/* ============================================
+   Design Tab — Color Grid
+   ============================================ */
+
+.wl-cd-color-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wl-cd-color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wl-cd-color-row > label {
+    width: 65px;
+    font-size: 0.85em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    flex-shrink: 0;
+}
+
+.wl-cd-color-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.wl-cd-color-input-wrap input[type="color"] {
+    width: 32px;
+    height: 28px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 4px;
+    padding: 1px;
+    background: none;
+    cursor: pointer;
+}
+
+.wl-cd-color-hex {
+    font-size: 0.78em;
+    color: var(--SmartThemeBodyColor, #888);
+    font-family: monospace;
+    min-width: 55px;
+}
+
+.wl-cd-color-hint {
+    font-size: 0.72em;
+    color: var(--SmartThemeBodyColor, #666);
+    font-style: italic;
+}
+
+/* ============================================
+   Design Tab — Opacity Slider
+   ============================================ */
+
+.wl-cd-opacity-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wl-cd-opacity-wrap input[type="range"] {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--SmartThemeBorderColor, #444);
+    border-radius: 2px;
+    outline: none;
+}
+
+.wl-cd-opacity-wrap input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    cursor: pointer;
+}
+
+.wl-cd-opacity-label {
+    font-size: 0.75em;
+    color: var(--SmartThemeBodyColor, #888);
+    min-width: 28px;
+}
+
+/* ============================================
+   Design Tab — Color Actions
+   ============================================ */
+
+.wl-cd-color-actions {
+    padding-top: 4px;
+}
+
+.wl-cd-color-actions .menu_button {
+    font-size: 0.82em;
+    padding: 5px 12px;
+    white-space: nowrap;
+}
+
+/* ============================================
+   Design Tab — Banner Mode
+   ============================================ */
+
+.wl-cd-banner-mode {
+    display: flex;
+    gap: 2px;
+}
+
+.wl-cd-banner-mode label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.wl-cd-banner-mode label:hover {
+    border-color: var(--SmartThemeBodyColor, #888);
+}
+
+.wl-cd-banner-mode label.wl-cd-radio-active {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+    color: var(--SmartThemeBodyColor, #ddd);
+    background: rgba(123, 104, 238, 0.08);
+}
+
+.wl-cd-banner-mode input[type="radio"] {
+    display: none;
+}
+
+/* ============================================
+   Design Tab — Banner Custom Controls
+   ============================================ */
+
+.wl-cd-banner-custom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.wl-cd-banner-custom-controls .menu_button {
+    font-size: 0.82em;
+    padding: 5px 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.wl-cd-banner-or {
+    font-size: 0.78em;
+    color: var(--SmartThemeBodyColor, #666);
+}
+
+.wl-cd-banner-custom-controls .text_pole {
+    flex: 1;
+    font-size: 0.82em;
+}
+
+/* ============================================
+   Design Tab — Banner Position
+   ============================================ */
+
+#wl-cd-banner-position-row {
+    margin-top: 6px;
+}
+
+#wl-cd-banner-position-row > label {
+    display: block;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #aaa);
+    margin-bottom: 4px;
+}
+
+.wl-cd-position-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wl-cd-pos-label-edge {
+    font-size: 0.72em;
+    color: var(--SmartThemeBodyColor, #666);
+}
+
+.wl-cd-position-wrap input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--SmartThemeBorderColor, #444);
+    border-radius: 2px;
+    outline: none;
+}
+
+.wl-cd-position-wrap input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--SmartThemeQuoteColor, #7b68ee);
+    cursor: pointer;
+}
+
+.wl-cd-pos-value {
+    font-size: 0.75em;
+    color: var(--SmartThemeBodyColor, #888);
+    min-width: 28px;
+}
+
+/* ============================================
+   Design Tab — Footer / Reset
+   ============================================ */
+
+.wl-cd-design-footer {
+    padding-top: 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.06));
+}
+
+.wl-cd-reset-btn {
+    font-size: 0.82em;
+    padding: 5px 12px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+
+.wl-cd-reset-btn:hover {
+    opacity: 1;
+}

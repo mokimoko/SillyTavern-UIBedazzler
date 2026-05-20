@@ -256,10 +256,13 @@ export function resolveStyleTargets(style) {
     const targets = new Map();
     const allChars = getContext().characters || [];
 
+    // Build lookup map once — avoids O(n) find per assignment
+    const avatarMap = new Map(allChars.map(c => [cleanAvatar(c.avatar), c]));
+
     // Direct character assignments
     for (const charAvatar of style.assignedCharacters || []) {
         const cleaned = cleanAvatar(charAvatar);
-        const char = allChars.find(c => cleanAvatar(c.avatar) === cleaned);
+        const char = avatarMap.get(cleaned);
         const name = char?.name || charAvatar;
         targets.set(`char:${cleaned}`, { name, charAvatar: cleaned });
     }
@@ -284,7 +287,7 @@ export function resolveStyleTargets(style) {
             if (verse.characters) {
                 for (const avatar of verse.characters) {
                     const cleaned = cleanAvatar(avatar);
-                    const char = allChars.find(c => cleanAvatar(c.avatar) === cleaned);
+                    const char = avatarMap.get(cleaned);
                     if (char?.name) {
                         targets.set(`char:${cleaned}`, { name: char.name, charAvatar: cleaned });
                     }

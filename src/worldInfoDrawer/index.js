@@ -9,7 +9,8 @@
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { takeoverDrawer, restoreDrawer, isTakeoverActive, wireInteractions } from './drawerUI.js';
-import { populateBookList, populateActiveBooks, syncGlobalSettings, wireGlobalSettingsSync, wireToolbarActions } from './entryList.js';
+import { populateBookList, populateActiveBooks, syncGlobalSettings, wireGlobalSettingsSync, wireToolbarActions, watchSTBookChanges, unwatchSTBookChanges, restoreSelectedBook, resetMultiSelect } from './entryList.js';
+import { initPresets } from './presets.js';
 
 const log = (...args) => console.log('[WL WorldInfoDrawer]', ...args);
 
@@ -39,7 +40,10 @@ export function onWorldInfoDrawerToggleChanged(enabled) {
         applyIfDrawerOpen();
     } else {
         teardownDrawerWatcher();
-        if (isTakeoverActive()) restoreDrawer();
+        if (isTakeoverActive()) {
+            unwatchSTBookChanges();
+            restoreDrawer();
+        }
     }
 }
 
@@ -63,6 +67,8 @@ function setupDrawerWatcher() {
             populateFromST();
             log('Takeover applied — drawer opened');
         } else if (!isOpen && isTakeoverActive()) {
+            unwatchSTBookChanges();
+            resetMultiSelect();
             restoreDrawer();
             log('Restored — drawer closed');
         }
@@ -98,6 +104,9 @@ function populateFromST() {
         syncGlobalSettings();
         wireGlobalSettingsSync();
         wireToolbarActions();
+        watchSTBookChanges();
+        initPresets();
+        restoreSelectedBook();
     } catch (err) {
         log('Error populating from ST:', err);
     }

@@ -156,6 +156,21 @@ function wireSettingsEvents() {
 }
 
 // ============================================================
+// Wand Menu (Extensions menu in chat input area)
+// ============================================================
+
+function addWandMenuItem() {
+    const menuItem = $(`
+        <div id="bd_chat_design_wand" class="list-group-item flex-container flexGap5">
+            <div class="fa-solid fa-palette extensionsMenuExtensionButton"></div>
+            <span>Chat Design</span>
+        </div>
+    `);
+    $('#extensionsMenu').append(menuItem);
+    menuItem.on('click', () => openChatDesignModal());
+}
+
+// ============================================================
 // Init
 // ============================================================
 
@@ -166,6 +181,7 @@ jQuery(async () => {
     // Inject settings panel into extensions drawer
     $('#extensions_settings2').append(buildSettingsHTML());
     wireSettingsEvents();
+    addWandMenuItem();
 
     // Init all features
     initPresetDrawer();

@@ -9,6 +9,7 @@ import { takeoverDrawer, restoreDrawer, isTakeoverActive, getActiveTab } from '.
 import { renderLoreTab } from './loreUI.js';
 import { injectNarratorLore, hasNarratorLoreEntries } from './promptInjection.js';
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
+import { scheduleCSSRebuild } from '../cssScheduler.js';
 
 const log = (...args) => console.log('[WL PersonaLore]', ...args);
 
@@ -162,13 +163,16 @@ function setupChatEvents() {
     eventSource.on(event_types.CHAT_CHANGED, () => {
         const settings = extension_settings[MODULE_NAME];
         if (settings.personaDrawerTakeover) {
-            injectDesignCSS();
+            // Batched via cssScheduler so all CSS modules update in one frame
+            scheduleCSSRebuild('personaDesign', () => {
+                injectDesignCSS();
 
-            // Refresh Design tab if currently visible
-            if (isTakeoverActive() && getActiveTab() === 'design') {
-                const pane = document.querySelector('#wl-pl-container .wl-pl-tab-pane[data-tab="design"]');
-                if (pane) renderDesignTab(pane);
-            }
+                // Refresh Design tab if currently visible
+                if (isTakeoverActive() && getActiveTab() === 'design') {
+                    const pane = document.querySelector('#wl-pl-container .wl-pl-tab-pane[data-tab="design"]');
+                    if (pane) renderDesignTab(pane);
+                }
+            });
         }
     });
 }

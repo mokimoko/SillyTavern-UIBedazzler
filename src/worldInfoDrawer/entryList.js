@@ -1,4 +1,4 @@
-// src/worldInfoDrawer/entryList.js
+﻿// src/worldInfoDrawer/entryList.js
 // Manages the book list column, active books sidebar, global settings sync,
 // and entry table rendering for the World Info Drawer takeover.
 
@@ -8,6 +8,19 @@ const log = (...args) => console.log('[WL WID EntryList]', ...args);
 
 /** Cached world-info module — single dynamic import, resolved once. */
 const worldInfoPromise = import('../../../../../../scripts/world-info.js');
+
+/** Resolved refs for setWIOriginalDataValue + originalWIDataKeyMap (populated on first use). */
+let _wiHelpers = null;
+async function getWIHelpers() {
+    if (!_wiHelpers) {
+        const mod = await worldInfoPromise;
+        _wiHelpers = {
+            setOriginal: mod.setWIOriginalDataValue,
+            keyMap: mod.originalWIDataKeyMap,
+        };
+    }
+    return _wiHelpers;
+}
 
 /** Currently selected book name */
 let currentBookName = null;
@@ -19,11 +32,77 @@ let expandedEntryUid = null;
 let currentPage = 0;
 const PAGE_SIZE = 50;
 
+/** Sort mode — matches ST's sort order values. Default: Order ↘ (value=8) */
+let currentSortMode = 8;
+
+/** Search query — empty string = no filter */
+let searchQuery = '';
+
+/** Bulk selection — Set of UIDs (numbers) currently checked for bulk ops */
+const selectedEntries = new Set();
+/** Guard flag — prevents overlapping bulk operations */
+let isBulkOperating = false;
+/** Multi-select mode — when false, row checkboxes are hidden */
+let multiSelectActive = false;
+
 // ============================================================
 // Public API
 // ============================================================
 
 export function getCurrentBook() { return { name: currentBookName, data: currentBookData }; }
+
+/**
+ * Reset multi-select state. Called when the drawer closes
+ * so reopening starts with a clean slate.
+ */
+export function resetMultiSelect() {
+    multiSelectActive = false;
+    selectedEntries.clear();
+}
+
+/**
+ * If a book was previously selected, re-render its entry table from cached data.
+ * Called on drawer reopen so the user picks up where they left off.
+ */
+export function restoreSelectedBook() {
+    if (currentBookName && currentBookData) {
+        renderEntryTable(currentBookData);
+    }
+}
+
+/** Watch ST's #world_editor_select for option changes (book create/delete/rename).
+ *  Refreshes our book list + active list whenever ST mutates that select. */
+let _editorSelectObserver = null;
+export function watchSTBookChanges() {
+    if (_editorSelectObserver) return; // already watching
+    const editorSelect = document.querySelector('#world_editor_select');
+    if (!editorSelect) return;
+    _editorSelectObserver = new MutationObserver(() => {
+        log('ST book list changed — refreshing');
+        populateBookList();
+        populateActiveBooks();
+        // If our selected book was deleted, clear the entry table
+        if (currentBookName) {
+            const stillExists = Array.from(editorSelect.options).some(
+                o => o.textContent.trim() === currentBookName
+            );
+            if (!stillExists) {
+                currentBookName = null;
+                currentBookData = null;
+                expandedEntryUid = null;
+                clearEntryTable();
+            }
+        }
+    });
+    _editorSelectObserver.observe(editorSelect, { childList: true });
+    log('Watching ST #world_editor_select for changes');
+}
+export function unwatchSTBookChanges() {
+    if (_editorSelectObserver) {
+        _editorSelectObserver.disconnect();
+        _editorSelectObserver = null;
+    }
+}
 
 /**
  * Populates the book list column from world_names.
@@ -247,12 +326,84 @@ async function selectBook(name) {
         currentBookName = name;
         currentBookData = data;
         expandedEntryUid = null;
+        selectedEntries.clear();
         currentPage = 0;
         renderEntryTable(data);
         log(`Loaded "${name}" — ${Object.keys(data.entries).length} entries`);
     } catch (err) {
         log('Error loading book:', err);
     }
+}
+
+// ============================================================
+// Sort & Search
+// ============================================================
+
+/**
+ * Sort comparator based on currentSortMode.
+ * Matches ST's world_info_sort_order values.
+ */
+function getSortedEntries(entries) {
+    const arr = [...entries];
+    switch (currentSortMode) {
+        case 0: // Priority — complex multi-field sort matching ST's behavior
+            return arr.sort((a, b) => {
+                // Disabled entries go last
+                if (a.disable !== b.disable) return a.disable ? 1 : -1;
+                // Constant entries go first
+                if (a.constant !== b.constant) return a.constant ? -1 : 1;
+                // Then by order descending
+                if ((b.order ?? 0) !== (a.order ?? 0)) return (b.order ?? 0) - (a.order ?? 0);
+                // Then by position ascending
+                if ((a.position ?? 0) !== (b.position ?? 0)) return (a.position ?? 0) - (b.position ?? 0);
+                // Then by depth ascending
+                if ((a.depth ?? 0) !== (b.depth ?? 0)) return (a.depth ?? 0) - (b.depth ?? 0);
+                // Then by UID ascending
+                return (a.uid ?? 0) - (b.uid ?? 0);
+            });
+        case 1: // Title A-Z
+            return arr.sort((a, b) => (a.comment || '').localeCompare(b.comment || ''));
+        case 2: // Title Z-A
+            return arr.sort((a, b) => (b.comment || '').localeCompare(a.comment || ''));
+        case 3: // Tokens ↗ (content length ascending)
+            return arr.sort((a, b) => (a.content || '').length - (b.content || '').length);
+        case 4: // Tokens ↘ (content length descending)
+            return arr.sort((a, b) => (b.content || '').length - (a.content || '').length);
+        case 5: // Depth ↗
+            return arr.sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0));
+        case 6: // Depth ↘
+            return arr.sort((a, b) => (b.depth ?? 0) - (a.depth ?? 0));
+        case 7: // Order ↗
+            return arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        case 8: // Order ↘
+            return arr.sort((a, b) => (b.order ?? 0) - (a.order ?? 0));
+        case 9: // UID ↗
+            return arr.sort((a, b) => (a.uid ?? 0) - (b.uid ?? 0));
+        case 10: // UID ↘
+            return arr.sort((a, b) => (b.uid ?? 0) - (a.uid ?? 0));
+        case 11: // Trigger% ↗
+            return arr.sort((a, b) => (a.probability ?? 100) - (b.probability ?? 100));
+        case 12: // Trigger% ↘
+            return arr.sort((a, b) => (b.probability ?? 100) - (a.probability ?? 100));
+        default:
+            return arr.sort((a, b) => (b.order ?? 0) - (a.order ?? 0));
+    }
+}
+
+/**
+ * Filter entries by search query. Matches against comment, keys, secondary keys, and content.
+ * Case-insensitive substring match.
+ */
+function filterEntries(entries) {
+    if (!searchQuery) return entries;
+    const q = searchQuery.toLowerCase();
+    return entries.filter(entry => {
+        const comment = (entry.comment || '').toLowerCase();
+        const keys = (Array.isArray(entry.key) ? entry.key.join(' ') : '').toLowerCase();
+        const secKeys = (Array.isArray(entry.keysecondary) ? entry.keysecondary.join(' ') : '').toLowerCase();
+        const content = (entry.content || '').toLowerCase();
+        return comment.includes(q) || keys.includes(q) || secKeys.includes(q) || content.includes(q);
+    });
 }
 
 /**
@@ -271,8 +422,16 @@ function renderEntryTable(data) {
         return;
     }
 
-    // Sort by order descending
-    const sorted = [...entries].sort((a, b) => b.order - a.order);
+    // Filter by search, then sort
+    const filtered = filterEntries(entries);
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="${WL_PREFIX}-placeholder-text">No entries match "${escapeHtml(searchQuery)}"</div>`;
+        updatePageInfo(0, 0, 0);
+        return;
+    }
+
+    const sorted = getSortedEntries(filtered);
 
     // Pagination
     const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
@@ -292,8 +451,11 @@ function renderEntryTable(data) {
         const isExpanded = expandedEntryUid === String(entry.uid);
 
         let html = `
-            <div class="${WL_PREFIX}-entry-row ${entry.disable ? WL_PREFIX + '-entry-disabled' : ''} ${isExpanded ? WL_PREFIX + '-entry-selected' : ''}"
+            <div class="${WL_PREFIX}-entry-row ${entry.disable ? WL_PREFIX + '-entry-disabled' : ''} ${isExpanded ? WL_PREFIX + '-entry-selected' : ''} ${selectedEntries.has(entry.uid) ? WL_PREFIX + '-entry-bulk-checked' : ''}"
                  data-uid="${entry.uid}">
+                <span class="${WL_PREFIX}-entry-bulk-cell">
+                    <input type="checkbox" class="${WL_PREFIX}-bulk-checkbox" data-uid="${entry.uid}" ${selectedEntries.has(entry.uid) ? 'checked' : ''}>
+                </span>
                 <button class="${WL_PREFIX}-entry-expand ${isExpanded ? WL_PREFIX + '-expanded' : ''}" title="Expand" data-uid="${entry.uid}">
                     <i class="fa-solid fa-chevron-right"></i>
                 </button>
@@ -340,6 +502,8 @@ function renderEntryTable(data) {
     }).join('');
 
     wireEntryInteractions(container);
+    updateBulkBar();
+    syncSelectAllCheckbox();
     updatePageInfo(sorted.length, currentPage, totalPages);
 }
 
@@ -351,6 +515,11 @@ function renderEntryTable(data) {
 function wireEntryInteractions(container) {
     if (container.dataset.wlDelegated === 'true') return;
     container.dataset.wlDelegated = 'true';
+
+    // Auto-select number input contents on focus (entry rows + detail panels)
+    container.addEventListener('focusin', (e) => {
+        if (e.target.type === 'number') e.target.select();
+    });
 
     // ----- CLICK delegation -----
     container.addEventListener('click', (e) => {
@@ -397,6 +566,9 @@ function wireEntryInteractions(container) {
         // Checkbox toggle is handled by change event
         if (e.target.closest(`.${WL_PREFIX}-entry-toggle-cell`)) return;
 
+        // Bulk checkbox — handled by change event
+        if (e.target.closest(`.${WL_PREFIX}-entry-bulk-cell`)) return;
+
         // Strategy icon — cycle keyword → constant → vectorized on click
         const stratIcon = e.target.closest(`.${WL_PREFIX}-strat-icon`);
         if (stratIcon) {
@@ -421,6 +593,23 @@ function wireEntryInteractions(container) {
 
     // ----- CHANGE delegation (checkboxes, selects, blurred text inputs) -----
     container.addEventListener('change', (e) => {
+        // Bulk select checkbox
+        const bulkCb = e.target.closest(`.${WL_PREFIX}-bulk-checkbox`);
+        if (bulkCb) {
+            const uid = parseInt(bulkCb.dataset.uid, 10);
+            if (bulkCb.checked) {
+                selectedEntries.add(uid);
+            } else {
+                selectedEntries.delete(uid);
+            }
+            // Visual highlight on the row
+            const row = bulkCb.closest(`.${WL_PREFIX}-entry-row`);
+            if (row) row.classList.toggle(`${WL_PREFIX}-entry-bulk-checked`, bulkCb.checked);
+            updateBulkBar();
+            syncSelectAllCheckbox();
+            return;
+        }
+
         // Row disable checkbox
         const rowCb = e.target.closest(`.${WL_PREFIX}-entry-toggle-cell input`);
         if (rowCb) {
@@ -545,7 +734,7 @@ function buildEntryDetail(entry) {
             </div>
 
             <div class="${WL_PREFIX}-fld-row">
-                <label class="${WL_PREFIX}-fld-label">Content <span class="${WL_PREFIX}-fld-tokens">~${charTokens} tok</span></label>
+                <label class="${WL_PREFIX}-fld-label">Content <span class="${WL_PREFIX}-fld-tokens">~${charTokens} tok | UID ${entry.uid}</span></label>
                 <textarea class="${WL_PREFIX}-fld-textarea" rows="10" data-field="content" placeholder="Entry content...">${escapeHtml(content)}</textarea>
             </div>
 
@@ -603,18 +792,28 @@ function buildEntryDetail(entry) {
                             <label class="${WL_PREFIX}-fld-label">Scan Depth</label>
                             <input type="number" class="${WL_PREFIX}-fld-input ${WL_PREFIX}-fld-num" data-field="scanDepth" data-nullable="true" placeholder="global" value="${entry.scanDepth ?? ''}" min="0">
                         </div>
-                        <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="caseSensitive" data-nullable="true" ${entry.caseSensitive === true ? 'checked' : ''}><span>Case</span></label>
-                        <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="matchWholeWords" data-nullable="true" ${entry.matchWholeWords === true ? 'checked' : ''}><span>Whole</span></label>
-                        <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="useGroupScoring" data-nullable="true" ${entry.useGroupScoring === true ? 'checked' : ''}><span>GrpScore</span></label>
+                        <div class="${WL_PREFIX}-fld-col" style="width:70px">
+                            <label class="${WL_PREFIX}-fld-label">Case</label>
+                            ${buildTriStateSelect('caseSensitive', entry.caseSensitive)}
+                        </div>
+                        <div class="${WL_PREFIX}-fld-col" style="width:70px">
+                            <label class="${WL_PREFIX}-fld-label">Whole</label>
+                            ${buildTriStateSelect('matchWholeWords', entry.matchWholeWords)}
+                        </div>
+                        <div class="${WL_PREFIX}-fld-col" style="width:80px">
+                            <label class="${WL_PREFIX}-fld-label">GrpScore</label>
+                            ${buildTriStateSelect('useGroupScoring', entry.useGroupScoring)}
+                        </div>
                     </div>
 
                     <div class="${WL_PREFIX}-fld-section-label">Recursion</div>
                     <div class="${WL_PREFIX}-fld-inline">
                         <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="excludeRecursion" ${entry.excludeRecursion ? 'checked' : ''}><span>Non-recursable</span></label>
                         <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="preventRecursion" ${entry.preventRecursion ? 'checked' : ''}><span>Prevent further</span></label>
-                        <div class="${WL_PREFIX}-fld-col" style="width:70px">
-                            <label class="${WL_PREFIX}-fld-label" style="white-space:nowrap">Delay until rec.</label>
-                            <input type="number" class="${WL_PREFIX}-fld-input ${WL_PREFIX}-fld-num" data-field="delayUntilRecursion" value="${entry.delayUntilRecursion ?? 0}" min="0">
+                        <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="delayUntilRecursionToggle" ${entry.delayUntilRecursion ? 'checked' : ''}><span>Delay rec.</span></label>
+                        <div class="${WL_PREFIX}-fld-col" style="width:55px${!entry.delayUntilRecursion ? ';display:none' : ''}">
+                            <label class="${WL_PREFIX}-fld-label">Level</label>
+                            <input type="number" class="${WL_PREFIX}-fld-input ${WL_PREFIX}-fld-num" data-field="delayUntilRecursionLevel" placeholder="auto" value="${typeof entry.delayUntilRecursion === 'number' ? entry.delayUntilRecursion : ''}" min="0">
                         </div>
                     </div>
 
@@ -638,10 +837,42 @@ function buildEntryDetail(entry) {
                         <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="useProbability" ${entry.useProbability !== false ? 'checked' : ''}><span>Use Prob</span></label>
                         <label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="addMemo" ${entry.addMemo ? 'checked' : ''}><span>Show Memo</span></label>
                     </div>
+
+                    <div class="${WL_PREFIX}-fld-section-label">Generation Type Triggers</div>
+                    <div class="${WL_PREFIX}-fld-checkgrid">
+                        ${buildTriggersCheckboxes(entry.triggers)}
+                    </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+// ============================================================
+// Detail Panel Helpers — tri-state selects, triggers
+// ============================================================
+
+/** Generation type trigger values (must match ST's GENERATION_TYPE_TRIGGERS). */
+const TRIGGER_TYPES = ['normal', 'continue', 'impersonate', 'swipe', 'regenerate', 'quiet'];
+
+/** Build a tri-state <select> for nullable boolean fields (null=Global, true=Yes, false=No). */
+function buildTriStateSelect(fieldName, value) {
+    const isNull = value === null || value === undefined;
+    const isTrue = value === true;
+    const isFalse = value === false;
+    return `<select class="${WL_PREFIX}-fld-tristate" data-field="${fieldName}">
+        <option value="" ${isNull ? 'selected' : ''}>Global</option>
+        <option value="true" ${isTrue ? 'selected' : ''}>Yes</option>
+        <option value="false" ${isFalse ? 'selected' : ''}>No</option>
+    </select>`;
+}
+
+/** Build trigger checkboxes from the entry's triggers array. */
+function buildTriggersCheckboxes(triggers) {
+    const active = Array.isArray(triggers) ? triggers : [];
+    return TRIGGER_TYPES.map(t =>
+        `<label class="${WL_PREFIX}-fld-check"><input type="checkbox" data-field="trigger" data-trigger-value="${t}" ${active.includes(t) ? 'checked' : ''}><span>${t}</span></label>`
+    ).join('');
 }
 
 // ============================================================
@@ -713,12 +944,14 @@ function buildPositionDisplay(entry) {
     const color = POS_COLORS[pos] || '#666';
     const icons = POS_ICONS[pos] || ['fa-question'];
     const iconHtml = icons.map(ic => `<i class="fa-solid ${ic}"></i>`).join('');
-    const depthLabel = pos === 4 ? `<span class="${WL_PREFIX}-pos-depth-num">${entry.depth ?? 4}</span>` : '';
+    const depthInput = pos === 4
+        ? `<input type="number" class="${WL_PREFIX}-pos-depth-input" data-field="depth" value="${entry.depth ?? 4}" min="0" title="Depth">`
+        : '';
     const opts = POSITION_OPTIONS.map(([v, short, long]) =>
         `<option value="${v}" ${pos === v ? 'selected' : ''}>${short} — ${long}</option>`
     ).join('');
-    return `<span class="${WL_PREFIX}-pos-wrap" style="color:${color}" title="${getPositionLabel(pos)}${pos === 4 ? ' (depth ' + (entry.depth ?? 4) + ')' : ''}">
-        <span class="${WL_PREFIX}-pos-icons">${iconHtml}${depthLabel}</span>
+    return `${depthInput}<span class="${WL_PREFIX}-pos-wrap" style="color:${color}" title="${getPositionLabel(pos)}${pos === 4 ? ' (depth ' + (entry.depth ?? 4) + ')' : ''}">
+        <span class="${WL_PREFIX}-pos-icons">${iconHtml}</span>
         <select class="${WL_PREFIX}-pos-overlay" data-field="position">${opts}</select>
     </span>`;
 }
@@ -763,6 +996,10 @@ function getPositionShort(pos) {
 async function toggleEntryDisable(uid, disabled) {
     if (!currentBookData?.entries[uid]) return;
     currentBookData.entries[uid].disable = disabled;
+    // sync: runtime uses 'disable', originalData uses 'enabled' (inverted boolean)
+    getWIHelpers().then(({ setOriginal }) => {
+        if (setOriginal) setOriginal(currentBookData, uid, 'enabled', !disabled);
+    }).catch(() => {});
     try {
         const { saveWorldInfo } = await worldInfoPromise;
         await saveWorldInfo(currentBookName, currentBookData);
@@ -806,13 +1043,13 @@ async function commitSave() {
 
 /** Fields whose change should trigger a row re-render (visible in row). */
 const ROW_AFFECTING_FIELDS = new Set([
-    'constant', 'vectorized', 'position', 'strategy', 'role', 'depth',
-    // Re-render the row to show new badge color / dot.
-    // We deliberately don't include text fields here — typing should not re-render.
+    'constant', 'vectorized', 'position', 'strategy', 'role',
+    // 'depth' deliberately excluded — it's edited inline via the depth input,
+    // and re-rendering on each keystroke would steal focus.
 ]);
 
 /**
- * Apply a form input change to currentBookData and schedule a save.
+ * Apply a form input change to currentBookData, sync to ST's originalData, and schedule a save.
  * @param {number} uid - Entry UID
  * @param {string} field - Field name (from data-field)
  * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} input
@@ -827,9 +1064,59 @@ function applyFieldChange(uid, field, input) {
         const val = input.value;
         entry.constant = (val === 'constant');
         entry.vectorized = (val === 'vectorized');
-        // 'keyword' = both false (the default keyword-triggered strategy)
+        syncOriginalData(uid, 'constant');
+        syncOriginalData(uid, 'vectorized');
         commitSave();
         renderEntryTable(currentBookData);
+        return;
+    }
+
+    // --- Virtual field: trigger checkboxes (each checkbox toggles one value in the triggers array) ---
+    if (field === 'trigger') {
+        const triggerValue = input.dataset?.triggerValue;
+        if (!triggerValue) return;
+        if (!Array.isArray(entry.triggers)) entry.triggers = [];
+        if (input.checked) {
+            if (!entry.triggers.includes(triggerValue)) entry.triggers.push(triggerValue);
+        } else {
+            entry.triggers = entry.triggers.filter(t => t !== triggerValue);
+        }
+        syncOriginalData(uid, 'triggers');
+        scheduleSave();
+        return;
+    }
+
+    // --- Virtual field: delayUntilRecursion toggle (checkbox on/off) ---
+    if (field === 'delayUntilRecursionToggle') {
+        const detail = input.closest(`.${WL_PREFIX}-entry-detail`);
+        const levelInput = detail?.querySelector(`[data-field="delayUntilRecursionLevel"]`);
+        const levelCol = levelInput?.closest(`.${WL_PREFIX}-fld-col`);
+        if (input.checked) {
+            entry.delayUntilRecursion = true;
+            if (levelCol) levelCol.style.display = '';
+        } else {
+            entry.delayUntilRecursion = false;
+            if (levelInput) levelInput.value = '';
+            if (levelCol) levelCol.style.display = 'none';
+        }
+        syncOriginalData(uid, 'delayUntilRecursion');
+        scheduleSave();
+        return;
+    }
+
+    // --- Virtual field: delayUntilRecursion level (number input) ---
+    if (field === 'delayUntilRecursionLevel') {
+        const content = input.value;
+        if (content === '') {
+            // No specific level — use boolean true (= auto)
+            entry.delayUntilRecursion = (typeof entry.delayUntilRecursion === 'boolean')
+                ? entry.delayUntilRecursion : true;
+        } else {
+            const num = Number(content);
+            entry.delayUntilRecursion = num === 1 ? true : (!isNaN(num) ? num : false);
+        }
+        syncOriginalData(uid, 'delayUntilRecursion');
+        scheduleSave();
         return;
     }
 
@@ -837,12 +1124,14 @@ function applyFieldChange(uid, field, input) {
     if (field === 'characterFilterNames') {
         if (!entry.characterFilter) entry.characterFilter = { names: [], tags: [], isExclude: false };
         entry.characterFilter.names = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        syncOriginalData(uid, 'characterFilter', 'character_filter');
         scheduleSave();
         return;
     }
     if (field === 'characterFilterExclude') {
         if (!entry.characterFilter) entry.characterFilter = { names: [], tags: [], isExclude: false };
         entry.characterFilter.isExclude = !!input.checked;
+        syncOriginalData(uid, 'characterFilter', 'character_filter');
         scheduleSave();
         return;
     }
@@ -850,6 +1139,17 @@ function applyFieldChange(uid, field, input) {
     // --- Array fields (keys) — comma-separated input ---
     if (field === 'key' || field === 'keysecondary') {
         entry[field] = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        syncOriginalData(uid, field);
+        scheduleSave();
+        return;
+    }
+
+    // --- Tri-state selects (caseSensitive, matchWholeWords, useGroupScoring) ---
+    const triStateFields = new Set(['caseSensitive', 'matchWholeWords', 'useGroupScoring']);
+    if (triStateFields.has(field) && input.tagName === 'SELECT') {
+        const val = input.value;
+        entry[field] = val === '' ? null : val === 'true';
+        syncOriginalData(uid, field);
         scheduleSave();
         return;
     }
@@ -857,37 +1157,73 @@ function applyFieldChange(uid, field, input) {
     // --- Standard field by input type ---
     let value;
     if (input.type === 'checkbox') {
-        // Nullable booleans (caseSensitive, matchWholeWords, useGroupScoring):
-        //   checked = true, unchecked = null (= "inherit/global default")
         value = input.checked;
         if (isNullable && !input.checked) value = null;
     } else if (input.type === 'number') {
         if (input.value === '' && isNullable) {
             value = null;
         } else if (input.value === '') {
-            // Empty non-nullable number — preserve previous value, do nothing
             return;
         } else {
             const parsed = parseFloat(input.value);
             value = Number.isFinite(parsed) ? parsed : (entry[field] ?? 0);
         }
     } else if (input.tagName === 'SELECT') {
-        // Numeric enums
         const numericEnums = new Set(['position', 'role', 'selectiveLogic']);
         value = numericEnums.has(field) ? parseInt(input.value, 10) : input.value;
     } else {
-        // text / textarea
         value = input.value;
     }
 
     entry[field] = value;
 
-    // Strategy / position changes update the row visible state — re-render
+    // Position change → also manage role and depth visibility
+    if (field === 'position') {
+        if (value !== 4) {
+            // Not @Depth — null out role
+            entry.role = null;
+            syncOriginalData(uid, 'role');
+        } else if (entry.role === null || entry.role === undefined) {
+            // Switched TO @Depth — default role to system (0)
+            entry.role = 0;
+            syncOriginalData(uid, 'role');
+        }
+        syncOriginalData(uid, 'position');
+    } else {
+        syncOriginalData(uid, field);
+    }
+
     if (ROW_AFFECTING_FIELDS.has(field)) {
         commitSave();
         renderEntryTable(currentBookData);
     } else {
         scheduleSave();
+    }
+}
+
+/**
+ * Sync a field change to ST's originalData so native ST code sees current values.
+ * Uses originalWIDataKeyMap to find the correct originalData key path.
+ */
+
+/** Supplementary key map for fields ST syncs to originalData but aren't in
+ *  the exported originalWIDataKeyMap. Discovered by reading ST's native
+ *  editor handlers — these use setWIOriginalDataValue with hard-coded paths. */
+const EXTRA_ORIGINAL_KEYS = {
+    group: 'extensions.group',
+    outletName: 'extensions.outlet_name',
+};
+
+async function syncOriginalData(uid, entryKey, overrideOriginalKey) {
+    if (!currentBookData) return;
+    try {
+        const { setOriginal, keyMap } = await getWIHelpers();
+        if (!setOriginal || !keyMap) return;
+        const originalKey = overrideOriginalKey || keyMap[entryKey] || EXTRA_ORIGINAL_KEYS[entryKey];
+        if (!originalKey) return;
+        setOriginal(currentBookData, uid, originalKey, currentBookData.entries[uid]?.[entryKey]);
+    } catch (err) {
+        // Non-fatal — originalData sync is a best-effort enhancement
     }
 }
 
@@ -1028,11 +1364,312 @@ async function moveEntry(uid) {
     }
 }
 
+// ============================================================
+// Multi-Select Mode
+// ============================================================
+
+/**
+ * Toggle multi-select mode on/off.
+ * When entering: shows row checkboxes and bulk bar.
+ * When exiting: hides everything and clears selections.
+ */
+function toggleMultiSelect() {
+    if (multiSelectActive) {
+        exitMultiSelect();
+    } else {
+        multiSelectActive = true;
+        applyMultiSelectClass(true);
+        updateBulkBar();
+        log('Multi-select ON');
+    }
+}
+
+/**
+ * Exit multi-select mode — clear all selections and hide bulk UI.
+ */
+function exitMultiSelect() {
+    multiSelectActive = false;
+    selectedEntries.clear();
+    // Uncheck all visible checkboxes
+    document.querySelectorAll(`.${WL_PREFIX}-bulk-checkbox`).forEach(cb => {
+        cb.checked = false;
+        const row = cb.closest(`.${WL_PREFIX}-entry-row`);
+        if (row) row.classList.remove(`${WL_PREFIX}-entry-bulk-checked`);
+    });
+    applyMultiSelectClass(false);
+    updateBulkBar();
+    syncSelectAllCheckbox();
+    // Deactivate the toggle button highlight
+    const toggleBtn = document.querySelector(`.${WL_PREFIX}-multiselect-toggle`);
+    if (toggleBtn) toggleBtn.classList.remove(`${WL_PREFIX}-multiselect-active`);
+    log('Multi-select OFF');
+}
+
+/**
+ * Add/remove the multiselect-active class on the entry column
+ * so CSS can show/hide bulk cells.
+ */
+function applyMultiSelectClass(active) {
+    const entryCol = document.querySelector(`.${WL_PREFIX}-entry-col`);
+    if (entryCol) {
+        entryCol.classList.toggle(`${WL_PREFIX}-multiselect-on`, active);
+    }
+    const toggleBtn = document.querySelector(`.${WL_PREFIX}-multiselect-toggle`);
+    if (toggleBtn) {
+        toggleBtn.classList.toggle(`${WL_PREFIX}-multiselect-active`, active);
+    }
+}
+
+// ============================================================
+// Bulk Operations
+// ============================================================
+
+/**
+ * Update the bulk action bar visibility, count, and target dropdown.
+ */
+function updateBulkBar() {
+    const bar = document.querySelector(`.${WL_PREFIX}-bulk-bar`);
+    if (!bar) return;
+
+    const count = selectedEntries.size;
+    // Show bar when multiselect mode is active (regardless of count)
+    bar.style.display = multiSelectActive ? '' : 'none';
+
+    // Update count label
+    const countEl = bar.querySelector(`.${WL_PREFIX}-bulk-count`);
+    if (countEl) countEl.textContent = `${count} selected`;
+
+    // Populate target book dropdown (only when bar becomes visible)
+    if (count > 0) populateBulkTargetDropdown();
+}
+
+/**
+ * Sync the "select all" checkbox in the table header with current selection state.
+ */
+function syncSelectAllCheckbox() {
+    const selectAllCb = document.querySelector(`.${WL_PREFIX}-bulk-select-all`);
+    if (!selectAllCb) return;
+
+    if (!currentBookData) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+        return;
+    }
+
+    const totalEntries = Object.keys(currentBookData.entries).length;
+    const selectedCount = selectedEntries.size;
+
+    if (selectedCount === 0) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+    } else if (selectedCount >= totalEntries) {
+        selectAllCb.checked = true;
+        selectAllCb.indeterminate = false;
+    } else {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = true;
+    }
+}
+
+/**
+ * Populate the bulk target book dropdown with all lorebooks except the current one.
+ */
+async function populateBulkTargetDropdown() {
+    const select = document.querySelector(`.${WL_PREFIX}-bulk-target`);
+    if (!select) return;
+
+    // Remember current selection
+    const prevValue = select.value;
+
+    try {
+        const { world_names } = await worldInfoPromise;
+        if (!world_names || !Array.isArray(world_names)) return;
+
+        const others = world_names
+            .filter(n => n !== currentBookName)
+            .sort((a, b) => a.localeCompare(b));
+
+        select.innerHTML = '<option value="">— Target book —</option>' +
+            others.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
+
+        // Restore previous selection if still valid
+        if (prevValue && others.includes(prevValue)) {
+            select.value = prevValue;
+        }
+    } catch (err) {
+        log('Failed to populate bulk target dropdown:', err);
+    }
+}
+
+/**
+ * Bulk copy selected entries to the target lorebook.
+ * Entries remain in the source book.
+ */
+async function bulkCopy() {
+    const target = document.querySelector(`.${WL_PREFIX}-bulk-target`)?.value;
+    if (!target) {
+        toastr.warning('Select a target lorebook first.');
+        return;
+    }
+    if (!currentBookName || selectedEntries.size === 0) return;
+
+    isBulkOperating = true;
+    const uids = [...selectedEntries];
+    const $toastr = toastr.info(`Copying ${uids.length} entries to "${target}"...`, 'Bulk Copy', {
+        timeOut: 0, extendedTimeOut: 0, tapToDismiss: false,
+    });
+
+    try {
+        const { moveWorldInfoEntry } = await worldInfoPromise;
+        for (const uid of uids) {
+            await moveWorldInfoEntry(currentBookName, target, uid, { deleteOriginal: false });
+        }
+        toastr.success(`Copied ${uids.length} entries to "${target}".`, 'Bulk Copy');
+        selectedEntries.clear();
+        updateBulkBar();
+        syncSelectAllCheckbox();
+        // Re-render to clear checkbox visual state
+        if (currentBookData) renderEntryTable(currentBookData);
+    } catch (err) {
+        log('Bulk copy failed:', err);
+        toastr.error('Bulk copy failed — check console for details.');
+    } finally {
+        isBulkOperating = false;
+        $toastr.remove();
+    }
+}
+
+/**
+ * Bulk transfer (move) selected entries to the target lorebook.
+ * Entries are removed from the source book.
+ */
+async function bulkTransfer() {
+    const target = document.querySelector(`.${WL_PREFIX}-bulk-target`)?.value;
+    if (!target) {
+        toastr.warning('Select a target lorebook first.');
+        return;
+    }
+    if (!currentBookName || selectedEntries.size === 0) return;
+
+    // Confirm
+    let confirmed = false;
+    try {
+        const { Popup } = SillyTavern.getContext();
+        const result = await Popup.show.confirm(
+            'Bulk Move',
+            `Move ${selectedEntries.size} entries to "${target}"?\n\nThey will be removed from "${currentBookName}".`,
+            { okButton: 'Move', cancelButton: 'Cancel' }
+        );
+        confirmed = result === 1;
+    } catch {
+        confirmed = confirm(`Move ${selectedEntries.size} entries to "${target}"? They will be removed from "${currentBookName}".`);
+    }
+    if (!confirmed) return;
+
+    isBulkOperating = true;
+    const uids = [...selectedEntries];
+    const $toastr = toastr.info(`Moving ${uids.length} entries to "${target}"...`, 'Bulk Move', {
+        timeOut: 0, extendedTimeOut: 0, tapToDismiss: false,
+    });
+
+    // Suppress ST's per-entry toasts during bulk
+    const prevDuplicate = toastr.options.preventDuplicates;
+    const prevClass = toastr.options.toastClass;
+    toastr.options.preventDuplicates = true;
+    toastr.options.toastClass = 'displayNone';
+
+    try {
+        const { moveWorldInfoEntry, loadWorldInfo } = await worldInfoPromise;
+        for (const uid of uids) {
+            await moveWorldInfoEntry(currentBookName, target, uid, { deleteOriginal: true });
+        }
+        toastr.success(`Moved ${uids.length} entries to "${target}".`, 'Bulk Move');
+        selectedEntries.clear();
+
+        // Reload the source book to reflect removals
+        const data = await loadWorldInfo(currentBookName);
+        if (data) {
+            currentBookData = data;
+            expandedEntryUid = null;
+            renderEntryTable(data);
+        }
+    } catch (err) {
+        log('Bulk transfer failed:', err);
+        toastr.error('Bulk move failed — check console for details.');
+    } finally {
+        toastr.options.preventDuplicates = prevDuplicate;
+        toastr.options.toastClass = prevClass;
+        isBulkOperating = false;
+        $toastr.remove();
+    }
+}
+
+/**
+ * Bulk delete selected entries from the current lorebook.
+ */
+async function bulkDelete() {
+    if (!currentBookName || !currentBookData || selectedEntries.size === 0) return;
+
+    // Confirm
+    let confirmed = false;
+    try {
+        const { Popup } = SillyTavern.getContext();
+        const result = await Popup.show.confirm(
+            'Bulk Delete',
+            `Delete ${selectedEntries.size} entries from "${currentBookName}"?\n\nThis cannot be undone.`,
+            { okButton: 'Delete', cancelButton: 'Cancel' }
+        );
+        confirmed = result === 1;
+    } catch {
+        confirmed = confirm(`Delete ${selectedEntries.size} entries from "${currentBookName}"? This cannot be undone.`);
+    }
+    if (!confirmed) return;
+
+    isBulkOperating = true;
+    const uids = [...selectedEntries];
+    const $toastr = toastr.info(`Deleting ${uids.length} entries...`, 'Bulk Delete', {
+        timeOut: 0, extendedTimeOut: 0, tapToDismiss: false,
+    });
+
+    try {
+        const { deleteWorldInfoEntry, saveWorldInfo, reloadEditor } = await worldInfoPromise;
+        const lodash = SillyTavern.libs?.lodash;
+        // Work on a deep copy to batch the deletions before saving
+        const safeData = lodash ? lodash.cloneDeep(currentBookData) : JSON.parse(JSON.stringify(currentBookData));
+
+        for (const uid of uids) {
+            if (safeData.entries[uid]) {
+                await deleteWorldInfoEntry(safeData, uid, { silent: true });
+            }
+        }
+
+        await saveWorldInfo(currentBookName, safeData, true);
+        reloadEditor(currentBookName, false);
+
+        toastr.success(`Deleted ${uids.length} entries.`, 'Bulk Delete');
+
+        // Update local state
+        currentBookData = safeData;
+        selectedEntries.clear();
+        expandedEntryUid = null;
+        renderEntryTable(safeData);
+    } catch (err) {
+        log('Bulk delete failed:', err);
+        toastr.error('Bulk delete failed — check console for details.');
+    } finally {
+        isBulkOperating = false;
+        $toastr.remove();
+    }
+}
+
 function clearEntryTable() {
     const container = document.querySelector(`.${WL_PREFIX}-entry-rows`);
     if (container) {
         container.innerHTML = `<div class="${WL_PREFIX}-placeholder-text">Select a book to view entries</div>`;
     }
+    selectedEntries.clear();
+    updateBulkBar();
+    syncSelectAllCheckbox();
     updatePageInfo(0, 0, 0);
 }
 
@@ -1155,6 +1792,94 @@ export function wireToolbarActions() {
                     handleOpenInST();
                     break;
             }
+        });
+    }
+
+    // ----- Multi-select toggle button (in table header) -----
+    const msToggle = document.querySelector(`.${WL_PREFIX}-multiselect-toggle`);
+    if (msToggle && !msToggle.dataset.wlWired) {
+        msToggle.dataset.wlWired = 'true';
+        msToggle.addEventListener('click', () => {
+            toggleMultiSelect();
+        });
+    }
+
+    // ----- Select All checkbox (in bulk bar) -----
+    const selectAllCb = document.querySelector(`.${WL_PREFIX}-bulk-select-all`);
+    if (selectAllCb && !selectAllCb.dataset.wlWired) {
+        selectAllCb.dataset.wlWired = 'true';
+        selectAllCb.addEventListener('change', () => {
+            if (!currentBookData) return;
+            const allUids = Object.values(currentBookData.entries).map(e => e.uid);
+            if (selectAllCb.checked) {
+                allUids.forEach(uid => selectedEntries.add(uid));
+            } else {
+                selectedEntries.clear();
+            }
+            // Update all visible checkboxes
+            document.querySelectorAll(`.${WL_PREFIX}-bulk-checkbox`).forEach(cb => {
+                const uid = parseInt(cb.dataset.uid, 10);
+                cb.checked = selectedEntries.has(uid);
+                const row = cb.closest(`.${WL_PREFIX}-entry-row`);
+                if (row) row.classList.toggle(`${WL_PREFIX}-entry-bulk-checked`, cb.checked);
+            });
+            updateBulkBar();
+            syncSelectAllCheckbox();
+        });
+    }
+
+    // ----- Bulk action bar buttons -----
+    const bulkBar = document.querySelector(`.${WL_PREFIX}-bulk-bar`);
+    if (bulkBar && !bulkBar.dataset.wlWired) {
+        bulkBar.dataset.wlWired = 'true';
+        bulkBar.addEventListener('click', (e) => {
+            const btn = e.target.closest(`.${WL_PREFIX}-bulk-btn`);
+            if (!btn || isBulkOperating) return;
+            const action = btn.dataset.bulkAction;
+            switch (action) {
+                case 'copy': bulkCopy(); break;
+                case 'transfer': bulkTransfer(); break;
+                case 'delete': bulkDelete(); break;
+                case 'exit':
+                    exitMultiSelect();
+                    break;
+            }
+        });
+    }
+
+    // ----- Search input -----
+    const searchInput = document.querySelector(`.${WL_PREFIX}-search-input`);
+    if (searchInput && !searchInput.dataset.wlWired) {
+        searchInput.dataset.wlWired = 'true';
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+            if (searchTimer) clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                searchTimer = null;
+                searchQuery = searchInput.value.trim();
+                currentPage = 0;
+                if (currentBookData) renderEntryTable(currentBookData);
+            }, 200);
+        });
+        // Clear search on Escape
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                searchQuery = '';
+                currentPage = 0;
+                if (currentBookData) renderEntryTable(currentBookData);
+            }
+        });
+    }
+
+    // ----- Sort dropdown -----
+    const sortSelect = document.querySelector(`.${WL_PREFIX}-sort-select`);
+    if (sortSelect && !sortSelect.dataset.wlWired) {
+        sortSelect.dataset.wlWired = 'true';
+        sortSelect.addEventListener('change', () => {
+            currentSortMode = parseInt(sortSelect.value, 10);
+            currentPage = 0;
+            if (currentBookData) renderEntryTable(currentBookData);
         });
     }
 

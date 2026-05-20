@@ -22,6 +22,75 @@ const log = (...args) => console.log('[WL CharDesign]', ...args);
 const STYLE_ELEMENT_ID = 'wl-char-design-styles';
 
 // ============================================================
+// Design Data Cache
+// ============================================================
+
+/**
+ * Cache of extracted design data from character cards.
+ * Map<avatar, { name: string, design: object }>
+ *
+ * Populated once by buildDesignCache() on CHAT_CHANGED / feature enable.
+ * Updated for individual characters during live editing (rebuildLiveCSS).
+ * Avoids JSON.parse on every character for every CSS rebuild — the parse
+ * loop was the #2 performance issue, firing on every slider tick.
+ */
+let designCache = null;
+
+/**
+ * Rebuild the design cache from all loaded characters.
+ * Parses json_data once per character — the expensive operation
+ * that we cache to avoid repeating on every rebuildLiveCSS() call.
+ */
+function buildDesignCache() {
+    const context = getContext();
+    const chars = context.characters || [];
+    designCache = new Map();
+
+    for (const char of chars) {
+        if (!char?.json_data) continue;
+
+        const raw = char.json_data;
+        // Quick substring check before expensive parse
+        if (!raw.includes('nameColor') && !raw.includes('dialogueColor') &&
+            !raw.includes('boxColor') && !raw.includes('bannerMode')) {
+            continue;
+        }
+
+        try {
+            const cardData = JSON.parse(raw);
+            const ext = cardData?.data?.extensions || {};
+            const wld = ext.wl_design || {};
+            const design = {
+                nameColor: ext.nameColor || null,
+                dialogueColor: ext.dialogueColor || null,
+                boxColor: ext.boxColor || null,
+                bannerMode: wld.bannerMode || null,
+                bannerUrl: wld.bannerUrl || null,
+                bannerPosition: wld.bannerPosition ?? 25,
+            };
+
+            if (design.nameColor || design.dialogueColor || design.boxColor || design.bannerMode) {
+                designCache.set(char.avatar, { name: char.name, design });
+            }
+        } catch (e) {
+            // Skip unparseable characters
+        }
+    }
+
+    log(`Design cache built: ${designCache.size} styled character(s)`);
+    return designCache;
+}
+
+/**
+ * Invalidate the design cache.
+ * Call when the character list may have changed outside of the normal
+ * CHAT_CHANGED → injectDesignCSS flow.
+ */
+export function invalidateDesignCache() {
+    designCache = null;
+}
+
+// ============================================================
 // Design Tab UI
 // ============================================================
 
@@ -296,8 +365,29 @@ export function renderDesignTab(pane) {
 
 /**
  * Rebuild and inject CSS for live preview (all styled characters).
+ * Updates only the currently-edited character in the cache —
+ * avoids re-parsing all characters' JSON on every slider tick.
  */
 function rebuildLiveCSS() {
+    // Update cache for the currently-edited character only.
+    // getDesignData() reads from the hidden form field which
+    // updateCharExtensions() has already updated.
+    const context = getContext();
+    const chid = context.characterId;
+    if (chid != null && context.characters?.[chid]) {
+        const char = context.characters[chid];
+        const design = getDesignData();
+        if (!designCache) designCache = new Map();
+
+        const hasDesign = design.nameColor || design.dialogueColor ||
+                          design.boxColor || design.bannerMode;
+        if (hasDesign) {
+            designCache.set(char.avatar, { name: char.name, design });
+        } else {
+            designCache.delete(char.avatar);
+        }
+    }
+
     const css = buildAllCharacterCSS();
     if (css) {
         injectStyleElement(STYLE_ELEMENT_ID, css);
@@ -379,40 +469,18 @@ ${selector} .mesAvatarWrapper {
 
 /**
  * Build CSS for ALL characters that have design data.
+ * Reads from the design cache instead of re-parsing every
+ * character's json_data string.
  * @returns {string}
  */
 function buildAllCharacterCSS() {
-    const context = getContext();
-    const chars = context.characters || [];
+    if (!designCache) buildDesignCache();
+
     const allRules = ['/* WL Character Design */'];
 
-    for (const char of chars) {
-        if (!char?.json_data) continue;
-
-        const raw = char.json_data;
-        if (!raw.includes('nameColor') && !raw.includes('dialogueColor') &&
-            !raw.includes('boxColor') && !raw.includes('bannerMode')) {
-            continue;
-        }
-
-        try {
-            const cardData = JSON.parse(raw);
-            const ext = cardData?.data?.extensions || {};
-            const wld = ext.wl_design || {};
-            const design = {
-                nameColor: ext.nameColor || null,
-                dialogueColor: ext.dialogueColor || null,
-                boxColor: ext.boxColor || null,
-                bannerMode: wld.bannerMode || null,
-                bannerUrl: wld.bannerUrl || null,
-                bannerPosition: wld.bannerPosition ?? 25,
-            };
-
-            const css = buildCharacterCSS(char.name, design, char.avatar);
-            if (css) allRules.push(css);
-        } catch (e) {
-            // Skip unparseable characters
-        }
+    for (const [avatar, entry] of designCache) {
+        const css = buildCharacterCSS(entry.name, entry.design, avatar);
+        if (css) allRules.push(css);
     }
 
     return allRules.length > 1 ? allRules.join('\n\n') : '';
@@ -421,8 +489,10 @@ function buildAllCharacterCSS() {
 /**
  * Inject design CSS for ALL characters with design data.
  * Called on CHAT_CHANGED and feature enable.
+ * Rebuilds the design cache from scratch (character list may have changed).
  */
 export function injectDesignCSS() {
+    buildDesignCache();
     const css = buildAllCharacterCSS();
     if (css) {
         injectStyleElement(STYLE_ELEMENT_ID, css);

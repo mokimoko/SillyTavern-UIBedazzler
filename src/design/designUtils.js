@@ -2,6 +2,8 @@
 // Shared design utilities — color extraction, color helpers, banner upload
 // Used by charDrawer/designTab, personaLore/designTab, and chatDesign modules
 
+import { getContext } from '../../../../../extensions.js';
+
 const log = (...args) => console.log('[WL DesignUtils]', ...args);
 
 // ============================================================
@@ -185,7 +187,7 @@ export async function extractColorsFromImage(imgSrc) {
  * @returns {Promise<string>} The uploaded filename (just the filename, not the full path)
  */
 export async function uploadBannerImage(file, entityName) {
-    const ctx = SillyTavern.getContext();
+    const ctx = getContext();
 
     const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();

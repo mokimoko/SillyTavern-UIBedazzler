@@ -6,18 +6,9 @@ import { getContext } from '../../../../../extensions.js';
 import { user_avatar } from '../../../../../personas.js';
 import { power_user } from '../../../../../power-user.js';
 import { getLoreEntries } from './storage.js';
+import { cleanAvatar } from '../design/designUtils.js';
 
 const log = (...args) => console.log('[WL NarratorLore]', ...args);
-
-/**
- * Strip path/query from avatar filenames for safe comparison
- * @param {string} avatar - Avatar filename or path
- * @returns {string} Clean filename
- */
-function cleanAvatar(avatar) {
-    if (!avatar) return '';
-    return avatar.replace(/\?.*$/, '').replace(/^.*[\\/]/, '');
-}
 
 // ============================================================
 // XML Content Builder

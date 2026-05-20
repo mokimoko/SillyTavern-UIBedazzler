@@ -10,6 +10,7 @@ import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { takeoverDrawer, restoreDrawer, isTakeoverActive, getActiveTab } from './drawerUI.js';
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
+import { scheduleCSSRebuild } from '../cssScheduler.js';
 
 const log = (...args) => console.log('[WL CharDrawer]', ...args);
 
@@ -94,8 +95,11 @@ function teardownDrawerWatcher() {
 
 function isPopupVisible(popup) {
     if (!popup) return false;
-    const style = window.getComputedStyle(popup);
-    return style.display !== 'none' && style.visibility !== 'hidden';
+    // Avoid getComputedStyle — it forces synchronous style recalculation
+    // inside MutationObserver callbacks. Check inline style and classes instead.
+    if (popup.style.display === 'none' || popup.style.visibility === 'hidden') return false;
+    if (popup.classList.contains('displayNone') || popup.classList.contains('hidden')) return false;
+    return true;
 }
 
 function applyIfPopupOpen() {
@@ -113,13 +117,16 @@ function setupChatEvents() {
     eventSource.on(event_types.CHAT_CHANGED, () => {
         const settings = extension_settings[MODULE_NAME];
         if (settings.charDrawerTakeover) {
-            injectDesignCSS();
+            // Batched via cssScheduler so all CSS modules update in one frame
+            scheduleCSSRebuild('charDesign', () => {
+                injectDesignCSS();
 
-            // Refresh Design tab if currently visible
-            if (isTakeoverActive() && getActiveTab() === 'design') {
-                const pane = document.querySelector('.wl-cd-tab-pane[data-tab="design"]');
-                if (pane) renderDesignTab(pane);
-            }
+                // Refresh Design tab if currently visible
+                if (isTakeoverActive() && getActiveTab() === 'design') {
+                    const pane = document.querySelector('.wl-cd-tab-pane[data-tab="design"]');
+                    if (pane) renderDesignTab(pane);
+                }
+            });
         }
     });
 }

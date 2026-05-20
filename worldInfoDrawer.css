@@ -57,7 +57,7 @@
     color: var(--SmartThemeBodyColor, #888);
     cursor: pointer;
     padding: 2px 4px;
-    font-size: 0.78em;
+    font-size: 0.84em;
     opacity: 0.45;
     transition: opacity 0.15s;
 }
@@ -93,7 +93,7 @@
 
 .wl-wid-book-name {
     flex: 1;
-    font-size: 0.78em;
+    font-size: 0.9em;
     color: var(--SmartThemeBodyColor, #ccc);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -119,12 +119,82 @@
     padding: 3px 6px;
     border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 .wl-wid-toolbar-spacer { flex: 1; }
 
+/* Search input wrapper in toolbar */
+.wl-wid-toolbar-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 60px;
+    max-width: 180px;
+    margin: 0;
+    height: 22px;
+}
+.wl-wid-search-icon {
+    position: absolute;
+    left: 6px;
+    font-size: 0.7em;
+    opacity: 0.45;
+    pointer-events: none;
+}
+.wl-wid-search-input {
+    width: 100%;
+    padding: 2px 6px 2px 20px;
+    font-size: 0.78em;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    outline: none;
+    height: 22px;
+    box-sizing: border-box;
+}
+.wl-wid-search-input:focus {
+    border-color: var(--SmartThemeQuoteColor, #888);
+}
+.wl-wid-search-input::placeholder {
+    opacity: 0.4;
+}
+/* Hide the native clear button in WebKit — the 'x' looks out of place */
+.wl-wid-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Sort dropdown in toolbar */
+.wl-wid-sort-select {
+    font-size: 0.74em;
+    padding: 2px 2px;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    outline: none;
+    height: 22px;
+    cursor: pointer;
+    max-width: 100px;
+    flex-shrink: 0;
+    margin: 0;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+/* Keep search wrapper and sort select on the same baseline */
+.wl-wid-toolbar-search,
+.wl-wid-sort-select {
+    align-self: center;
+}
+.wl-wid-sort-select:focus {
+    border-color: var(--SmartThemeQuoteColor, #888);
+}
+
 /* Page info in toolbar */
 .wl-wid-page-info {
-    font-size: 0.68em;
+    font-size: 0.82em;
     color: var(--SmartThemeBodyColor, #666);
     padding: 0 6px;
     white-space: nowrap;
@@ -139,12 +209,20 @@
 }
 
 .wl-wid-th {
-    font-size: 0.62em;
+    font-size: 0.8em;
     font-weight: 600;
     color: var(--SmartThemeBodyColor, #888);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     padding: 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Column header icons - override inline sizing */\n.wl-wid-th i.fa-solid {
+    font-size: 1em !important;
+    line-height: 1;
 }
 
 .wl-wid-th-expand   { width: 22px; flex-shrink: 0; }
@@ -156,6 +234,152 @@
 .wl-wid-th-order    { width: 38px; text-align: center; flex-shrink: 0; }
 .wl-wid-th-trigger  { width: 38px; text-align: center; flex-shrink: 0; }
 .wl-wid-th-actions  { width: 66px; flex-shrink: 0; }
+
+/* Bulk select column — hidden by default, shown in multiselect mode */
+.wl-wid-th-bulk     { width: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+/* Multi-select toggle button (replaces the old select-all checkbox in header) */
+.wl-wid-multiselect-toggle {
+    background: none;
+    border: none;
+    color: var(--SmartThemeBodyColor, #999);
+    cursor: pointer;
+    font-size: 0.84em;
+    padding: 2px;
+    border-radius: 3px;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    line-height: 1;
+}
+.wl-wid-multiselect-toggle:hover {
+    opacity: 0.85;
+}
+.wl-wid-multiselect-toggle.wl-wid-multiselect-active {
+    opacity: 1;
+    color: var(--SmartThemeQuoteColor, #7a9f6e);
+    background: rgba(122, 159, 110, 0.12);
+}
+
+/* Row bulk checkboxes — column always 22px to stay aligned with header;
+   checkbox inside hidden until multiselect is on */
+.wl-wid-entry-bulk-cell {
+    flex-shrink: 0;
+    width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.wl-wid-entry-bulk-cell .wl-wid-bulk-checkbox {
+    display: none;
+}
+.wl-wid-multiselect-on .wl-wid-entry-bulk-cell .wl-wid-bulk-checkbox {
+    display: block;
+}
+.wl-wid-bulk-checkbox {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--SmartThemeQuoteColor, #888);
+}
+
+/* Select-all checkbox label in the bulk bar */
+.wl-wid-bulk-select-all-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+.wl-wid-bulk-select-all {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--SmartThemeQuoteColor, #888);
+}
+
+/* Highlight bulk-checked rows */
+.wl-wid-entry-row.wl-wid-entry-bulk-checked {
+    background: rgba(122, 159, 110, 0.08);
+    border-left: 2px solid rgba(122, 159, 110, 0.5);
+    padding-left: 6px; /* compensate for border */
+}
+
+/* Bulk action bar — slides in between table header and rows */
+.wl-wid-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: rgba(122, 159, 110, 0.08);
+    border-bottom: 1px solid rgba(122, 159, 110, 0.2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.wl-wid-bulk-count {
+    font-size: 0.76em;
+    font-weight: 600;
+    color: var(--SmartThemeQuoteColor, #7a9f6e);
+    white-space: nowrap;
+    min-width: 60px;
+}
+
+.wl-wid-bulk-target {
+    font-size: 0.74em;
+    padding: 2px 4px;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--SmartThemeBodyColor, #bbb);
+    max-width: 140px;
+    min-width: 90px;
+    flex-shrink: 1;
+}
+.wl-wid-bulk-target:focus {
+    outline: 1px solid var(--SmartThemeQuoteColor, #7a9f6e);
+    outline-offset: -1px;
+}
+
+.wl-wid-bulk-btn {
+    font-size: 0.72em;
+    padding: 3px 8px;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--SmartThemeBodyColor, #bbb);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.wl-wid-bulk-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--SmartThemeBodyColor, #ddd);
+    border-color: var(--SmartThemeBodyColor, #666);
+}
+.wl-wid-bulk-btn i { font-size: 0.9em; }
+
+.wl-wid-bulk-btn-danger {
+    border-color: rgba(208, 96, 96, 0.3);
+}
+.wl-wid-bulk-btn-danger:hover {
+    color: #e07878;
+    background: rgba(208, 96, 96, 0.12);
+    border-color: rgba(208, 96, 96, 0.5);
+}
+
+.wl-wid-bulk-btn-exit {
+    border: none;
+    background: none;
+    padding: 3px 6px;
+    color: var(--SmartThemeBodyColor, #888);
+    min-width: auto;
+    margin-left: auto;
+    font-size: 0.72em;
+}
+.wl-wid-bulk-btn-exit:hover {
+    color: var(--SmartThemeBodyColor, #ccc);
+    background: rgba(255, 255, 255, 0.06);
+}
 
 .wl-wid-entry-rows { flex: 1; overflow-y: auto; min-height: 0; }
 
@@ -178,7 +402,7 @@
 .wl-wid-entry-expand {
     background: none; border: none;
     color: var(--SmartThemeBodyColor, #555);
-    cursor: pointer; padding: 1px 3px; font-size: 0.7em;
+    cursor: pointer; padding: 1px 3px; font-size: 0.80em;
     flex-shrink: 0; width: 22px;
     transition: transform 0.15s, color 0.15s;
 }
@@ -191,18 +415,18 @@
 }
 
 .wl-wid-td {
-    font-size: 0.73em;
+    font-size: 0.9em;
     color: var(--SmartThemeBodyColor, #bbb);
     padding: 0 2px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .wl-wid-td-title    { flex: 2; min-width: 0; }
-.wl-wid-td-position { width: 50px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.wl-wid-td-position { width: 68px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 2px; }
 .wl-wid-td-role     { width: 28px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .wl-wid-td-strategy { width: 28px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.wl-wid-td-order    { width: 38px; text-align: center; flex-shrink: 0; font-size: 0.68em; color: var(--SmartThemeBodyColor, #888); }
-.wl-wid-td-trigger  { width: 38px; text-align: center; flex-shrink: 0; font-size: 0.68em; color: var(--SmartThemeBodyColor, #888); }
+.wl-wid-td-order    { width: 38px; text-align: center; flex-shrink: 0; font-size: 0.86em; color: var(--SmartThemeBodyColor, #888); }
+.wl-wid-td-trigger  { width: 38px; text-align: center; flex-shrink: 0; font-size: 0.86em; color: var(--SmartThemeBodyColor, #888); }
 .wl-wid-td-actions  {
     width: 66px;
     flex-shrink: 0;
@@ -219,7 +443,7 @@
     color: var(--SmartThemeBodyColor, #666);
     cursor: pointer;
     padding: 2px 4px;
-    font-size: 0.78em;
+    font-size: 0.88em;
     border-radius: 2px;
     transition: color 0.12s, background 0.12s;
     opacity: 0.5;
@@ -284,7 +508,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    flex: 1;
     height: 100%;
     cursor: pointer;
 }
@@ -292,15 +516,31 @@
     display: flex;
     align-items: center;
     gap: 1px;
-    font-size: 9px;
+    font-size: 11px;
     pointer-events: none;
 }
-.wl-wid-pos-depth-num {
-    font-size: 10px;
+.wl-wid-pos-depth-input {
+    width: 28px;
+    height: 20px;
+    font-size: 12px;
     font-weight: 600;
-    margin-left: 2px;
-    pointer-events: none;
+    text-align: center;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 3px;
+    background: var(--SmartThemeBlurTintColor, #1a1a1a);
+    color: var(--SmartThemeBodyColor, #ddd);
+    padding: 0 1px;
+    flex-shrink: 0;
+    /* Sit above the position overlay select so it's clickable */
+    position: relative;
+    z-index: 1;
 }
+.wl-wid-pos-depth-input::-webkit-inner-spin-button,
+.wl-wid-pos-depth-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.wl-wid-pos-depth-input { -moz-appearance: textfield; }
 .wl-wid-pos-overlay {
     position: absolute;
     inset: 0;
@@ -325,7 +565,7 @@
     width: 100%;
     height: 100%;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 12px;
     color: var(--SmartThemeBodyColor, #888);
 }
 .wl-wid-role-overlay {
@@ -453,7 +693,7 @@
 /* ----- Labels ----- */
 
 .wl-wid-fld-label {
-    font-size: 0.62em;
+    font-size: 0.76em;
     font-weight: 600;
     color: var(--SmartThemeBodyColor, #888);
     text-transform: uppercase;
@@ -474,7 +714,7 @@
 }
 
 .wl-wid-fld-section-label {
-    font-size: 0.6em;
+    font-size: 0.74em;
     font-weight: 700;
     color: var(--SmartThemeBodyColor, #777);
     text-transform: uppercase;
@@ -503,6 +743,31 @@
     background-size: 10px;
     padding-right: 18px;
 }
+/* Tri-state select (Global/Yes/No) — matches fld-select style */
+.wl-wid-fld-tristate {
+    height: 22px;
+    line-height: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--SmartThemeBodyColor, #ddd);
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 2px;
+    padding: 2px 5px;
+    padding-right: 16px;
+    font-size: 0.84em;
+    width: 100%;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 2px center;
+    background-size: 10px;
+}
+.wl-wid-fld-tristate option {
+    color: var(--SmartThemeBodyColor, #ddd);
+    background: var(--SmartThemeBlurTintColor, #1a1a1a);
+}
 .wl-wid-fld-input,
 .wl-wid-fld-select,
 .wl-wid-fld-textarea {
@@ -511,7 +776,7 @@
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 2px;
     padding: 2px 5px;
-    font-size: 0.78em;
+    font-size: 0.9em;
     font-family: inherit;
     transition: border-color 0.15s, background 0.15s;
     width: 100%;
@@ -531,7 +796,7 @@
 /* ----- Logic cycle badge — click to cycle through modes ----- */
 
 .wl-wid-logic-cycle {
-    font-size: 0.58em;
+    font-size: 0.72em;
     font-weight: 600;
     letter-spacing: 0.3px;
     padding: 3px 7px;
@@ -570,7 +835,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.72em;
+    font-size: 0.84em;
     color: var(--SmartThemeBodyColor, #bbb);
     cursor: pointer;
     user-select: none;
@@ -596,7 +861,7 @@
 .wl-wid-fld-adv-header {
     cursor: pointer;
     user-select: none;
-    font-size: 0.7em;
+    font-size: 0.84em;
     font-weight: 600;
     color: var(--SmartThemeBodyColor, #999);
     text-transform: uppercase;
@@ -682,7 +947,7 @@
 
 .wl-wid-active-section { flex: 1; flex-shrink: 1; display: flex; flex-direction: column; min-height: 80px; overflow: hidden; }
 .wl-wid-section-label {
-    font-size: 0.78em; font-weight: 500;
+    font-size: 0.84em; font-weight: 500;
     color: var(--SmartThemeBodyColor, #aaa);
     margin-bottom: 5px; text-align: center;
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -707,7 +972,7 @@
 .wl-wid-collapsed { display: none; }
 
 .wl-wid-preset-select {
-    width: 100%; font-size: 0.75em; padding: 3px 5px;
+    width: 100%; font-size: 0.82em; padding: 3px 5px;
     background: rgba(30, 30, 35, 0.6);
     color: var(--SmartThemeBodyColor, #ccc);
     border: 1px solid var(--SmartThemeBorderColor, #444);
@@ -719,17 +984,17 @@
 .wl-wid-setting-row {
     display: flex; align-items: center; justify-content: space-between; gap: 4px;
 }
-.wl-wid-setting-row label { font-size: 0.7em; color: var(--SmartThemeBodyColor, #888); }
+.wl-wid-setting-row label { font-size: 0.76em; color: var(--SmartThemeBodyColor, #888); }
 
 .wl-wid-input-sm {
-    width: 48px; font-size: 0.72em; padding: 2px 3px;
+    width: 48px; font-size: 0.78em; padding: 2px 3px;
     background: rgba(30, 30, 35, 0.6);
     color: var(--SmartThemeBodyColor, #ccc);
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 2px; text-align: right;
 }
 .wl-wid-select-sm {
-    width: 100%; font-size: 0.68em; padding: 2px 3px;
+    width: 100%; font-size: 0.74em; padding: 2px 3px;
     background: rgba(30, 30, 35, 0.6);
     color: var(--SmartThemeBodyColor, #ccc);
     border: 1px solid var(--SmartThemeBorderColor, #444);
@@ -750,7 +1015,7 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 0.65em;
+    font-size: 0.72em;
     color: var(--SmartThemeBodyColor, #999);
     cursor: pointer;
     user-select: none;
@@ -766,7 +1031,7 @@
 .wl-wid-active-books-list { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; min-height: 0; }
 
 .wl-wid-active-book-item {
-    font-size: 0.72em; color: var(--SmartThemeBodyColor, #bbb);
+    font-size: 0.78em; color: var(--SmartThemeBodyColor, #bbb);
     padding: 3px 5px; border-radius: 2px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     display: flex; align-items: center; gap: 4px;
@@ -788,7 +1053,7 @@
 /* Attach picker */
 .wl-wid-attach-picker { padding-top: 4px; }
 .wl-wid-attach-select {
-    width: 100%; font-size: 0.72em; padding: 3px 4px;
+    width: 100%; font-size: 0.78em; padding: 3px 4px;
     background: rgba(30, 30, 35, 0.6);
     color: var(--SmartThemeBodyColor, #ccc);
     border: 1px solid var(--SmartThemeBorderColor, #444);
@@ -800,7 +1065,7 @@
    ============================================ */
 
 .wl-wid-placeholder-text {
-    font-size: 0.75em; color: var(--SmartThemeBodyColor, #555);
+    font-size: 0.9em; color: var(--SmartThemeBodyColor, #555);
     text-align: center; padding: 16px 8px;
 }
 
@@ -915,4 +1180,79 @@
 
 .wl-wid-move-btn-cancel:hover {
     opacity: 1;
+}
+
+/* ============================================
+   Preset Actions (sidebar)
+   ============================================ */
+
+.wl-wid-preset-actions {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.wl-wid-preset-actions button {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--SmartThemeBodyColor, #666);
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 0.78em;
+    border-radius: 3px;
+    transition: color 0.12s, background 0.12s, border-color 0.12s;
+    line-height: 1;
+}
+
+.wl-wid-preset-actions button:hover {
+    color: var(--SmartThemeBodyColor, #ccc);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Save flash feedback */
+.wl-wid-preset-flash {
+    animation: wl-wid-flash 0.6s ease;
+}
+@keyframes wl-wid-flash {
+    0%   { color: var(--SmartThemeBodyColor, #666); }
+    30%  { color: #7a9f6e; }
+    100% { color: var(--SmartThemeBodyColor, #666); }
+}
+
+/* Overflow menu (Rename / Import / Export) */
+.wl-wid-preset-overflow {
+    position: fixed;
+    z-index: 1100;
+    background: var(--SmartThemeBlurTintColor, rgba(22, 22, 28, 0.97));
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    padding: 3px 0;
+    min-width: 110px;
+}
+
+.wl-wid-preset-overflow-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    font-size: 0.78em;
+    color: var(--SmartThemeBodyColor, #bbb);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+}
+
+.wl-wid-preset-overflow-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--SmartThemeBodyColor, #ddd);
+}
+
+.wl-wid-preset-overflow-item i {
+    width: 14px;
+    text-align: center;
+    font-size: 0.9em;
+    opacity: 0.7;
 }

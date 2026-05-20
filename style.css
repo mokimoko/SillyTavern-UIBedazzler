@@ -27,10 +27,6 @@
 }
 
 /* ── Extensions Drawer Menu ──────────────────────────────── */
-.bd-settings-container {
-    margin-bottom: 10px;
-}
-
 .bd-toggles {
     display: flex;
     flex-direction: column;

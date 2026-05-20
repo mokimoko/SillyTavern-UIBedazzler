@@ -2,11 +2,16 @@
 // Preset Drawer feature — tabbed layout for Chat Completion settings
 // Reorganizes ST's existing DOM elements into Overview / Sections tabs.
 //
-// Uses a persistent MutationObserver (Nemo Engine pattern) for instant,
-// flash-free takeover. The observer catches target elements the moment they
-// appear in the DOM and applies the takeover in the same microtask — before
-// the browser paints. Combined with CSS anti-flash rules in presetDrawer.css
-// for belt-and-suspenders protection.
+// Detection strategy (v2 — lightweight):
+//   CSS anti-flash rules in presetDrawer.css handle visual flash prevention
+//   via :not(:has(#wl-pd-container)) selectors. This lets us use a cheap
+//   attribute+childList observer instead of subtree scanning.
+//
+//   Observer watches #left-nav-panel for:
+//     - class changes (closedDrawer ↔ openDrawer) → apply takeover on open
+//     - direct childList changes → recover if our container is removed
+//   API type changes (#main_api) trigger recovery via event listener.
+//   One-shot subtree observer on body only if panel doesn't exist at init.
 
 import { getSetting } from './settings.js';
 
@@ -16,6 +21,7 @@ const log = (...args) => console.log('[WL PresetDrawer]', ...args);
 let originalPositions = []; // { element, parent, nextSibling }
 let isActive = false;
 let panelObserver = null;
+let initObserver = null;
 
 // ============================================================
 // Drawer Takeover
@@ -175,16 +181,16 @@ function syncContainerVisibility() {
 }
 
 // ============================================================
-// MutationObserver — Nemo-inspired instant detection
+// Detection & Recovery
 // ============================================================
 
 /**
  * Check whether takeover needs to be (re-)applied.
- * Runs on every relevant DOM mutation inside #left-nav-panel.
- * Must be fast and idempotent — the observer fires frequently.
+ * Fast and idempotent — safe to call from any trigger.
+ * @returns {boolean} true if takeover is active after the call
  */
 function ensureTakeover() {
-    if (!getSetting('presetDrawerTakeover')) return;
+    if (!getSetting('presetDrawerTakeover')) return false;
 
     // Recovery: if our container was removed externally (ST re-render,
     // API switch, theme change) but we still think we're active,
@@ -195,67 +201,66 @@ function ensureTakeover() {
         isActive = false;
     }
 
+    if (isActive) return true;
+
     takeoverDrawer();
     syncContainerVisibility();
+    return isActive;
 }
 
 /**
- * Set up a persistent MutationObserver on #left-nav-panel.
- * Uses rAF coalescing — mutations within the same frame are batched
- * into a single ensureTakeover() call. This prevents the observer
- * from firing hundreds of times during heavy DOM activity (ST renders,
- * other extensions, tooltip creation, etc.) while still catching
- * element creation before the next paint.
+ * Set up a lightweight observer on #left-nav-panel.
+ *
+ * Watches for:
+ *   - class changes (closedDrawer ↔ openDrawer) → re-apply on open
+ *   - direct childList changes → recover if our container is removed
+ *
+ * Does NOT use subtree: true. CSS anti-flash rules in presetDrawer.css
+ * prevent any visual flash, so we don't need to catch every deep DOM
+ * mutation before the browser paints.
  */
-function setupPanelObserver(leftNavPanel) {
+function setupPanelObserver(panel) {
     if (panelObserver) return;
 
-    let rafPending = false;
     panelObserver = new MutationObserver(() => {
-        if (!rafPending) {
-            rafPending = true;
-            requestAnimationFrame(() => {
-                rafPending = false;
-                ensureTakeover();
-            });
-        }
+        ensureTakeover();
     });
 
-    // childList + subtree catches element creation/removal.
-    // rAF coalescing above prevents this from being a hot path.
-    // CSS anti-flash rules + curtain pattern handle any visual gap.
-    panelObserver.observe(leftNavPanel, {
-        childList: true,
-        subtree: true,
+    panelObserver.observe(panel, {
+        attributes: true,
+        attributeFilter: ['class'],
+        childList: true,        // catches our container being removed
+        subtree: false,         // ← the key difference: no subtree scanning
     });
 
-    // Run immediately — elements may already be in the DOM
+    // Apply immediately — elements are in static HTML and may already exist
     ensureTakeover();
-    log('Panel observer active');
+    log('Panel observer active (attribute + childList, no subtree)');
 }
 
 /**
  * Find #left-nav-panel and set up the observer.
- * If the panel doesn't exist yet (early extension load), watch
- * document.body until it appears, then switch to the targeted observer.
+ * If the panel doesn't exist yet (very early extension load), use a
+ * one-shot body observer that disconnects as soon as the panel appears.
  */
 function findPanelAndObserve() {
-    const leftNavPanel = document.querySelector('#left-nav-panel');
-    if (leftNavPanel) {
-        setupPanelObserver(leftNavPanel);
+    const panel = document.getElementById('left-nav-panel');
+    if (panel) {
+        setupPanelObserver(panel);
         return;
     }
 
-    // Panel not in DOM yet — watch body until it appears
+    // Panel not in DOM yet — one-shot body watch
     log('Waiting for #left-nav-panel...');
-    const bodyObs = new MutationObserver((_mutations, obs) => {
-        const panel = document.querySelector('#left-nav-panel');
+    initObserver = new MutationObserver(() => {
+        const panel = document.getElementById('left-nav-panel');
         if (panel) {
-            obs.disconnect();
+            initObserver.disconnect();
+            initObserver = null;
             setupPanelObserver(panel);
         }
     });
-    bodyObs.observe(document.body, { childList: true, subtree: true });
+    initObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 // ============================================================
@@ -271,10 +276,16 @@ export function initPresetDrawer() {
         findPanelAndObserve();
     }
 
-    // Watch for API type changes
+    // Watch for API type changes — also triggers recovery since
+    // switching API types can rebuild the drawer internals.
     const apiSelect = document.getElementById('main_api');
     if (apiSelect) {
-        apiSelect.addEventListener('change', syncContainerVisibility);
+        apiSelect.addEventListener('change', () => {
+            syncContainerVisibility();
+            // API switch may destroy our container — schedule recovery.
+            // rAF ensures ST has finished its own DOM updates first.
+            requestAnimationFrame(() => ensureTakeover());
+        });
     }
 
     log('Initialized');
@@ -288,10 +299,13 @@ export function onPresetDrawerToggleChanged(enabled) {
     if (enabled) {
         findPanelAndObserve();
     } else {
-        // Disconnect observer when feature is disabled
         if (panelObserver) {
             panelObserver.disconnect();
             panelObserver = null;
+        }
+        if (initObserver) {
+            initObserver.disconnect();
+            initObserver = null;
         }
         if (isActive) {
             restoreDrawer();

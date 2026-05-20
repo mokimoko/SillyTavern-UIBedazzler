@@ -30,6 +30,10 @@ const DEFAULT_SETTINGS = {
         styles: [],
     },
 
+    // --- World Info Presets ---
+    wiPresets: {},
+    wiActivePreset: '',
+
     // --- Per-Character Profiles (used by charDrawer/designTab) ---
     profiles: {},
     activeProfile: null,

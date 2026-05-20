@@ -5,6 +5,7 @@ import { getContext } from '../../../../../extensions.js';
 import { user_avatar } from '../../../../../personas.js';
 import { getLoreEntries, addLoreEntry, updateLoreEntry, deleteLoreEntry } from './storage.js';
 import { getLoreTabPane, updateLoreBadge } from './drawerUI.js';
+import { cleanAvatar } from '../design/designUtils.js';
 
 const log = (...args) => console.log('[WL NarratorLore UI]', ...args);
 
@@ -20,14 +21,6 @@ function onLoreDataChanged() {
 
 let isAddFormOpen = false;
 let editingEntryId = null;
-
-/**
- * Strip path/query from avatar filenames for safe comparison
- */
-function cleanAvatar(avatar) {
-    if (!avatar) return '';
-    return avatar.replace(/\?.*$/, '').replace(/^.*[\\/]/, '');
-}
 
 /**
  * Render the full Narrator Lore tab content

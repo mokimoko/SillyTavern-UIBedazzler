@@ -7,6 +7,6 @@
     "css": "style.css",
     "author": "Cee & Claude",
     "version": "0.1.0",
-    "homePage": "",
+    "homePage": "https://github.com/ceebar/SillyTavern-UIBedazzler",
     "description": "ST interface upgrades: drawer reorganization, tabbed layouts, Chat Design styling, and per-character visual customization."
 }

@@ -9,6 +9,7 @@
 import { eventSource, event_types } from '../../../../../../script.js';
 import { isChatDesignEnabled } from './storage.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
+import { scheduleCSSRebuild } from '../cssScheduler.js';
 
 const log = (...args) => console.log('[WL ChatDesign]', ...args);
 
@@ -23,9 +24,10 @@ export function initChatDesign() {
     }
 
     // Re-inject CSS when chat changes (character switch, new chat, etc.)
+    // Batched via cssScheduler so all three CSS modules update in one frame
     eventSource.on(event_types.CHAT_CHANGED, () => {
         if (isChatDesignEnabled()) {
-            injectChatDesignCSS();
+            scheduleCSSRebuild('chatDesign', () => injectChatDesignCSS());
         }
     });
 

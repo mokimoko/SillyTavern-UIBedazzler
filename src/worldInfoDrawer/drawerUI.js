@@ -140,6 +140,12 @@ function showSidebar(drawerContent) {
     positionSidebar(drawerContent);
     sidebarElement.classList.add(`${WL_PREFIX}-sidebar-visible`);
 
+    // Reposition after drawer finishes its open transition
+    // (first call may get a stale rect if the drawer is still animating)
+    setTimeout(() => {
+        if (sidebarElement) positionSidebar(drawerContent);
+    }, 250);
+
     // Reposition on window resize (debounced)
     if (!resizeHandler) {
         let resizeTimer = null;
@@ -173,15 +179,22 @@ function positionSidebar(drawerContent) {
     const sidebarWidth = 175;
     const gap = 6;
 
-    // Align sidebar top with drawer, but keep a generous bottom margin
-    // so the panel doesn't stretch to the very bottom of the viewport
+    // Align sidebar top with drawer
     const topPos = rect.top;
-    const bottomMargin = 80;
+    const bottomMargin = 40;
     const availableHeight = window.innerHeight - topPos - bottomMargin;
-    const sidebarHeight = Math.max(rect.height - 64, Math.min(availableHeight, 500));
+
+    // Use the larger of the drawer height (minus header) and a sane minimum,
+    // then cap at available viewport space and a reasonable max.
+    // This prevents a squished sidebar when the drawer hasn't fully expanded yet.
+    const drawerBased = Math.max(rect.height - 44, 300);
+    const sidebarHeight = Math.min(drawerBased, availableHeight, 780);
+
+    // Prevent the sidebar from going off-screen to the left
+    const leftPos = Math.max(4, rect.left - sidebarWidth - gap);
 
     sidebarElement.style.top = `${topPos}px`;
-    sidebarElement.style.left = `${rect.left - sidebarWidth - gap}px`;
+    sidebarElement.style.left = `${leftPos}px`;
     sidebarElement.style.height = `${sidebarHeight}px`;
 }
 // ============================================================
@@ -231,6 +244,25 @@ function buildDrawerContentHTML() {
                     <button class="${WL_PREFIX}-tool-btn" title="Apply current sorting as Order" data-action="apply-sorting">
                         <i class="fa-solid fa-arrow-down-9-1"></i>
                     </button>
+                    <div class="${WL_PREFIX}-toolbar-search">
+                        <i class="fa-solid fa-search ${WL_PREFIX}-search-icon"></i>
+                        <input type="search" class="${WL_PREFIX}-search-input" placeholder="Search..." data-action="search">
+                    </div>
+                    <select class="${WL_PREFIX}-sort-select" data-action="sort" title="Sort order">
+                        <option value="0">Priority</option>
+                        <option value="8" selected>Order ↘</option>
+                        <option value="7">Order ↗</option>
+                        <option value="1">Title A-Z</option>
+                        <option value="2">Title Z-A</option>
+                        <option value="3">Tokens ↗</option>
+                        <option value="4">Tokens ↘</option>
+                        <option value="5">Depth ↗</option>
+                        <option value="6">Depth ↘</option>
+                        <option value="11">Trigger% ↗</option>
+                        <option value="12">Trigger% ↘</option>
+                        <option value="9">UID ↗</option>
+                        <option value="10">UID ↘</option>
+                    </select>
                     <span class="${WL_PREFIX}-toolbar-spacer"></span>
                     <button class="${WL_PREFIX}-tool-btn" title="Previous" data-action="prev-page">
                         <i class="fa-solid fa-chevron-left"></i>
@@ -240,6 +272,11 @@ function buildDrawerContentHTML() {
                     </button>
                 </div>
                 <div class="${WL_PREFIX}-table-header">
+                    <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-bulk">
+                        <button class="${WL_PREFIX}-multiselect-toggle" title="Toggle multi-select">
+                            <i class="fa-solid fa-list-check"></i>
+                        </button>
+                    </span>
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-expand"></span>
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-toggle"></span>
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-title">Title</span>
@@ -249,6 +286,28 @@ function buildDrawerContentHTML() {
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-order" title="Order">Ord</span>
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-trigger" title="Trigger %">Trg%</span>
                     <span class="${WL_PREFIX}-th ${WL_PREFIX}-th-actions"></span>
+                </div>
+                <div class="${WL_PREFIX}-bulk-bar" style="display:none">
+                    <label class="${WL_PREFIX}-bulk-select-all-label" title="Select / deselect all">
+                        <input type="checkbox" class="${WL_PREFIX}-bulk-select-all">
+                    </label>
+                    <span class="${WL_PREFIX}-bulk-count">0 selected</span>
+                    <select class="${WL_PREFIX}-bulk-target">
+                        <option value="">— Target book —</option>
+                    </select>
+                    <button class="${WL_PREFIX}-bulk-btn" data-bulk-action="copy" title="Copy selected entries to target book">
+                        <i class="fa-solid fa-clone"></i> Copy
+                    </button>
+                    <button class="${WL_PREFIX}-bulk-btn" data-bulk-action="transfer" title="Move selected entries to target book (removes from source)">
+                        <i class="fa-solid fa-truck-arrow-right"></i> Move
+                    </button>
+                    <button class="${WL_PREFIX}-bulk-btn ${WL_PREFIX}-bulk-btn-danger" data-bulk-action="delete" title="Delete selected entries">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                    <span class="${WL_PREFIX}-toolbar-spacer"></span>
+                    <button class="${WL_PREFIX}-bulk-btn ${WL_PREFIX}-bulk-btn-exit" data-bulk-action="exit" title="Exit multi-select">
+                        <i class="fa-solid fa-xmark"></i> Done
+                    </button>
                 </div>
                 <div class="${WL_PREFIX}-entry-rows">
                     <div class="${WL_PREFIX}-placeholder-text">Select a book to view entries</div>
@@ -268,6 +327,20 @@ function buildSidebarHTML() {
             <select class="${WL_PREFIX}-preset-select">
                 <option value="">— None —</option>
             </select>
+            <div class="${WL_PREFIX}-preset-actions">
+                <button data-preset-action="save" title="Save current state to preset">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+                <button data-preset-action="new" title="New preset from current state">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <button data-preset-action="delete" title="Delete preset">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button data-preset-action="more" title="More actions">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+            </div>
         </div>
         <div class="${WL_PREFIX}-sidebar-section">
             <div class="${WL_PREFIX}-section-label ${WL_PREFIX}-collapsible" data-collapsed="true">
@@ -402,6 +475,14 @@ export function wireInteractions() {
                 if (bookName) attachBookToActive(bookName);
             });
         }
+    }
+
+    // Auto-select number input contents on focus (sidebar)
+    if (sidebarElement && !sidebarElement.dataset.wlAutoSelect) {
+        sidebarElement.dataset.wlAutoSelect = 'true';
+        sidebarElement.addEventListener('focusin', (e) => {
+            if (e.target.type === 'number') e.target.select();
+        });
     }
 
     log('Interactions wired');

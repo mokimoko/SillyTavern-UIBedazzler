@@ -369,11 +369,13 @@ export function buildAllCSS() {
 
     // 3. Direct assignment → highest specificity
     const allChars = getContext().characters || [];
+    // Build lookup map once — avoids O(n) find per style assignment
+    const avatarMap = new Map(allChars.map(c => [cleanAvatar(c.avatar), c]));
     for (const style of charStyles) {
         // Characters
         for (const charAvatar of style.assignedCharacters || []) {
             const cleaned = cleanAvatar(charAvatar);
-            const char = allChars.find(c => cleanAvatar(c.avatar) === cleaned);
+            const char = avatarMap.get(cleaned);
             const charName = char?.name || charAvatar;
             const css = buildStyleCSS(style, `#chat .mes[ch_name="${esc(charName)}"]`);
             if (css) sections.push(`/* Character (${style.name}): ${charName} */\n${css}`);

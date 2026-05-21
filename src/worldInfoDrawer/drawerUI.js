@@ -9,7 +9,7 @@
 import { WL_PREFIX, WL_IDS, ST_SELECTORS } from './constants.js';
 import { populateActiveBooks } from './entryList.js';
 
-const log = (...args) => console.log('[WL WorldInfoDrawer]', ...args);
+const log = () => {};
 
 let takeoverActive = false;
 let sidebarElement = null;

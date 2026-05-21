@@ -9,7 +9,7 @@
 
 import { renderDesignTab } from './designTab.js';
 
-const log = (...args) => console.log('[WL CharDrawer]', ...args);
+const log = () => {};
 
 let isActive = false;
 let relocatedElements = [];

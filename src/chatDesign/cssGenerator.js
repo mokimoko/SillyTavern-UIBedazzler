@@ -17,7 +17,7 @@ import { power_user } from '../../../../../power-user.js';
 import { extension_settings, getContext } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 
-const log = (...args) => console.log('[WL ChatDesign CSS]', ...args);
+const log = () => {};
 
 const STYLE_ELEMENT_ID = 'wl-chat-design-styles';
 

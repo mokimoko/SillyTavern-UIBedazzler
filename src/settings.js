@@ -7,7 +7,7 @@ import { saveSettingsDebounced } from '../../../../../script.js';
 
 export const MODULE_NAME = 'UIBedazzler';
 
-const log = (...args) => console.log('[UIBedazzler]', ...args);
+const log = () => {};
 
 // ============================================================
 // Default Settings

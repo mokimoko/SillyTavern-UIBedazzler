@@ -8,7 +8,7 @@ import { power_user } from '../../../../../power-user.js';
 import { getLoreEntries } from './storage.js';
 import { cleanAvatar } from '../design/designUtils.js';
 
-const log = (...args) => console.log('[WL NarratorLore]', ...args);
+const log = () => {};
 
 // ============================================================
 // XML Content Builder

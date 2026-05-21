@@ -4,7 +4,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 
-const log = (...args) => console.log('[WL DesignUtils]', ...args);
+const log = () => {};
 
 // ============================================================
 // Color Conversion Helpers

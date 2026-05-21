@@ -16,7 +16,7 @@ import {
     escapeCSSName, injectStyleElement, clearStyleElement,
 } from '../design/designUtils.js';
 
-const log = (...args) => console.log('[WL PersonaDesign]', ...args);
+const log = () => {};
 
 const STYLE_ELEMENT_ID = 'wl-persona-design-styles';
 

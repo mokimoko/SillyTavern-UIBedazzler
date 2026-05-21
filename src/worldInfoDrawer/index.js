@@ -12,7 +12,7 @@ import { takeoverDrawer, restoreDrawer, isTakeoverActive, wireInteractions } fro
 import { populateBookList, populateActiveBooks, syncGlobalSettings, wireGlobalSettingsSync, wireToolbarActions, watchSTBookChanges, unwatchSTBookChanges, restoreSelectedBook, resetMultiSelect } from './entryList.js';
 import { initPresets } from './presets.js';
 
-const log = (...args) => console.log('[WL WorldInfoDrawer]', ...args);
+const log = () => {};
 
 let drawerObserver = null;
 

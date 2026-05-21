@@ -10,7 +10,7 @@ import { MODULE_NAME } from '../settings.js';
 import { power_user } from '../../../../../power-user.js';
 import { cleanAvatar } from '../design/designUtils.js';
 
-const log = (...args) => console.log('[WL ChatDesign Storage]', ...args);
+const log = () => {};
 
 // ============================================================
 // Schema & Defaults

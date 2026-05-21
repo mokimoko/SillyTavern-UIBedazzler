@@ -5,7 +5,7 @@
 
 import { getSetting } from './settings.js';
 
-const log = (...args) => console.log('[WL UserSettingsDrawer]', ...args);
+const log = () => {};
 
 // ============================================================
 // State

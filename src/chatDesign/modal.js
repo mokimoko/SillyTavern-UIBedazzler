@@ -21,7 +21,7 @@ import {
 } from './fonts.js';
 import { refreshChatDesignCSS, refreshChatDesignCSSDebounced, onChatDesignToggleChanged } from './index.js';
 
-const log = (...args) => console.log('[WL ChatDesign UI]', ...args);
+const log = () => {};
 
 // ============================================================
 // State

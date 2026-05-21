@@ -2,7 +2,7 @@
 // Font catalog and dynamic loading for Chat Design
 // Sources: Google Fonts + Fontshare + System
 
-const log = (...args) => console.log('[WL ChatDesign Fonts]', ...args);
+const log = () => {};
 
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2';
 const FONTSHARE_BASE = 'https://api.fontshare.com/v2/css';

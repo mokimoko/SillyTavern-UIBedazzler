@@ -17,7 +17,7 @@ import {
     escapeCSSName, injectStyleElement, clearStyleElement,
 } from '../design/designUtils.js';
 
-const log = (...args) => console.log('[WL CharDesign]', ...args);
+const log = () => {};
 
 const STYLE_ELEMENT_ID = 'wl-char-design-styles';
 

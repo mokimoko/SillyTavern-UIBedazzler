@@ -15,7 +15,7 @@
 
 import { getSetting } from './settings.js';
 
-const log = (...args) => console.log('[WL PresetDrawer]', ...args);
+const log = () => {};
 
 // Track relocated elements so we can restore them
 let originalPositions = []; // { element, parent, nextSibling }

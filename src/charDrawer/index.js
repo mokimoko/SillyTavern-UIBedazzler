@@ -12,7 +12,7 @@ import { takeoverDrawer, restoreDrawer, isTakeoverActive, getActiveTab } from '.
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 
-const log = (...args) => console.log('[WL CharDrawer]', ...args);
+const log = () => {};
 
 let drawerObserver = null;
 

@@ -11,7 +11,7 @@ import { injectNarratorLore, hasNarratorLoreEntries } from './promptInjection.js
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 
-const log = (...args) => console.log('[WL PersonaLore]', ...args);
+const log = () => {};
 
 let drawerObserver = null;
 

@@ -4,7 +4,7 @@
 
 import { WL_PREFIX, STRATEGY_COLORS } from './constants.js';
 
-const log = (...args) => console.log('[WL WID EntryList]', ...args);
+const log = () => {};
 
 /** Cached world-info module — single dynamic import, resolved once. */
 const worldInfoPromise = import('../../../../../../scripts/world-info.js');

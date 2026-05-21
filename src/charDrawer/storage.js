@@ -17,7 +17,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 
-const log = (...args) => console.log('[WL CharDrawer Storage]', ...args);
+const log = () => {};
 
 let saveTimer = null;
 const SAVE_DEBOUNCE_MS = 2000;

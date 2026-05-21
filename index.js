@@ -36,7 +36,7 @@ import {
 import { openChatDesignModal } from './src/chatDesign/modal.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
 
-const log = (...args) => console.log('[UIBedazzler]', ...args);
+const log = () => {};
 
 // ============================================================
 // Extension Settings Panel HTML

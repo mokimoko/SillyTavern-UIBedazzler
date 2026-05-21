@@ -8,7 +8,7 @@ import { getSidebarElement } from './drawerUI.js';
 import { WL_PREFIX } from './constants.js';
 import { Popup } from '../../../../../../scripts/popup.js';
 
-const log = (...args) => console.log('[WL WID Presets]', ...args);
+const log = () => {};
 
 /** Snapshot of active books before a preset was applied — restored when selecting "None". */
 let prePresetBooks = null;

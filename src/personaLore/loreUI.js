@@ -7,7 +7,7 @@ import { getLoreEntries, addLoreEntry, updateLoreEntry, deleteLoreEntry } from '
 import { getLoreTabPane, updateLoreBadge } from './drawerUI.js';
 import { cleanAvatar } from '../design/designUtils.js';
 
-const log = (...args) => console.log('[WL NarratorLore UI]', ...args);
+const log = () => {};
 
 /**
  * Notify that lore data changed.

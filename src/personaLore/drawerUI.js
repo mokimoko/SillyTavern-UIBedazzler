@@ -5,7 +5,7 @@
 import { renderLoreTab } from './loreUI.js';
 import { renderDesignTab } from './designTab.js';
 
-const log = (...args) => console.log('[WL PersonaDrawer]', ...args);
+const log = () => {};
 
 // Track relocated elements so we can restore them
 let originalParent = null;

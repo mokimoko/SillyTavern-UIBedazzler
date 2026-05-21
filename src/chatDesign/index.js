@@ -11,7 +11,7 @@ import { isChatDesignEnabled } from './storage.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 
-const log = (...args) => console.log('[WL ChatDesign]', ...args);
+const log = () => {};
 
 /**
  * Initialize Chat Design.

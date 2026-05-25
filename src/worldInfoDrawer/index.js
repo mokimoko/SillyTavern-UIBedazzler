@@ -9,7 +9,7 @@
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { takeoverDrawer, restoreDrawer, isTakeoverActive, wireInteractions } from './drawerUI.js';
-import { populateBookList, populateActiveBooks, syncGlobalSettings, wireGlobalSettingsSync, wireToolbarActions, watchSTBookChanges, unwatchSTBookChanges, restoreSelectedBook, resetMultiSelect } from './entryList.js';
+import { populateBookList, populateActiveBooks, syncGlobalSettings, wireGlobalSettingsSync, wireToolbarActions, watchSTBookChanges, unwatchSTBookChanges, restoreSelectedBook, resetMultiSelect, flushPendingSave } from './entryList.js';
 import { initPresets } from './presets.js';
 
 const log = () => {};
@@ -41,6 +41,7 @@ export function onWorldInfoDrawerToggleChanged(enabled) {
     } else {
         teardownDrawerWatcher();
         if (isTakeoverActive()) {
+            flushPendingSave();
             unwatchSTBookChanges();
             restoreDrawer();
         }
@@ -67,6 +68,7 @@ function setupDrawerWatcher() {
             populateFromST();
             log('Takeover applied — drawer opened');
         } else if (!isOpen && isTakeoverActive()) {
+            flushPendingSave();
             unwatchSTBookChanges();
             resetMultiSelect();
             restoreDrawer();

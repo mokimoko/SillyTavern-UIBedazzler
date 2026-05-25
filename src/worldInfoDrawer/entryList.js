@@ -52,6 +52,18 @@ let multiSelectActive = false;
 export function getCurrentBook() { return { name: currentBookName, data: currentBookData }; }
 
 /**
+ * Flush any pending debounced save immediately.
+ * Call before closing the drawer or switching to native view.
+ */
+export async function flushPendingSave() {
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+    }
+    await commitSave();
+}
+
+/**
  * Reset multi-select state. Called when the drawer closes
  * so reopening starts with a clean slate.
  */
@@ -313,17 +325,28 @@ function detachActiveBook(bookName) {
 // ============================================================
 
 async function selectBook(name) {
+    // Set immediately so toolbar actions (delete/rename/etc.) always
+    // target the book the user just clicked — even before data loads.
+    currentBookName = name;
+
+    // Proactively sync ST's editor dropdown NOW so that by the time
+    // the user clicks delete/rename/export/etc., ST's internal state
+    // already points at this book. Without this, invokeSTBookAction
+    // would fire change + click back-to-back, and ST's async change
+    // handler wouldn't finish before the action button read stale state.
+    setSTEditorTo(name);
+
     try {
         const { loadWorldInfo } = await worldInfoPromise;
         const data = await loadWorldInfo(name);
 
         if (!data || !data.entries) {
             log(`Failed to load book: ${name}`);
+            currentBookName = null;
             clearEntryTable();
             return;
         }
 
-        currentBookName = name;
         currentBookData = data;
         expandedEntryUid = null;
         selectedEntries.clear();
@@ -1781,11 +1804,10 @@ export function wireToolbarActions() {
                     break;
                 case 'delete-book':
                     invokeSTBookAction('#world_popup_delete');
-                    // Clear local state immediately, refresh after ST processes
-                    currentBookName = null;
-                    currentBookData = null;
-                    expandedEntryUid = null;
-                    clearEntryTable();
+                    // Don't clear state here — if the user cancels, the book
+                    // should stay open. watchSTBookChanges will detect the
+                    // option removal from #world_editor_select and clean up
+                    // automatically if the deletion actually goes through.
                     refreshBookListAfterAction();
                     break;
                 case 'open-st':
@@ -1973,6 +1995,9 @@ async function handleNewBook() {
  * re-appears on next drawer open), then selects the book in ST's editor.
  */
 async function handleOpenInST() {
+    // Flush any pending debounced save so edits aren't lost
+    await flushPendingSave();
+
     try {
         const { restoreDrawer } = await import('./drawerUI.js');
         restoreDrawer();
@@ -1980,9 +2005,14 @@ async function handleOpenInST() {
         log('restoreDrawer failed:', err);
     }
 
-    // Pre-select the book in ST's editor dropdown (if one is selected)
+    // Pre-select the book in ST's editor dropdown and force ST to reload
+    // its editor so our edits are visible in the native view
     if (currentBookName) {
         setSTEditorTo(currentBookName);
+        try {
+            const { reloadEditor } = await worldInfoPromise;
+            if (reloadEditor) reloadEditor(currentBookName, false);
+        } catch { /* non-fatal */ }
     }
     log(`Opened ST native editor${currentBookName ? ` with "${currentBookName}"` : ''}`);
 }

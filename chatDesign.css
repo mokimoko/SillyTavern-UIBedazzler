@@ -645,3 +645,61 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ============================================================
+   Assignment picker — filter toolbar (search + tag chips) and hints
+   ============================================================ */
+
+.wl-cdm-pick-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.wl-cdm-pick-search {
+    /* inherits .wl-cdm-input; nothing extra needed but kept for overrides */
+}
+
+.wl-cdm-tag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.wl-cdm-tag-chip {
+    font-size: 11px;
+    line-height: 1;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.wl-cdm-tag-chip:hover {
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(180, 160, 140, 0.4);
+}
+
+.wl-cdm-tag-chip-active {
+    background: rgba(180, 160, 140, 0.22);
+    border-color: rgba(180, 160, 140, 0.6);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+/* Muted secondary text in a picker row — avatar filename or persona title */
+.wl-cdm-pick-hint {
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 10px;
+    margin-left: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+    display: inline-block;
+    vertical-align: bottom;
+}

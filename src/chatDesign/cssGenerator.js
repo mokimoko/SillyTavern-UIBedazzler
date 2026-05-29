@@ -352,22 +352,32 @@ export function buildAllCSS() {
     }
 
     // 2. Verse styles → medium specificity
+    // Like direct assignments, these target data-wl-avatar so duplicate
+    // display names don't collide. The `#chat` prefix is intentionally
+    // omitted to keep verse styles below direct character/persona styles
+    // in the cascade.
     for (const style of verseStyles) {
         const targets = resolveStyleTargets(style);
         for (const target of targets) {
             if (target.name === '__default__') continue;
+            const avatar = target.personaAvatar || target.charAvatar;
+            if (!avatar) continue;
             const avatarUrl = target.personaAvatar
                 ? `User Avatars/${target.personaAvatar}`
                 : null;
             const bannerPosition = target.personaAvatar
                 ? getPersonaBannerPosition(target.personaAvatar)
                 : null;
-            const css = buildStyleCSS(style, `.mes[ch_name="${esc(target.name)}"]`, { avatarUrl, bannerPosition });
+            const css = buildStyleCSS(style, `.mes[data-wl-avatar="${esc(avatar)}"]`, { avatarUrl, bannerPosition });
             if (css) sections.push(`/* Verse (${style.name}): ${target.name} */\n${css}`);
         }
     }
 
     // 3. Direct assignment → highest specificity
+    // Selectors target `data-wl-avatar` (stamped onto each .mes by
+    // avatarStamp.js), NOT `ch_name`. This is what fixes duplicate display
+    // names: the avatar filename is unique per character/persona, so two
+    // entities sharing a name no longer collide on one selector.
     const allChars = getContext().characters || [];
     // Build lookup map once — avoids O(n) find per style assignment
     const avatarMap = new Map(allChars.map(c => [cleanAvatar(c.avatar), c]));
@@ -375,10 +385,10 @@ export function buildAllCSS() {
         // Characters
         for (const charAvatar of style.assignedCharacters || []) {
             const cleaned = cleanAvatar(charAvatar);
-            const char = avatarMap.get(cleaned);
-            const charName = char?.name || charAvatar;
-            const css = buildStyleCSS(style, `#chat .mes[ch_name="${esc(charName)}"]`);
-            if (css) sections.push(`/* Character (${style.name}): ${charName} */\n${css}`);
+            // Skip assignments whose character no longer exists.
+            if (!avatarMap.has(cleaned)) continue;
+            const css = buildStyleCSS(style, `#chat .mes[data-wl-avatar="${esc(cleaned)}"]`);
+            if (css) sections.push(`/* Character (${style.name}): ${cleaned} */\n${css}`);
         }
         // Personas
         for (const pAvatar of style.assignedPersonas || []) {
@@ -387,8 +397,8 @@ export function buildAllCSS() {
             if (!personaName) continue;
             const avatarUrl = `User Avatars/${cleaned}`;
             const bannerPosition = getPersonaBannerPosition(cleaned);
-            const css = buildStyleCSS(style, `#chat .mes[ch_name="${esc(personaName)}"]`, { avatarUrl, bannerPosition });
-            if (css) sections.push(`/* Persona (${style.name}): ${personaName} */\n${css}`);
+            const css = buildStyleCSS(style, `#chat .mes[data-wl-avatar="${esc(cleaned)}"]`, { avatarUrl, bannerPosition });
+            if (css) sections.push(`/* Persona (${style.name}): ${cleaned} */\n${css}`);
         }
     }
 

@@ -2005,14 +2005,16 @@ async function handleOpenInST() {
         log('restoreDrawer failed:', err);
     }
 
-    // Pre-select the book in ST's editor dropdown and force ST to reload
-    // its editor so our edits are visible in the native view
+    // Pre-select the book in ST's editor dropdown. This fires a 'change' on
+    // #world_editor_select, which ST's own handler turns into
+    // showWorldEditor → displayWorldEntries — so the native view loads with
+    // our edits visible. Do NOT also call reloadEditor here: it just fires the
+    // same 'change' a second time, and ST's displayWorldEntries pagination
+    // callback is async (it awaits renderTemplateAsync + getWorldEntry before
+    // appending). Two racing callbacks each clear the list while it's still
+    // empty, then both append, producing duplicated header labels + entries.
     if (currentBookName) {
         setSTEditorTo(currentBookName);
-        try {
-            const { reloadEditor } = await worldInfoPromise;
-            if (reloadEditor) reloadEditor(currentBookName, false);
-        } catch { /* non-fatal */ }
     }
     log(`Opened ST native editor${currentBookName ? ` with "${currentBookName}"` : ''}`);
 }

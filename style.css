@@ -83,3 +83,24 @@
     width: 100%;
     justify-content: center;
 }
+
+
+/* === Nebula Engine Integration (nebula-loader companion) === */
+.bd-nebula-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.bd-nebula-note {
+    font-size: 0.78em;
+    opacity: 0.6;
+    line-height: 1.35;
+    padding-left: 22px;
+}
+.bd-nebula-note code {
+    font-family: var(--monoFontFamily, monospace);
+    font-size: 0.95em;
+    background: rgba(255,255,255,0.06);
+    padding: 0 4px;
+    border-radius: 3px;
+}

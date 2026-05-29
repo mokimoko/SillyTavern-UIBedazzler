@@ -13,7 +13,7 @@ import {
     getAllStyles, getStylesForElement, getStyleById,
     createStyle, updateStyleProperties, updateStyleMeta, deleteStyle, duplicateStyle,
     ELEMENT_DEFAULTS, ELEMENT_LABELS, ELEMENT_TYPES,
-    getAvailableCharacters, getAvailablePersonas, getAvailableVerses, isVMAvailable,
+    getAvailableCharacters, getAvailablePersonas, getAvailableVerses, getCharacterTags, isVMAvailable,
 } from './storage.js';
 import {
     FONT_CATALOG, FONT_CATEGORIES,
@@ -22,6 +22,19 @@ import {
 import { refreshChatDesignCSS, refreshChatDesignCSSDebounced, onChatDesignToggleChanged } from './index.js';
 
 const log = () => {};
+
+/**
+ * Escape a string for safe insertion into HTML text or a double-quoted
+ * attribute. Names, titles and avatar filenames are user-controlled, so they
+ * must be escaped before being dropped into template strings.
+ */
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 // ============================================================
 // State
@@ -659,6 +672,43 @@ function renderAssignment(style) {
     const characters = getAvailableCharacters().sort((a, b) => a.name.localeCompare(b.name));
     const personas = getAvailablePersonas().sort((a, b) => a.name.localeCompare(b.name));
     const verses = getAvailableVerses();
+    const charTags = getCharacterTags();
+
+    const charRow = (c) => {
+        const tagIds = (c.tags || []).map(t => t.id).join(' ');
+        const tagNames = (c.tags || []).map(t => t.name).join(' ');
+        // data-search holds everything the text filter matches against:
+        // display name, avatar filename, and tag names.
+        const search = `${c.name} ${c.avatar} ${tagNames}`.toLowerCase();
+        return `
+            <label class="wl-cdm-checkbox-item wl-cdm-pickrow"
+                   data-search="${esc(search)}" data-tagids="${esc(tagIds)}">
+                <input type="checkbox" value="${esc(c.avatar)}"
+                    ${(style.assignedCharacters || []).includes(c.avatar) ? 'checked' : ''}>
+                <span>${esc(c.name)} <span class="wl-cdm-pick-hint">${esc(c.avatar)}</span></span>
+            </label>
+        `;
+    };
+
+    const personaRow = (p) => {
+        const hint = p.title || p.avatar;
+        const search = `${p.name} ${p.title || ''} ${p.avatar}`.toLowerCase();
+        return `
+            <label class="wl-cdm-checkbox-item wl-cdm-pickrow" data-search="${esc(search)}">
+                <input type="checkbox" value="${esc(p.avatar)}"
+                    ${(style.assignedPersonas || []).includes(p.avatar) ? 'checked' : ''}>
+                <span>${esc(p.name)} <span class="wl-cdm-pick-hint">${esc(hint)}</span></span>
+            </label>
+        `;
+    };
+
+    const tagChips = charTags.length === 0 ? '' : `
+        <div class="wl-cdm-tag-chips" id="wl-cdm-tag-chips">
+            ${charTags.map(t => `
+                <button type="button" class="wl-cdm-tag-chip" data-tagid="${esc(t.id)}">${esc(t.name)}</button>
+            `).join('')}
+        </div>
+    `;
 
     return `
         <div class="wl-cdm-field wl-cdm-default-row">
@@ -670,20 +720,22 @@ function renderAssignment(style) {
 
         <div class="wl-cdm-assign-targets" id="wl-cdm-assign-targets" style="${style.isDefault ? 'display:none' : ''}">
 
+            <!-- Filter toolbar -->
+            <div class="wl-cdm-pick-filter">
+                <input type="text" class="wl-cdm-input wl-cdm-pick-search" id="wl-cdm-pick-search"
+                       placeholder="Filter by name, tag, or file…">
+                ${tagChips}
+            </div>
+
             <!-- Characters -->
             <div class="wl-cdm-assign-group">
                 <div class="wl-cdm-assign-group-title">Characters</div>
                 <div class="wl-cdm-checkbox-list" id="wl-cdm-a-chars">
                     ${characters.length === 0
                         ? '<div class="wl-cdm-empty-small">No characters loaded</div>'
-                        : characters.map(c => `
-                            <label class="wl-cdm-checkbox-item">
-                                <input type="checkbox" value="${c.avatar}"
-                                    ${(style.assignedCharacters || []).includes(c.avatar) ? 'checked' : ''}>
-                                <span>${c.name}</span>
-                            </label>
-                        `).join('')
+                        : characters.map(charRow).join('')
                     }
+                    <div class="wl-cdm-empty-small wl-cdm-no-match" id="wl-cdm-chars-nomatch" style="display:none">No matches</div>
                 </div>
             </div>
 
@@ -693,14 +745,9 @@ function renderAssignment(style) {
                 <div class="wl-cdm-checkbox-list" id="wl-cdm-a-personas">
                     ${personas.length === 0
                         ? '<div class="wl-cdm-empty-small">No personas found</div>'
-                        : personas.map(p => `
-                            <label class="wl-cdm-checkbox-item">
-                                <input type="checkbox" value="${p.avatar}"
-                                    ${(style.assignedPersonas || []).includes(p.avatar) ? 'checked' : ''}>
-                                <span>${p.name}</span>
-                            </label>
-                        `).join('')
+                        : personas.map(personaRow).join('')
                     }
+                    <div class="wl-cdm-empty-small wl-cdm-no-match" id="wl-cdm-personas-nomatch" style="display:none">No matches</div>
                 </div>
             </div>
 
@@ -711,9 +758,9 @@ function renderAssignment(style) {
                     <div class="wl-cdm-checkbox-list" id="wl-cdm-a-verses">
                         ${verses.map(v => `
                             <label class="wl-cdm-checkbox-item">
-                                <input type="checkbox" value="${v.id}"
+                                <input type="checkbox" value="${esc(v.id)}"
                                     ${(style.assignedVerses || []).includes(v.id) ? 'checked' : ''}>
-                                <span>${v.name}</span>
+                                <span>${esc(v.name)}</span>
                             </label>
                         `).join('')}
                     </div>
@@ -887,5 +934,78 @@ function wireAssignmentInputs(container, style) {
     container.querySelector('#wl-cdm-a-versePersonas')?.addEventListener('change', (e) => {
         updateStyleMeta(style.id, { assignedVersesIncludePersonas: e.target.checked });
         refreshChatDesignCSS();
+    });
+
+    wirePickerFilter(container);
+}
+
+/**
+ * Wire the search box + tag chips that narrow the character/persona lists.
+ * Pure show/hide over already-rendered rows — never touches assignments, so
+ * hidden-but-checked rows stay checked and saved.
+ *
+ * A row matches when BOTH conditions hold:
+ *   - its data-search text contains the typed query (substring), AND
+ *   - if any tag chips are active, the row carries at least one active tag.
+ * Tag chips only apply to character rows (personas have no tags); when a tag
+ * filter is active, the persona group is hidden entirely.
+ */
+function wirePickerFilter(container) {
+    const searchInput = container.querySelector('#wl-cdm-pick-search');
+    const chips = [...container.querySelectorAll('.wl-cdm-tag-chip')];
+    const charRows = [...container.querySelectorAll('#wl-cdm-a-chars .wl-cdm-pickrow')];
+    const personaRows = [...container.querySelectorAll('#wl-cdm-a-personas .wl-cdm-pickrow')];
+    const personaGroup = container.querySelector('#wl-cdm-a-personas')?.closest('.wl-cdm-assign-group');
+    const charsNoMatch = container.querySelector('#wl-cdm-chars-nomatch');
+    const personasNoMatch = container.querySelector('#wl-cdm-personas-nomatch');
+
+    const activeTags = new Set();
+
+    const apply = () => {
+        const q = (searchInput?.value || '').trim().toLowerCase();
+        const tagFilterOn = activeTags.size > 0;
+
+        let charVisible = 0;
+        for (const row of charRows) {
+            const text = row.dataset.search || '';
+            const rowTags = (row.dataset.tagids || '').split(' ').filter(Boolean);
+            const matchText = !q || text.includes(q);
+            const matchTags = !tagFilterOn || rowTags.some(id => activeTags.has(id));
+            const show = matchText && matchTags;
+            row.style.display = show ? '' : 'none';
+            if (show) charVisible++;
+        }
+        if (charsNoMatch) charsNoMatch.style.display = charVisible === 0 ? '' : 'none';
+
+        // Personas: text filter applies; tag filter hides them (no persona tags).
+        if (personaGroup) {
+            personaGroup.style.display = tagFilterOn ? 'none' : '';
+        }
+        if (!tagFilterOn) {
+            let pVisible = 0;
+            for (const row of personaRows) {
+                const text = row.dataset.search || '';
+                const show = !q || text.includes(q);
+                row.style.display = show ? '' : 'none';
+                if (show) pVisible++;
+            }
+            if (personasNoMatch) personasNoMatch.style.display = pVisible === 0 ? '' : 'none';
+        }
+    };
+
+    searchInput?.addEventListener('input', apply);
+
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const id = chip.dataset.tagid;
+            if (activeTags.has(id)) {
+                activeTags.delete(id);
+                chip.classList.remove('wl-cdm-tag-chip-active');
+            } else {
+                activeTags.add(id);
+                chip.classList.add('wl-cdm-tag-chip-active');
+            }
+            apply();
+        });
     });
 }

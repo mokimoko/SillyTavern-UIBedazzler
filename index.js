@@ -35,6 +35,7 @@ import {
 } from './src/chatDesign/index.js';
 import { openChatDesignModal } from './src/chatDesign/modal.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
+import { initCuteLoader } from './src/cuteLoader.js';
 
 const log = () => {};
 
@@ -190,6 +191,7 @@ jQuery(async () => {
     initCharDrawer();
     initWorldInfoDrawer();
     initChatDesign();
+    initCuteLoader();
 
     log('UI Bedazzler loaded ✓');
 });

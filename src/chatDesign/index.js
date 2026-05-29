@@ -10,6 +10,7 @@ import { eventSource, event_types } from '../../../../../../script.js';
 import { isChatDesignEnabled } from './storage.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
+import { startAvatarStamping, stopAvatarStamping, stampAllMessages } from './avatarStamp.js';
 
 const log = () => {};
 
@@ -21,6 +22,7 @@ export function initChatDesign() {
     // Inject CSS if enabled on startup
     if (isChatDesignEnabled()) {
         injectChatDesignCSS();
+        startAvatarStamping();
     }
 
     // Re-inject CSS when chat changes (character switch, new chat, etc.)
@@ -28,6 +30,10 @@ export function initChatDesign() {
     eventSource.on(event_types.CHAT_CHANGED, () => {
         if (isChatDesignEnabled()) {
             scheduleCSSRebuild('chatDesign', () => injectChatDesignCSS());
+            // New chat DOM — make sure messages carry their avatar stamp.
+            // The observer catches incremental adds; this covers the bulk
+            // render that happens on chat load.
+            stampAllMessages();
         }
     });
 
@@ -49,8 +55,10 @@ export function initChatDesign() {
 export function onChatDesignToggleChanged(enabled) {
     if (enabled) {
         injectChatDesignCSS();
+        startAvatarStamping();
     } else {
         removeChatDesignCSS();
+        stopAvatarStamping();
     }
 }
 

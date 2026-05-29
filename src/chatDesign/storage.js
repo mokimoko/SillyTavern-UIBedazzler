@@ -8,6 +8,7 @@ import { saveSettingsDebounced } from '../../../../../../script.js';
 import { extension_settings, getContext } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { power_user } from '../../../../../power-user.js';
+import { tags as stTags, tag_map } from '../../../../../tags.js';
 import { cleanAvatar } from '../design/designUtils.js';
 
 const log = () => {};
@@ -329,24 +330,71 @@ export function isVMAvailable() {
 
 /**
  * Get all loaded characters (for assignment UI).
- * Returns array of { name, avatar } objects.
+ * Returns array of { name, avatar, tags } objects.
+ *   - tags: array of { id, name } for this character's ST tags. Used by the
+ *           picker's tag filter. NOTE: tag_map is keyed on the RAW avatar
+ *           (e.g. "Seraphina.png"), not a cleaned form — so we look up tags
+ *           against c.avatar before cleaning it for the assignment key.
  */
 export function getAvailableCharacters() {
     const allChars = getContext().characters || [];
+    const tagById = new Map((stTags || []).map(t => [t.id, t]));
     return allChars
         .filter(c => c.avatar && c.name)
-        .map(c => ({ name: c.name, avatar: cleanAvatar(c.avatar) }));
+        .map(c => {
+            const tagIds = Array.isArray(tag_map?.[c.avatar]) ? tag_map[c.avatar] : [];
+            const tags = tagIds
+                .map(id => tagById.get(id))
+                .filter(Boolean)
+                .map(t => ({ id: t.id, name: t.name }));
+            return { name: c.name, avatar: cleanAvatar(c.avatar), tags };
+        });
+}
+
+/**
+ * Get all ST tags that are actually used by at least one character, sorted
+ * for display. Used to populate the picker's tag filter. Returns
+ * array of { id, name }.
+ */
+export function getCharacterTags() {
+    const allChars = getContext().characters || [];
+    const usedIds = new Set();
+    for (const c of allChars) {
+        const ids = Array.isArray(tag_map?.[c.avatar]) ? tag_map[c.avatar] : [];
+        ids.forEach(id => usedIds.add(id));
+    }
+    return (stTags || [])
+        .filter(t => usedIds.has(t.id))
+        .sort((a, b) => {
+            const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+            return so !== 0 ? so : (a.name || '').localeCompare(b.name || '');
+        })
+        .map(t => ({ id: t.id, name: t.name }));
 }
 
 /**
  * Get all personas (for assignment UI).
- * Returns array of { name, avatar } objects.
+ * Returns array of { name, avatar, title } objects.
+ *   - name  : persona display name (power_user.personas[avatar])
+ *   - avatar: unique avatar filename (the stored assignment key)
+ *   - title : per-persona title/description, used to disambiguate same-named
+ *             personas in the picker. Falls back to first line of the
+ *             description, then '' if neither is set.
  */
 export function getAvailablePersonas() {
     const personas = power_user?.personas || {};
+    const descs = power_user?.persona_descriptions || {};
     return Object.entries(personas)
         .filter(([avatar, name]) => avatar && name)
-        .map(([avatar, name]) => ({ name, avatar: cleanAvatar(avatar) }));
+        .map(([avatar, name]) => {
+            const cleaned = cleanAvatar(avatar);
+            const entry = descs[avatar] || descs[cleaned] || {};
+            let title = (entry.title || '').trim();
+            if (!title && entry.description) {
+                title = entry.description.trim().split('\n')[0].slice(0, 60);
+            }
+            return { name, avatar: cleaned, title };
+        });
 }
 
 /**

@@ -37,6 +37,16 @@ const DEFAULT_SETTINGS = {
     // --- Per-Character Profiles (used by charDrawer/designTab) ---
     profiles: {},
     activeProfile: null,
+
+    // --- Nebula Engine Integration (nebula-loader companion) ---
+    // Controls favicon, welcome-screen logo, and default Assistant card swaps.
+    // Only takes effect when the nebula-loader server plugin is detected.
+    nebulaEngine: false,
+
+    // --- Phosphor Icons (nebula-loader companion) ---
+    // Replaces ST's Font Awesome interface icons with the Phosphor set via a
+    // stylesheet served by nebula-loader. Independent of nebulaEngine.
+    phosphorIcons: false,
 };
 
 // ============================================================

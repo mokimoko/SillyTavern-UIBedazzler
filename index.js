@@ -36,6 +36,7 @@ import {
 import { openChatDesignModal } from './src/chatDesign/modal.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
 import { initCuteLoader } from './src/cuteLoader.js';
+import { initSideButtons, onSideButtonsToggleChanged } from './src/sideButtons.js';
 
 const log = () => {};
 
@@ -52,53 +53,77 @@ function buildSettingsHTML() {
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
                 <div class="inline-drawer-content">
-                    <div class="bd-toggles">
-                        <label class="bd-toggle-row" title="Reorganizes Chat Completion into Overview / Sections tabs.">
-                            <input type="checkbox" data-bd-key="presetDrawerTakeover">
-                            <span>Preset Drawer Tabs</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
 
-                        <label class="bd-toggle-row" title="Reorganizes User Settings into Theme / App / Chat tabs.">
-                            <input type="checkbox" data-bd-key="userSettingsDrawerTakeover">
-                            <span>User Settings Tabs</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
+                    <!-- ── Drawer Takeovers ──────────────── -->
+                    <div class="bd-settings-section">
+                        <div class="bd-section-label">Drawer Takeovers</div>
+                        <div class="bd-toggles">
+                            <label class="bd-toggle-row" title="Reorganizes Chat Completion into Overview / Sections tabs.">
+                                <input type="checkbox" data-bd-key="presetDrawerTakeover">
+                                <span>Preset Drawer</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
 
-                        <label class="bd-toggle-row" title="Adds Narrator Lore and Design tabs to the Persona drawer.">
-                            <input type="checkbox" data-bd-key="personaDrawerTakeover">
-                            <span>Persona Drawer Tabs</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
+                            <label class="bd-toggle-row" title="Reorganizes User Settings into Theme / App / Chat tabs.">
+                                <input type="checkbox" data-bd-key="userSettingsDrawerTakeover">
+                                <span>User Settings</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
 
-                        <label class="bd-toggle-row" title="Adds Design tab to Advanced Definitions for per-character styling.">
-                            <input type="checkbox" data-bd-key="charDrawerTakeover">
-                            <span>Character Drawer Tabs</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
+                            <label class="bd-toggle-row" title="Adds Narrator Lore and Design tabs to the Persona drawer.">
+                                <input type="checkbox" data-bd-key="personaDrawerTakeover">
+                                <span>Persona Drawer</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
 
-                        <label class="bd-toggle-row" title="Floating editor panel alongside the World Info drawer.">
-                            <input type="checkbox" data-bd-key="worldInfoDrawerTakeover">
-                            <span>World Info Companion</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
+                            <label class="bd-toggle-row" title="Adds Design tab to Advanced Definitions for per-character styling.">
+                                <input type="checkbox" data-bd-key="charDrawerTakeover">
+                                <span>Character Drawer</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
+
+                            <label class="bd-toggle-row" title="Floating editor panel alongside the World Info drawer.">
+                                <input type="checkbox" data-bd-key="worldInfoDrawerTakeover">
+                                <span>World Info</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
+                        </div>
                     </div>
 
                     <hr class="bd-divider">
 
-                    <div class="bd-chat-design-section">
-                        <label class="bd-toggle-row" title="Custom typography, borders, and effects on chat messages.">
-                            <input type="checkbox" id="bd-chat-design-enabled">
-                            <span>Chat Design</span>
-                            <i class="fa-solid fa-circle-info bd-info-icon"></i>
-                        </label>
-                        <div class="bd-chat-design-btn-row">
-                            <div class="menu_button menu_button_icon bd-open-chat-design" id="bd-open-chat-design" title="Open Chat Design editor">
-                                <i class="fa-solid fa-palette"></i>
-                                <span>Open Chat Design</span>
+                    <!-- ── Chat Design ───────────────────── -->
+                    <div class="bd-settings-section">
+                        <div class="bd-section-label">Chat Design</div>
+                        <div class="bd-chat-design-section">
+                            <label class="bd-toggle-row" title="Custom typography, borders, and effects on chat messages.">
+                                <input type="checkbox" id="bd-chat-design-enabled">
+                                <span>Enable Chat Design</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
+                            <div class="bd-chat-design-btn-row">
+                                <div class="menu_button menu_button_icon bd-open-chat-design" id="bd-open-chat-design" title="Open Chat Design editor">
+                                    <i class="fa-solid fa-palette"></i>
+                                    <span>Open Editor</span>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <hr class="bd-divider">
+
+                    <!-- ── Interface ─────────────────────── -->
+                    <div class="bd-settings-section">
+                        <div class="bd-section-label">Interface</div>
+                        <div class="bd-toggles">
+                            <label class="bd-toggle-row" title="Floating quick-access buttons on the right side for installed extensions.">
+                                <input type="checkbox" data-bd-key="sideButtons">
+                                <span>Side Buttons</span>
+                                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+                            </label>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -122,6 +147,7 @@ function wireSettingsEvents() {
         personaDrawerTakeover: onPersonaDrawerToggleChanged,
         charDrawerTakeover: onCharDrawerToggleChanged,
         worldInfoDrawerTakeover: onWorldInfoDrawerToggleChanged,
+        sideButtons: onSideButtonsToggleChanged,
     };
 
     container.querySelectorAll('[data-bd-key]').forEach(checkbox => {
@@ -192,6 +218,7 @@ jQuery(async () => {
     initWorldInfoDrawer();
     initChatDesign();
     initCuteLoader();
+    initSideButtons();
 
     log('UI Bedazzler loaded ✓');
 });

@@ -30,6 +30,9 @@ const DEFAULT_SETTINGS = {
         styles: [],
     },
 
+    // --- Side Buttons ---
+    sideButtons: true,
+
     // --- World Info Presets ---
     wiPresets: {},
     wiActivePreset: '',

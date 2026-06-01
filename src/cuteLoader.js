@@ -30,6 +30,12 @@ const LOGO_URL = `${ASSETS}/logo2.png`;
 const PHOSPHOR_CSS_URL = `${ASSETS}/phosphor-icons.css`;
 const PHOSPHOR_LINK_ID = 'bd-phosphor-css';
 
+// Cache-busting tag for all asset URLs. Set once from nebula-loader's /info
+// (its assetsVersion = newest mtime in assets/). Stable across page loads, so
+// the browser caches each asset and only re-fetches after a real file update —
+// no per-load re-download, no blank-image flash. Falls back to '0' pre-probe.
+let assetsVersion = '0';
+
 // ============================================================
 // Plugin presence + capability probe
 // ============================================================
@@ -97,9 +103,25 @@ let currentLogoVersionTag = null;
 
 function updateLogoImg(img) {
     if (img.dataset.cuteLogoApplied) return;
-    img.dataset.cuteLogoOriginalSrc = img.getAttribute('src') || 'img/logo.png';
-    img.src = `${LOGO_URL}?v=${currentLogoVersionTag}`;
+    // Claim the element synchronously so the observer can't re-enter and kick
+    // off a second swap while the first is still decoding.
     img.dataset.cuteLogoApplied = '1';
+    img.dataset.cuteLogoOriginalSrc = img.getAttribute('src') || 'img/logo.png';
+
+    const url = `${LOGO_URL}?v=${currentLogoVersionTag}`;
+    // Decode the replacement off-screen before assigning it to the visible img.
+    // Swapping src directly drops the painted bitmap and leaves an empty layout
+    // box for a frame or two while the new image fetches+decodes — that's the
+    // "chunk missing" flash. Preloading + decode() means the pixels are ready
+    // before the swap, so the logo flips in cleanly with no blank frame. With a
+    // warm cache (stable version tag) this resolves effectively instantly.
+    const pre = new Image();
+    pre.src = url;
+    const swap = () => {
+        // Element may have been reverted while we were decoding; re-check.
+        if (img.dataset.cuteLogoApplied) img.src = url;
+    };
+    pre.decode().then(swap).catch(swap); // decode() can reject (e.g. odd MIME) — swap anyway
 }
 
 function revertLogoImg(img) {
@@ -243,9 +265,10 @@ function injectNebulaSection(features) {
 // ============================================================
 
 async function applyToggleFeatures() {
-    const versionTag = Date.now();
-    applyFavicon(versionTag);
-    startLogoObserver(versionTag);
+    // Use the content-versioned asset tag (not Date.now()) so cached assets are
+    // reused across loads and only re-fetched after a real file update.
+    applyFavicon(assetsVersion);
+    startLogoObserver(assetsVersion);
     await applyAssistantOnServer();
 }
 
@@ -262,6 +285,10 @@ async function revertToggleFeatures() {
 export async function initCuteLoader() {
     const info = await probeCuteLoader();
     if (!info) return; // nebula-loader absent — full no-op, no UI section.
+
+    // Stable, content-based cache-bust tag for every asset URL this module
+    // builds. Older nebula-loader builds won't report it — fall back to '0'.
+    assetsVersion = String(info.assetsVersion ?? '0');
 
     const checkbox = injectNebulaSection(info.features);
     if (!checkbox) return;
@@ -284,12 +311,12 @@ export async function initCuteLoader() {
     if (phosphorCheckbox) {
         const phosphorOn = !!getSetting('phosphorIcons');
         phosphorCheckbox.checked = phosphorOn;
-        if (phosphorOn) applyPhosphorIcons(Date.now());
+        if (phosphorOn) applyPhosphorIcons(assetsVersion);
 
         phosphorCheckbox.addEventListener('change', () => {
             const on = phosphorCheckbox.checked;
             setSetting('phosphorIcons', on);
-            if (on) applyPhosphorIcons(Date.now());
+            if (on) applyPhosphorIcons(assetsVersion);
             else revertPhosphorIcons();
         });
     }

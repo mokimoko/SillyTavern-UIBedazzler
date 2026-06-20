@@ -6,6 +6,7 @@
 import { eventSource, event_types } from '../../../../../script.js';
 import { getSetting } from './settings.js';
 import { openChatDesignModal } from './chatDesign/modal.js';
+import { attachSAFlyout, destroySAFlyout } from './saFlyout.js';
 
 const log = (...args) => console.log('[UIBedazzler:SideButtons]', ...args);
 
@@ -66,6 +67,15 @@ const BUTTON_REGISTRY = [
         trigger: () => window.Summarizer?.openModal(),
         hideOriginal: null,
         wandMenuLabel: 'Summarizer',
+    },
+    {
+        id: 'story-manager',
+        label: 'Story Manager',
+        icon: '<i class="fa-solid fa-book-open"></i>',
+        detect: () => window.StoryManager,
+        trigger: () => window.StoryManager?.openSidebar(),
+        hideOriginal: null,
+        wandMenuLabel: 'Story Manager',
     },
     {
         id: 'scenario-crafter',
@@ -135,6 +145,13 @@ function buildButtonStrip() {
         // Mirror White Lotus preset-active indicator
         if (def.id === 'white-lotus') {
             mirrorWLActiveState(btn);
+        }
+
+        // Super Agents: hovering the button reveals a quick enable/disable
+        // flyout (groups + per-agent icon toggles). Clicking still opens the
+        // full manager via def.trigger().
+        if (def.id === 'super-agents') {
+            attachSAFlyout(btn);
         }
     }
 
@@ -226,6 +243,9 @@ function observeWandMenu() {
 function destroy() {
     const container = document.getElementById(CONTAINER_ID);
     if (container) container.remove();
+
+    // Tear down the Super Agents hover flyout (panel + timers)
+    destroySAFlyout();
 
     // Restore any hidden original triggers
     document.querySelectorAll('.bd-side-btn-hidden').forEach(el => {

@@ -200,3 +200,146 @@
     border-color: rgba(124, 109, 250, 0.4);
     color: rgba(124, 109, 250, 1);
 }
+
+
+/* === Super Agents hover flyout =========================== */
+/* Quick enable/disable panel that flies out (leftward) from the
+   Super Agents side button. Matches the strip's dark-glass look. */
+#bd-sa-flyout {
+    position: fixed;
+    z-index: 26; /* one above the strip (25), below Variable Viewer (30) */
+    width: 248px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(18, 18, 22, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: rgba(207, 203, 197, 0.9);
+    /* hidden by default; .bd-saf-visible reveals it */
+    opacity: 0;
+    transform: translateX(6px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+#bd-sa-flyout.bd-saf-visible {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.bd-saf-section-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(207, 203, 197, 0.35);
+    margin: 8px 2px 5px;
+}
+.bd-saf-section-label:first-of-type { margin-top: 2px; }
+
+/* Group pills row */
+.bd-saf-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.bd-saf-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px 4px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(207, 203, 197, 0.9);
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease,
+                border-color 0.15s ease, opacity 0.15s ease;
+}
+.bd-saf-pill i { font-size: 11px; }
+.bd-saf-pill-name { white-space: nowrap; }
+.bd-saf-pill-count {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(207, 203, 197, 0.6);
+}
+.bd-saf-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(151, 167, 198, 0.4);
+}
+
+/* Agent icon grid */
+.bd-saf-agents {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: 5px;
+}
+.bd-saf-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(207, 203, 197, 0.9);
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.15s ease, color 0.15s ease,
+                border-color 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
+}
+.bd-saf-icon:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(151, 167, 198, 0.4);
+    transform: translateY(-1px);
+}
+
+/* On / off states — enabled is full colour, disabled is dimmed */
+.bd-saf-on { opacity: 1; }
+.bd-saf-on.bd-saf-icon {
+    color: rgba(170, 200, 175, 1);
+    border-color: rgba(120, 180, 130, 0.35);
+    background: rgba(120, 180, 130, 0.10);
+}
+.bd-saf-on.bd-saf-pill {
+    color: rgba(170, 200, 175, 1);
+    border-color: rgba(120, 180, 130, 0.4);
+    background: rgba(120, 180, 130, 0.12);
+}
+.bd-saf-on.bd-saf-pill .bd-saf-pill-count {
+    background: rgba(120, 180, 130, 0.18);
+    color: rgba(170, 200, 175, 0.85);
+}
+.bd-saf-off {
+    opacity: 0.38;
+    filter: grayscale(0.4);
+}
+.bd-saf-off:hover { opacity: 0.7; }
+
+/* Subtle name label revealed on icon hover */
+.bd-saf-hovername {
+    min-height: 14px;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 10px;
+    text-align: center;
+    color: rgba(151, 167, 198, 0.9);
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.bd-saf-hovername.bd-saf-hovername-on { opacity: 1; }
+
+.bd-saf-empty {
+    font-size: 11px;
+    color: rgba(207, 203, 197, 0.4);
+    text-align: center;
+    padding: 12px 0;
+}

@@ -257,6 +257,18 @@ function buildCharacterSelector(selectedChars) {
     dropdown.className = 'wl-pl-selector-dropdown';
     dropdown.style.display = 'none';
 
+    // Search/filter box — pinned at top of dropdown
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'wl-pl-selector-search';
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'wl-pl-selector-search-input';
+    search.placeholder = 'Search characters…';
+    // Don't let clicks inside the search bubble up to row handlers / close logic
+    search.addEventListener('click', (e) => e.stopPropagation());
+    searchWrap.appendChild(search);
+    dropdown.appendChild(searchWrap);
+
     // "Narrator only" option
     const narratorRow = document.createElement('div');
     narratorRow.className = 'wl-pl-selector-row wl-pl-selector-narrator';
@@ -283,6 +295,12 @@ function buildCharacterSelector(selectedChars) {
         noChars.textContent = 'No characters available';
         dropdown.appendChild(noChars);
     } else {
+        // Empty "no matches" row, shown only while filtering
+        const noMatch = document.createElement('div');
+        noMatch.className = 'wl-pl-selector-empty wl-pl-selector-nomatch';
+        noMatch.textContent = 'No matching characters';
+        noMatch.style.display = 'none';
+
         availableChars.forEach(char => {
             const avatarKey = cleanAvatar(char.avatar);
             const isSelected = selectedChars.some(a => cleanAvatar(a) === avatarKey);
@@ -290,6 +308,7 @@ function buildCharacterSelector(selectedChars) {
             const row = document.createElement('div');
             row.className = 'wl-pl-selector-row';
             row.dataset.avatar = char.avatar;
+            row.dataset.name = (char.name || '').toLowerCase();
             if (isSelected) row.classList.add('wl-pl-selector-active');
 
             const img = document.createElement('img');
@@ -322,6 +341,20 @@ function buildCharacterSelector(selectedChars) {
 
             dropdown.appendChild(row);
         });
+
+        dropdown.appendChild(noMatch);
+
+        // Live filter as the user types
+        search.addEventListener('input', () => {
+            const q = search.value.trim().toLowerCase();
+            let visible = 0;
+            dropdown.querySelectorAll('.wl-pl-selector-row[data-avatar]').forEach(row => {
+                const match = !q || (row.dataset.name || '').includes(q);
+                row.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+            noMatch.style.display = visible === 0 ? '' : 'none';
+        });
     }
 
     // Toggle dropdown
@@ -329,6 +362,12 @@ function buildCharacterSelector(selectedChars) {
         e.stopPropagation();
         const isOpen = dropdown.style.display !== 'none';
         dropdown.style.display = isOpen ? 'none' : '';
+        if (!isOpen) {
+            // Reset + focus search each time it opens
+            search.value = '';
+            search.dispatchEvent(new Event('input'));
+            setTimeout(() => search.focus(), 0);
+        }
     });
 
     // Close on outside click

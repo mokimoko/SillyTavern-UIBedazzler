@@ -553,12 +553,52 @@
     top: 100%;
     z-index: 100;
     margin-top: 2px;
-    background: var(--SmartThemeChatTintColor, #1a1a2e);
+    /* Opaque dark base FIRST so the list behind never shows through,
+       then the theme tint layered on top for color. Two stacked
+       background layers — the solid color is painted under the tint. */
+    background:
+        linear-gradient(var(--SmartThemeBlurTintColor, rgba(26,26,46,0.6)), var(--SmartThemeBlurTintColor, rgba(26,26,46,0.6))),
+        var(--SmartThemeBlurTintColor, #1a1a2e),
+        #14141f;
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 6px;
-    max-height: 200px;
+    max-height: 240px;
     overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px);
+}
+
+/* Search box pinned to top of the dropdown */
+.wl-pl-selector-search {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 6px;
+    /* Solid fill so rows scrolling underneath stay hidden */
+    background: var(--SmartThemeBlurTintColor, #1a1a2e);
+    background-color: #14141f;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.wl-pl-selector-search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px 8px;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #ddd);
+    background: var(--black30a, rgba(0, 0, 0, 0.3));
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    outline: none;
+}
+
+.wl-pl-selector-search-input:focus {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.wl-pl-selector-search-input::placeholder {
+    color: var(--SmartThemeBodyColor, #888);
+    opacity: 0.5;
 }
 
 .wl-pl-selector-divider {

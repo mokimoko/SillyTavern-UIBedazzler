@@ -192,6 +192,14 @@ function syncContainerVisibility() {
 function ensureTakeover() {
     if (!getSetting('presetDrawerTakeover')) return false;
 
+    // Coexistence with the Expanded Preset Drawer: while its full-page overlay
+    // is open it OWNS #range_block_openai / #openai_settings /
+    // #completion_prompt_manager (relocated into the overlay). Our panel
+    // observer's childList watch fires when the expanded drawer steals them,
+    // so bail here rather than fight over the same nodes. On expanded close it
+    // restores them to native and calls resumeAfterExpanded() → re-takeover.
+    if (document.body.classList.contains('wl-pe-open')) return false;
+
     // Recovery: if our container was removed externally (ST re-render,
     // API switch, theme change) but we still think we're active,
     // reset state so takeoverDrawer() can re-apply cleanly.
@@ -272,6 +280,12 @@ function findPanelAndObserve() {
  * Called once on startup from index.js.
  */
 export function initPresetDrawer() {
+    // The anti-flash CSS (presetDrawer.css) hides native CC settings whenever
+    // #wl-pd-container is absent — but that must ONLY apply when this tabbed
+    // takeover is enabled, otherwise it would hide the native drawer for users
+    // who have this feature off. Gate it on body.bd-pd-tabbed.
+    document.body.classList.toggle('bd-pd-tabbed', !!getSetting('presetDrawerTakeover'));
+
     if (getSetting('presetDrawerTakeover')) {
         findPanelAndObserve();
     }
@@ -296,6 +310,10 @@ export function initPresetDrawer() {
  * @param {boolean} enabled
  */
 export function onPresetDrawerToggleChanged(enabled) {
+    // Keep the anti-flash gate in sync: only hide native CC while this feature
+    // is on (see presetDrawer.css / initPresetDrawer).
+    document.body.classList.toggle('bd-pd-tabbed', !!enabled);
+
     if (enabled) {
         findPanelAndObserve();
     } else {
@@ -319,4 +337,25 @@ export function onPresetDrawerToggleChanged(enabled) {
  */
 export function isPresetDrawerActive() {
     return isActive;
+}
+
+/**
+ * Coexistence hook for the Expanded Preset Drawer.
+ * Called when the expanded overlay is about to open: release the tabbed
+ * takeover so the native elements return to their home positions, ready for
+ * the overlay to relocate them. The caller sets body.wl-pe-open, so the panel
+ * observer's ensureTakeover() will no-op until resume.
+ */
+export function suspendForExpanded() {
+    if (isActive) restoreDrawer();
+}
+
+/**
+ * Coexistence hook for the Expanded Preset Drawer.
+ * Called after the expanded overlay closes and has restored the native
+ * elements: re-apply the tabbed takeover (body.wl-pe-open is already cleared).
+ */
+export function resumeAfterExpanded() {
+    ensureTakeover();
+    syncContainerVisibility();
 }

@@ -15,6 +15,7 @@ import {
     extractColorsFromImage, uploadBannerImage,
     escapeCSSName, injectStyleElement, clearStyleElement,
 } from '../design/designUtils.js';
+import { refreshChatDesignCSSDebounced } from '../chatDesign/index.js';
 
 const log = () => {};
 
@@ -86,6 +87,11 @@ function updatePersonaDesign(updates) {
 
     saveSettingsDebounced();
     rebuildLiveCSS();
+    // Persona banners are ALSO drawn by Chat Design, whose ::before rule uses
+    // !important and therefore wins over this tab's rule. Refresh it too so
+    // banner position/image edits apply live instead of only after a chat
+    // reload. Debounced + self-guarding (no-op when Chat Design is disabled).
+    refreshChatDesignCSSDebounced();
 }
 
 // ============================================================
@@ -357,6 +363,9 @@ export function renderDesignTab(pane) {
         }
         removeDesignCSS();
         renderDesignTab(pane);
+        // Also refresh Chat Design so its persona banner rule drops the
+        // just-removed position/image immediately.
+        refreshChatDesignCSSDebounced();
         toastr.info('Design reset to theme defaults.', 'Design');
     });
 }

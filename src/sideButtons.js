@@ -6,9 +6,11 @@
 import { eventSource, event_types } from '../../../../../script.js';
 import { getSetting } from './settings.js';
 import { openChatDesignModal } from './chatDesign/modal.js';
+import { openAuthorsNoteModal } from './authorsNote/index.js';
 import { attachSAFlyout, destroySAFlyout } from './saFlyout.js';
+import { makeDebug } from './debug.js';
 
-const log = (...args) => console.log('[UIBedazzler:SideButtons]', ...args);
+const log = makeDebug('[UIBedazzler:SideButtons]');
 
 const CONTAINER_ID = 'bd-side-buttons';
 
@@ -104,10 +106,72 @@ const BUTTON_REGISTRY = [
         hideOriginal: '#scp-dock-icon',
         // No wandMenuLabel — Copilot's wand menu entry stays visible
     },
+    {
+        id: 'authors-note',
+        label: 'Author\'s Note',
+        icon: '<i class="fa-solid fa-note-sticky"></i>',
+        // Native Author's Note is always present in ST, so always show.
+        detect: () => true,
+        trigger: () => openAuthorsNoteModal(),
+        // Leave the native AN link (send-form menu) alone.
+        hideOriginal: null,
+        // No wandMenuLabel — AN's native entry is the send-form link, not a
+        // wand-menu item, so there's nothing to hide there.
+    },
 ];
 
 let isActive = false;
 let observers = [];
+
+// Startup reconciliation state. Extensions boot on their own async schedules
+// (each exposes its global / DOM trigger whenever it finishes), so a single
+// timed build inevitably races some of them — that's the "only ~5 buttons
+// until I toggle off/on" bug. Re-detect for the full startup window, then keep
+// a cheap DOM observer for extensions that add or replace triggers even later.
+let startupPollTimer = null;
+let detectedSignature = '';
+const POLL_MS = 500;        // how often to re-check globals during extension boot
+const MAX_POLL_MS = 60000;  // cover slow sequential extension initialization
+
+/** Return a stable key for the registry entries currently available. */
+function getDetectedSignature() {
+    const ids = [];
+    for (const def of BUTTON_REGISTRY) {
+        try {
+            if (def.detect()) ids.push(def.id);
+        } catch { /* detect() may touch not-yet-ready globals */ }
+    }
+    return ids.join('|');
+}
+
+/**
+ * Build the strip now, then keep re-checking throughout the startup window.
+ * A short "stable" period is not enough: extensions with async initialization
+ * can expose their globals several seconds after APP_READY. Idempotent — safe
+ * to call repeatedly; it replaces any in-flight startup poll.
+ */
+function scheduleStartupBuilds() {
+    if (startupPollTimer) {
+        clearInterval(startupPollTimer);
+        startupPollTimer = null;
+    }
+    if (!isActive) return;
+
+    buildButtonStrip();
+    const started = Date.now();
+
+    startupPollTimer = setInterval(() => {
+        if (!isActive || Date.now() - started >= MAX_POLL_MS) {
+            clearInterval(startupPollTimer);
+            startupPollTimer = null;
+            log(`Startup scan finished after ${Date.now() - started}ms`);
+            return;
+        }
+
+        const nextSignature = getDetectedSignature();
+        if (nextSignature !== detectedSignature) buildButtonStrip();
+    }, POLL_MS);
+}
 
 // ── Build / Destroy ──────────────────────────────────────
 
@@ -160,9 +224,12 @@ function buildButtonStrip() {
         log(`Built strip: ${count} button(s)`);
     }
 
+    detectedSignature = getDetectedSignature();
+
     // Hide redundant wand menu entries + watch for late additions
     hideWandMenuItems();
     observeWandMenu();
+    observeLateExtensions();
 }
 
 /**
@@ -240,7 +307,26 @@ function observeWandMenu() {
     observers.push(obs);
 }
 
+/**
+ * Keep the strip in sync with extensions that add or replace DOM triggers
+ * after the startup poll. The signature guard prevents unrelated page
+ * mutations (new messages, drawer changes, etc.) from causing rebuilds.
+ */
+function observeLateExtensions() {
+    if (!document.body) return;
+
+    const obs = new MutationObserver(() => {
+        if (!isActive) return;
+        const nextSignature = getDetectedSignature();
+        if (nextSignature !== detectedSignature) buildButtonStrip();
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    observers.push(obs);
+}
+
 function destroy() {
+    // Do not clear startupPollTimer here: buildButtonStrip() calls destroy()
+    // during normal refreshes and the startup scan must survive those rebuilds.
     const container = document.getElementById(CONTAINER_ID);
     if (container) container.remove();
 
@@ -268,27 +354,35 @@ function destroy() {
 export function onSideButtonsToggleChanged(enabled) {
     isActive = enabled;
     if (enabled) {
-        buildButtonStrip();
+        scheduleStartupBuilds();
     } else {
+        if (startupPollTimer) {
+            clearInterval(startupPollTimer);
+            startupPollTimer = null;
+        }
         destroy();
     }
 }
 
 /**
  * Initialise the side button system.
- * Registers an APP_READY listener so buttons are built only after
- * every extension has finished loading (and exposed its globals).
+ * Builds immediately and restarts its reconciliation window at APP_READY.
  */
 export function initSideButtons() {
     isActive = !!getSetting('sideButtons');
     if (!isActive) return;
 
+    // Start immediately. This also covers hosts where APP_READY fired before
+    // this extension's jQuery callback had a chance to attach its listener.
+    scheduleStartupBuilds();
+
     if (event_types.APP_READY) {
         eventSource.on(event_types.APP_READY, () => {
-            setTimeout(() => { if (isActive) buildButtonStrip(); }, 300);
+            // Restart the full startup window after APP_READY because other
+            // extensions may begin or continue async initialization from it.
+            setTimeout(() => { if (isActive) scheduleStartupBuilds(); }, 300);
         });
     } else {
-        // Fallback when APP_READY isn't available
-        setTimeout(() => { if (isActive) buildButtonStrip(); }, 3000);
+        setTimeout(() => { if (isActive) scheduleStartupBuilds(); }, 3000);
     }
 }

@@ -1,109 +1,141 @@
 // src/charDrawer/storage.js
-// Read/write character extensions data via the json_data hidden field
+// Read/write character extension data through ST's character JSON field.
 //
-// ST's character save flow:
-// 1. On editor open → $('#character_json_data').val(characters[chid].json_data)
-// 2. On save → form sends json_data to server, which merges form field values
-// 3. charaFormatData() preserves everything in data.extensions
-//
-// We sync our custom fields into this hidden field AND the in-memory characters array,
-// then trigger a debounced save to server so data persists across refreshes.
-//
-// Storage paths:
-//   data.extensions.nameColor       — top-level for Marinara compatibility
-//   data.extensions.dialogueColor   — same
-//   data.extensions.boxColor        — same (rgba string)
-//   data.extensions.wl_design.*     — banner config (bannerMode, bannerUrl, bannerPosition)
+// Design changes are reflected in the current form and character object
+// immediately. Persistence uses a target-bound partial merge: each job captures
+// the avatar at edit time, so changing characters during the debounce cannot
+// write the previous design into the newly-selected card.
 
 import { getContext } from '../../../../../extensions.js';
 
 const log = () => {};
 
-let saveTimer = null;
 const SAVE_DEBOUNCE_MS = 2000;
+const UNSET_SENTINEL = '__@@UNSET@@__';
+
+/** @type {Map<string, { timer: ReturnType<typeof setTimeout>, patch: object }>} */
+const pendingSaves = new Map();
+/** @type {Map<string, Promise<void>>} */
+const saveChains = new Map();
+
+let cachedRaw = null;
+let cachedData = null;
 
 // ============================================================
 // JSON Data Read/Write
 // ============================================================
 
 /**
- * Parse the character's json_data from the hidden form field.
+ * Parse the current character's json_data. Reuse the parsed object during
+ * slider drags instead of reparsing the same hidden value on every input event.
  * @returns {object|null}
  */
 function parseJsonData() {
     const raw = $('#character_json_data').val();
     if (!raw) return null;
+    if (raw === cachedRaw && cachedData) return cachedData;
+
     try {
-        return JSON.parse(raw);
-    } catch (e) {
-        log('Failed to parse json_data:', e);
+        cachedRaw = raw;
+        cachedData = JSON.parse(raw);
+        return cachedData;
+    } catch (error) {
+        log('Failed to parse json_data:', error);
+        cachedRaw = null;
+        cachedData = null;
         return null;
     }
 }
 
+/** Merge a plain nested update into another plain object. */
+function mergePatch(target, source) {
+    for (const [key, value] of Object.entries(source || {})) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) {
+                target[key] = {};
+            }
+            mergePatch(target[key], value);
+        } else {
+            target[key] = value;
+        }
+    }
+    return target;
+}
+
 /**
- * Serialize updated card data back to the hidden form field AND in-memory character,
- * then schedule a debounced save to server.
- * @param {object} data - The full card data object
+ * Serialize updated data back to ST's form and in-memory character, then queue
+ * a partial server merge for the captured avatar.
  */
-function writeJsonData(data) {
+function writeJsonData(data, extensionPatch) {
     try {
         const serialized = JSON.stringify(data);
+        cachedRaw = serialized;
+        cachedData = data;
 
-        // 1. Update hidden form field (for ST's save flow)
         $('#character_json_data').val(serialized);
 
-        // 2. Sync to in-memory character
         const context = getContext();
         const chid = context.characterId;
-        if (chid !== undefined && chid !== null && context.characters?.[chid]) {
-            context.characters[chid].json_data = serialized;
-        }
+        const character = chid !== undefined && chid !== null ? context.characters?.[chid] : null;
+        if (character) character.json_data = serialized;
 
-        // 3. Schedule debounced save
-        scheduleSave();
-    } catch (e) {
-        log('Failed to serialize json_data:', e);
+        const avatar = character?.avatar || String($('#avatar_url_pole').val() || '');
+        if (avatar) scheduleSave(avatar, extensionPatch);
+    } catch (error) {
+        log('Failed to serialize json_data:', error);
     }
 }
 
-function scheduleSave() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveCharacterToServer(), SAVE_DEBOUNCE_MS);
+function scheduleSave(avatar, extensionPatch) {
+    const existing = pendingSaves.get(avatar);
+    if (existing) {
+        clearTimeout(existing.timer);
+        mergePatch(existing.patch, extensionPatch);
+        existing.timer = setTimeout(() => enqueueSave(avatar), SAVE_DEBOUNCE_MS);
+        return;
+    }
+
+    const job = { patch: mergePatch({}, extensionPatch), timer: null };
+    job.timer = setTimeout(() => enqueueSave(avatar), SAVE_DEBOUNCE_MS);
+    pendingSaves.set(avatar, job);
 }
 
-/**
- * Save character data to server via the character edit API.
- */
-async function saveCharacterToServer() {
+function enqueueSave(avatar) {
+    const job = pendingSaves.get(avatar);
+    if (!job) return;
+    pendingSaves.delete(avatar);
+
+    // Preserve request order for a character if the server is slow while more
+    // edits are made. A stale request can never land after its newer successor.
+    const previous = saveChains.get(avatar) || Promise.resolve();
+    const next = previous
+        .catch(() => {})
+        .then(() => saveCharacterPatch(avatar, job.patch))
+        .finally(() => {
+            if (saveChains.get(avatar) === next) saveChains.delete(avatar);
+        });
+    saveChains.set(avatar, next);
+}
+
+/** Save only UIBedazzler-owned extension fields for one captured avatar. */
+async function saveCharacterPatch(avatar, extensionPatch) {
     try {
         const context = getContext();
-        const chid = context.characterId;
-        if (chid === undefined || chid === null) return;
-
-        const form = document.getElementById('form_create');
-        if (!form) {
-            log('form_create not found — cannot save');
-            return;
-        }
-
-        const formData = new FormData(form);
-        const headers = context.getRequestHeaders();
-        delete headers['Content-Type'];
-
-        const response = await fetch('/api/characters/edit', {
+        const response = await fetch('/api/characters/merge-attributes', {
             method: 'POST',
-            headers,
-            body: formData,
+            headers: context.getRequestHeaders(),
+            body: JSON.stringify({
+                avatars: [avatar],
+                data: { data: { extensions: extensionPatch } },
+            }),
         });
 
-        if (response.ok) {
-            log('Character design data saved to server');
-        } else {
-            log('Character save failed:', response.status);
-        }
-    } catch (e) {
-        log('Failed to save character to server:', e);
+        if (!response.ok) throw new Error(`merge-attributes ${response.status}`);
+        const result = await response.json().catch(() => null);
+        if (result?.failed?.includes(avatar)) throw new Error('server rejected character merge');
+        log('Character design data saved to server');
+    } catch (error) {
+        console.warn(`[BD] Could not save design data for ${avatar}.`, error);
     }
 }
 
@@ -124,11 +156,9 @@ export function getCharExtensions() {
 }
 
 /**
- * Update fields in the character's extensions and sync back to json_data.
- * Supports dot-notation keys for nested paths (e.g. 'wl_design.bannerMode').
- * Null/undefined values delete the key.
- *
- * @param {object} updates - Key-value pairs to merge into extensions
+ * Update fields in data.extensions. Dot notation addresses nested paths;
+ * null/undefined removes a key locally and sends ST's merge unset sentinel.
+ * @param {object} updates
  * @returns {boolean}
  */
 export function updateCharExtensions(updates) {
@@ -136,39 +166,42 @@ export function updateCharExtensions(updates) {
     if (!result) return false;
 
     const { data, extensions } = result;
+    const extensionPatch = {};
 
     for (const [key, value] of Object.entries(updates)) {
-        if (key.includes('.')) {
-            const parts = key.split('.');
-            let target = extensions;
-            for (let i = 0; i < parts.length - 1; i++) {
-                if (!target[parts[i]] || typeof target[parts[i]] !== 'object') {
-                    target[parts[i]] = {};
-                }
-                target = target[parts[i]];
+        const parts = key.split('.');
+
+        let patchTarget = extensionPatch;
+        for (let i = 0; i < parts.length - 1; i++) {
+            patchTarget[parts[i]] ||= {};
+            patchTarget = patchTarget[parts[i]];
+        }
+        patchTarget[parts[parts.length - 1]] = value === undefined || value === null
+            ? UNSET_SENTINEL
+            : value;
+
+        let target = extensions;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!target[parts[i]] || typeof target[parts[i]] !== 'object') {
+                target[parts[i]] = {};
             }
-            const lastKey = parts[parts.length - 1];
-            if (value === undefined || value === null) {
-                delete target[lastKey];
-            } else {
-                target[lastKey] = value;
-            }
+            target = target[parts[i]];
+        }
+
+        const lastKey = parts[parts.length - 1];
+        if (value === undefined || value === null) {
+            delete target[lastKey];
         } else {
-            if (value === undefined || value === null) {
-                delete extensions[key];
-            } else {
-                extensions[key] = value;
-            }
+            target[lastKey] = value;
         }
     }
 
-    writeJsonData(data);
+    writeJsonData(data, extensionPatch);
     return true;
 }
 
 /**
  * Get design-specific data from character extensions.
- * Reads colors from top-level (Marinara-compatible) and banner from wl_design namespace.
  * @returns {{ nameColor: string|null, dialogueColor: string|null, boxColor: string|null, bannerMode: string|null, bannerUrl: string|null, bannerPosition: number|null }}
  */
 export function getDesignData() {

@@ -101,6 +101,88 @@ export const FONT_CATALOG = [
     { name: 'Satisfy', family: "'Satisfy'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
     { name: 'Kalam', family: "'Kalam'", category: 'script', source: 'google', weights: [300, 400, 700], fallback: 'cursive' },
 
+    // ── Added from Bunny/Google Fonts (user picks) ──
+    // Sans-Serif
+    { name: 'Abel', family: "'Abel'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Advent Pro', family: "'Advent Pro'", category: 'sans', source: 'google', weights: [300, 400, 500, 700], fallback: 'sans-serif' },
+    { name: 'Alumni Sans', family: "'Alumni Sans'", category: 'sans', source: 'google', weights: [400, 600, 700], fallback: 'sans-serif' },
+    { name: 'Armata', family: "'Armata'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Exo', family: "'Exo'", category: 'sans', source: 'google', weights: [300, 400, 600, 700], fallback: 'sans-serif' },
+    { name: 'Genos', family: "'Genos'", category: 'sans', source: 'google', weights: [400, 700], fallback: 'sans-serif' },
+    { name: 'Geo', family: "'Geo'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Gidole', family: "'Gidole'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Imprima', family: "'Imprima'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Inder', family: "'Inder'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Kosugi', family: "'Kosugi'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Quicksand', family: "'Quicksand'", category: 'sans', source: 'google', weights: [300, 400, 500, 700], fallback: 'sans-serif' },
+    { name: 'Savate', family: "'Savate'", category: 'sans', source: 'google', weights: [400, 600, 700], fallback: 'sans-serif' },
+    { name: 'Spinnaker', family: "'Spinnaker'", category: 'sans', source: 'google', weights: [400], fallback: 'sans-serif' },
+
+    // Serif
+    { name: 'Caladea', family: "'Caladea'", category: 'serif', source: 'google', weights: [400, 700], fallback: 'serif' },
+    { name: 'Cherry Swash', family: "'Cherry Swash'", category: 'serif', source: 'google', weights: [400, 700], fallback: 'serif' },
+    { name: 'Diphylleia', family: "'Diphylleia'", category: 'serif', source: 'google', weights: [400], fallback: 'serif' },
+    { name: 'Imbue', family: "'Imbue'", category: 'serif', source: 'google', weights: [400, 700], fallback: 'serif' },
+    { name: 'Marcellus SC', family: "'Marcellus SC'", category: 'serif', source: 'google', weights: [400], fallback: 'serif' },
+
+    // Display
+    { name: 'Asimovian', family: "'Asimovian'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Bangers', family: "'Bangers'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Barrio', family: "'Barrio'", category: 'display', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Baumans', family: "'Baumans'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Black Ops One', family: "'Black Ops One'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Diplomata', family: "'Diplomata'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Faster One', family: "'Faster One'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Frijole', family: "'Frijole'", category: 'display', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Iceland', family: "'Iceland'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Medula One', family: "'Medula One'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Monofett', family: "'Monofett'", category: 'display', source: 'google', weights: [400], fallback: 'monospace' },
+    { name: 'Nabla', family: "'Nabla'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Rubik 80s Fade', family: "'Rubik 80s Fade'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Rubik Glitch', family: "'Rubik Glitch'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Rye', family: "'Rye'", category: 'display', source: 'google', weights: [400], fallback: 'serif' },
+    { name: 'Sekuya', family: "'Sekuya'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Taprom', family: "'Taprom'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Tourney', family: "'Tourney'", category: 'display', source: 'google', weights: [400, 700], fallback: 'sans-serif' },
+    { name: 'Trade Winds', family: "'Trade Winds'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Train One', family: "'Train One'", category: 'display', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Vast Shadow', family: "'Vast Shadow'", category: 'display', source: 'google', weights: [400], fallback: 'serif' },
+
+    // Retro & Pixel
+    { name: 'Sixtyfour', family: "'Sixtyfour'", category: 'retro', source: 'google', weights: [400], fallback: 'monospace' },
+
+    // Script & Handwriting
+    { name: 'Annie Use Your Telescope', family: "'Annie Use Your Telescope'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Beau Rivage', family: "'Beau Rivage'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Borel', family: "'Borel'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Charm', family: "'Charm'", category: 'script', source: 'google', weights: [400, 700], fallback: 'cursive' },
+    { name: 'Covered By Your Grace', family: "'Covered By Your Grace'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Dr Sugiyama', family: "'Dr Sugiyama'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Finger Paint', family: "'Finger Paint'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Fleur De Leah', family: "'Fleur De Leah'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Homemade Apple', family: "'Homemade Apple'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Ma Shan Zheng', family: "'Ma Shan Zheng'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Meddon', family: "'Meddon'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Montez', family: "'Montez'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Permanent Marker', family: "'Permanent Marker'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Rock Salt', family: "'Rock Salt'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Sedgwick Ave Display', family: "'Sedgwick Ave Display'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Splash', family: "'Splash'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Walter Turncoat', family: "'Walter Turncoat'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Yeon Sung', family: "'Yeon Sung'", category: 'script', source: 'google', weights: [400], fallback: 'cursive' },
+
+    // Cute & Playful
+    { name: 'Bellota', family: "'Bellota'", category: 'cute', source: 'google', weights: [300, 400, 700], fallback: 'sans-serif' },
+    { name: 'Bubblegum Sans', family: "'Bubblegum Sans'", category: 'cute', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Carter One', family: "'Carter One'", category: 'cute', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Chelsea Market', family: "'Chelsea Market'", category: 'cute', source: 'google', weights: [400], fallback: 'sans-serif' },
+    { name: 'Hachi Maru Pop', family: "'Hachi Maru Pop'", category: 'cute', source: 'google', weights: [400], fallback: 'cursive' },
+    { name: 'Henny Penny', family: "'Henny Penny'", category: 'cute', source: 'google', weights: [400], fallback: 'cursive' },
+
+    // Monospace
+    { name: 'Courier Prime', family: "'Courier Prime'", category: 'mono', source: 'google', weights: [400, 700], fallback: 'monospace' },
+    { name: 'Fira Code', family: "'Fira Code'", category: 'mono', source: 'google', weights: [300, 400, 500, 700], fallback: 'monospace' },
+
     // ── Fontshare ──
     { name: 'Clash Display', family: "'Clash Display'", category: 'display', source: 'fontshare', slug: 'clash-display', weights: [400, 500, 600, 700], fallback: 'sans-serif' },
     { name: 'Cabinet Grotesk', family: "'Cabinet Grotesk'", category: 'sans', source: 'fontshare', slug: 'cabinet-grotesk', weights: [400, 500, 700, 800], fallback: 'sans-serif' },
@@ -124,6 +206,8 @@ export const FONT_CATEGORIES = [
     { id: 'serif', label: 'Serif' },
     { id: 'sans', label: 'Sans-Serif' },
     { id: 'script', label: 'Script & Handwriting' },
+    { id: 'cute', label: 'Cute & Playful' },
+    { id: 'mono', label: 'Monospace' },
 ];
 
 // ============================================================

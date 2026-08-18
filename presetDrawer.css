@@ -19,9 +19,9 @@
    properties don't conflict with display and
    will still suppress the flash.
    ============================================ */
-#left-nav-panel:not(:has(#wl-pd-container)) #range_block_openai,
-#left-nav-panel:not(:has(#wl-pd-container)) #openai_settings,
-#left-nav-panel:not(:has(#wl-pd-container)) .range-block:has(#completion_prompt_manager) {
+body.bd-pd-tabbed #left-nav-panel:not(:has(#wl-pd-container)) #range_block_openai,
+body.bd-pd-tabbed #left-nav-panel:not(:has(#wl-pd-container)) #openai_settings,
+body.bd-pd-tabbed #left-nav-panel:not(:has(#wl-pd-container)) .range-block:has(#completion_prompt_manager) {
     visibility: hidden !important;
     opacity: 0 !important;
     max-height: 0 !important;

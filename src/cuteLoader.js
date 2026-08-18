@@ -16,19 +16,67 @@
 // that, scoped via req.user.directories.
 
 import { getSetting, setSetting } from './settings.js';
-import { getRequestHeaders } from '../../../../../script.js';
+import { getAdapter } from './hostAdapter.js';
 
-const PLUGIN_BASE = '/api/plugins/nebula-loader';
-const ASSETS = `${PLUGIN_BASE}/assets`;
-const FAVICON_URL = `${ASSETS}/favicon-32.png`;
-// logo.png is reserved for the loader-screen skin (consumed by skin.css);
-// the welcome-header swap uses logo2.png so the two stay independent.
-const LOGO_URL = `${ASSETS}/logo2.png`;
-// Phosphor icon skin: a self-contained stylesheet served from assets/ that
-// overrides ST's Font Awesome icon glyphs. Scoped under body.phosphor-on, so
-// toggling is just adding/removing that class once the <link> is present.
-const PHOSPHOR_CSS_URL = `${ASSETS}/phosphor-icons.css`;
-const PHOSPHOR_LINK_ID = 'bd-phosphor-css';
+// The resolved host adapter (server / tauri / plain). Set once in
+// initCuteLoader before anything else runs; all URL building and backend calls
+// go through it so the same code works on SillyTavern + nebula-loader and on
+// TauriTavern. See hostAdapter.js.
+let adapter = null;
+
+// Asset-URL helpers, thin wrappers over the adapter so the rest of this module
+// reads the same as before. adapter.assetUrl() already carries the cache-bust
+// version tag on the server host.
+const faviconUrl = () => adapter.assetUrl('favicon-32.png');
+// logo.png is reserved for the loader-screen skin; the welcome-header swap uses
+// logo2.png so the two stay independent.
+const logoUrl = () => adapter.assetUrl('logo2.png');
+// ---- Icon set registry -------------------------------------------------
+//
+// Each set is a self-contained stylesheet in nebula-loader's assets/ whose
+// every rule is scoped under one body class. Applying = ensure the <link>
+// exists, then put that class on <body>. Nothing else. Adding a set later
+// is one entry here plus one <option> in the markup.
+//
+// Two independent axes. GENERAL re-skins Font Awesome wholesale; TOPBAR
+// re-skins only the nav bar and chat-input buttons. They deliberately
+// overlap on those elements, and the topbar stylesheets are written to
+// out-specify the general ones, so a topbar choice always wins there.
+//
+// Note the two rendering strategies: 'phosphor' is a webfont + codepoints
+// (Phosphor ships one, and a font gives crisp hinting at 14px for free),
+// while everything else is CSS masks over inlined SVG. Duotone has to be
+// masks — a two-tone icon isn't expressible as a single glyph, and masking
+// gets the tint layer from the source SVG's own opacity, in one
+// pseudo-element, with no ::after stacking to collide with ST.
+const ICON_SETS = {
+    general: {
+        default: null,
+        'phosphor': { css: 'phosphor-icons.css', bodyClass: 'phosphor-on' },
+        'phosphor-duotone': { css: 'phosphor-duotone-icons.css', bodyClass: 'bd-icons-duotone' },
+        'tabler': { css: 'tabler-icons.css', bodyClass: 'bd-icons-tabler' },
+        'lucide': { css: 'lucide-icons.css', bodyClass: 'bd-icons-lucide' },
+        'remix-line': { css: 'remix-line-icons.css', bodyClass: 'bd-icons-remix-line' },
+        'remix-fill': { css: 'remix-fill-icons.css', bodyClass: 'bd-icons-remix-fill' },
+    },
+    topbar: {
+        default: null,
+        'pepicons': { css: 'topbar-pepicons.css', bodyClass: 'bd-topbar-pepicons' },
+        'freehand': { css: 'topbar-freehand.css', bodyClass: 'bd-topbar-freehand' },
+        'tabler': { css: 'topbar-tabler.css', bodyClass: 'bd-topbar-tabler' },
+        'lucide': { css: 'topbar-lucide.css', bodyClass: 'bd-topbar-lucide' },
+        'remix-line': { css: 'topbar-remix-line.css', bodyClass: 'bd-topbar-remix-line' },
+        'remix-fill': { css: 'topbar-remix-fill.css', bodyClass: 'bd-topbar-remix-fill' },
+        'pixel': { css: 'topbar-pixel.css', bodyClass: 'bd-topbar-pixel' },
+        'cyber': { css: 'topbar-cyber.css', bodyClass: 'bd-topbar-cyber' },
+        'sl-pixel': { css: 'topbar-sl-pixel.css', bodyClass: 'bd-topbar-sl-pixel' },
+        // Colored sets — full-color artwork, no currentColor tint.
+        'glyphs-poly': { css: 'topbar-glyphs-poly.css', bodyClass: 'bd-topbar-glyphs-poly' },
+        'stickies': { css: 'topbar-stickies.css', bodyClass: 'bd-topbar-stickies' },
+    },
+};
+
+const ICON_SETTING_KEY = { general: 'generalIconSet', topbar: 'topbarIconSet' };
 
 // Cache-busting tag for all asset URLs. Set once from nebula-loader's /info
 // (its assetsVersion = newest mtime in assets/). Stable across page loads, so
@@ -37,31 +85,12 @@ const PHOSPHOR_LINK_ID = 'bd-phosphor-css';
 let assetsVersion = '0';
 
 // ============================================================
-// Plugin presence + capability probe
-// ============================================================
-
-/**
- * Hit nebula-loader's /info endpoint. Returns the capability object on success,
- * or null if the plugin is absent / unreachable / disabled. This is the single
- * source of truth for "is nebula-loader installed?" — all gating flows from it.
- */
-async function probeCuteLoader() {
-    try {
-        const res = await fetch(`${PLUGIN_BASE}/info`, { cache: 'no-store' });
-        if (!res.ok) return null;
-        return await res.json();
-    } catch {
-        return null;
-    }
-}
-
-// ============================================================
 // Favicon swap (one-shot, with snapshot for clean revert)
 // ============================================================
 
 let originalFaviconHTML = null;
 
-function applyFavicon(versionTag) {
+function applyFavicon() {
     if (originalFaviconHTML === null) {
         // Snapshot ST's vanilla favicon links so revert restores them exactly.
         const links = [...document.querySelectorAll(
@@ -76,7 +105,8 @@ function applyFavicon(versionTag) {
     const link = document.createElement('link');
     link.rel = 'icon';
     link.type = 'image/png';
-    link.href = `${FAVICON_URL}?v=${versionTag}`;
+    // adapter.assetUrl already carries the cache-bust version tag.
+    link.href = faviconUrl();
     document.head.append(link);
 }
 
@@ -108,7 +138,7 @@ function updateLogoImg(img) {
     img.dataset.cuteLogoApplied = '1';
     img.dataset.cuteLogoOriginalSrc = img.getAttribute('src') || 'img/logo.png';
 
-    const url = `${LOGO_URL}?v=${currentLogoVersionTag}`;
+    const url = logoUrl();
     // Decode the replacement off-screen before assigning it to the visible img.
     // Swapping src directly drops the painted bitmap and leaves an empty layout
     // box for a frame or two while the new image fetches+decodes — that's the
@@ -163,56 +193,75 @@ function stopLogoObserver() {
 }
 
 // ============================================================
-// Phosphor icon skin (stylesheet link + body class toggle)
+// Icon sets (stylesheet link + body class)
 // ============================================================
 //
-// Two-part swap: ensure the <link> to phosphor-icons.css is in <head> (added
-// once, left in place), then toggle body.phosphor-on to activate/deactivate.
-// Leaving the stylesheet linked while inactive is harmless — every rule is
-// scoped under .phosphor-on, so with the class off it matches nothing and ST
-// renders vanilla Font Awesome. Revert removes both for a fully clean state.
+// Stylesheets are linked lazily and then left in <head> for the session.
+// Keeping an inactive sheet linked is free: every rule inside is scoped
+// under its body class, so with the class off it matches nothing. That
+// makes switching back to a previously-used set instant and flicker-free,
+// which matters when someone is trying options out in the dropdown.
+//
+// Selecting 'default' drops the body class, so ST renders vanilla Font
+// Awesome with no residue.
 
-function applyPhosphorIcons(versionTag) {
-    if (!document.getElementById(PHOSPHOR_LINK_ID)) {
-        const link = document.createElement('link');
-        link.id = PHOSPHOR_LINK_ID;
-        link.rel = 'stylesheet';
-        link.href = `${PHOSPHOR_CSS_URL}?v=${versionTag}`;
-        document.head.append(link);
-    }
-    document.body.classList.add('phosphor-on');
+function linkIdFor(axis, setId) {
+    return `bd-iconset-${axis}-${setId}`;
 }
 
-function revertPhosphorIcons() {
-    document.body.classList.remove('phosphor-on');
-    document.getElementById(PHOSPHOR_LINK_ID)?.remove();
+/**
+ * Make `setId` the active set on `axis`, removing whichever set was active
+ * before. Unknown ids fall through to 'default' rather than throwing — a
+ * stale persisted value from a removed set should degrade to stock icons,
+ * not break the settings panel on load.
+ */
+function applyIconSet(axis, setId, versionTag) {
+    const sets = ICON_SETS[axis];
+    if (!sets) return;
+
+    // Clear every body class this axis owns before adding one back, so a
+    // switch can never leave two sets fighting each other.
+    for (const def of Object.values(sets)) {
+        if (def) document.body.classList.remove(def.bodyClass);
+    }
+
+    const def = sets[setId];
+    if (!def) return; // 'default', or an id we no longer ship
+
+    const id = linkIdFor(axis, setId);
+    if (!document.getElementById(id)) {
+        const link = document.createElement('link');
+        link.id = id;
+        link.rel = 'stylesheet';
+        // Adapter builds the URL: plugin route on server, extension path on
+        // tauri. versionTag is appended for cache-busting where meaningful.
+        const base = adapter.iconSetCssUrl(def.css);
+        link.href = versionTag ? `${base}?v=${versionTag}` : base;
+        document.head.append(link);
+    }
+    document.body.classList.add(def.bodyClass);
 }
 
 // ============================================================
 // Server-side Assistant card (via nebula-loader endpoints)
 // ============================================================
 
-async function applyAssistantOnServer() {
+// Assistant swap goes through the adapter: on the server host it POSTs to the
+// nebula-loader endpoints (rewrites the card file on disk); on tauri it does a
+// live DOM swap of the rendered avatar. Callers stay host-agnostic.
+async function applyAssistant() {
+    if (!adapter.capabilities.assistant) return { ok: true, skipped: true };
     try {
-        const res = await fetch(`${PLUGIN_BASE}/assistant/apply`, {
-            method: 'POST',
-            headers: getRequestHeaders(),
-        });
-        if (!res.ok) return { ok: false, status: res.status };
-        return await res.json();
+        return await adapter.assistantApply();
     } catch (err) {
         return { ok: false, error: err.message };
     }
 }
 
-async function restoreAssistantOnServer() {
+async function restoreAssistant() {
+    if (!adapter.capabilities.assistant) return { ok: true, skipped: true };
     try {
-        const res = await fetch(`${PLUGIN_BASE}/assistant/restore`, {
-            method: 'POST',
-            headers: getRequestHeaders(),
-        });
-        if (!res.ok) return { ok: false, status: res.status };
-        return await res.json();
+        return await adapter.assistantRestore();
     } catch (err) {
         return { ok: false, error: err.message };
     }
@@ -232,18 +281,40 @@ function buildNebulaSectionHTML(features) {
         ? ''
         : '<div class="bd-nebula-note">No <code>default_Assistant.png</code> shipped in nebula-loader assets — only favicon and logo will swap.</div>';
     return `
-        <hr class="bd-divider bd-nebula-divider">
         <div class="bd-nebula-section">
-            <label class="bd-toggle-row" title="Apply the nebula-loader visual identity: tab favicon, welcome logo, and default Assistant character.">
-                <input type="checkbox" id="bd-nebula-enabled">
-                <span>Nebula Engine Integration</span>
-                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+            <label class="bd-row" title="Apply the nebula-loader visual identity: tab favicon, welcome logo, and default Assistant character.">
+                <span class="bd-row-name">Nebula Engine Integration</span>
+                <input type="checkbox" class="bd-switch" id="bd-nebula-enabled">
             </label>
             ${cardLine}
-            <label class="bd-toggle-row" title="Replace SillyTavern's Font Awesome interface icons with the Phosphor icon set. Independent of Nebula Engine — toggle freely.">
-                <input type="checkbox" id="bd-phosphor-enabled">
-                <span>Phosphor Icons</span>
-                <i class="fa-solid fa-circle-info bd-info-icon"></i>
+            <label class="bd-row" title="Re-skin SillyTavern's Font Awesome interface icons. Independent of Nebula Engine.">
+                <span class="bd-row-name">General Icons</span>
+                <select class="text_pole bd-iconset-select" id="bd-iconset-general">
+                    <option value="default">Font Awesome (default)</option>
+                    <option value="phosphor">Phosphor</option>
+                    <option value="phosphor-duotone">Phosphor Duotone</option>
+                    <option value="tabler">Tabler</option>
+                    <option value="lucide">Lucide</option>
+                    <option value="remix-line">Remix Line</option>
+                    <option value="remix-fill">Remix Fill</option>
+                </select>
+            </label>
+            <label class="bd-row" title="Re-skin only the top navigation bar and chat-input buttons. Overrides the general set on those icons.">
+                <span class="bd-row-name">Top Bar Icons</span>
+                <select class="text_pole bd-iconset-select" id="bd-iconset-topbar">
+                    <option value="default">Match general set</option>
+                    <option value="pepicons">Pepicons</option>
+                    <option value="freehand">Streamline Freehand</option>
+                    <option value="tabler">Tabler</option>
+                    <option value="lucide">Lucide</option>
+                    <option value="remix-line">Remix Line</option>
+                    <option value="remix-fill">Remix Fill</option>
+                    <option value="pixel">Pixelarticons</option>
+                    <option value="cyber">Streamline Cyber</option>
+                    <option value="sl-pixel">Streamline Pixel</option>
+                    <option value="glyphs-poly">Glyphs Poly (color)</option>
+                    <option value="stickies">Streamline Stickies (color)</option>
+                </select>
             </label>
         </div>
     `;
@@ -256,7 +327,17 @@ function injectNebulaSection(features) {
         // Already injected (e.g. settings panel re-rendered). Just return it.
         return container.querySelector('#bd-nebula-enabled');
     }
-    container.insertAdjacentHTML('beforeend', buildNebulaSectionHTML(features));
+    // Inject into the Interface collapsible (via its anchor) so Nebula + Phosphor
+    // live alongside Side Buttons. Fall back to appending to the drawer content
+    // if the anchor isn't present for any reason.
+    const anchor = container.querySelector('.bd-nebula-anchor');
+    if (anchor) {
+        anchor.insertAdjacentHTML('beforebegin', buildNebulaSectionHTML(features));
+    } else {
+        container.insertAdjacentHTML('beforeend', buildNebulaSectionHTML(features));
+    }
+    // Refresh the Interface section's on/total count now that its switches grew.
+    try { window.bdRefreshSecCounts?.(); } catch { /* non-fatal */ }
     return container.querySelector('#bd-nebula-enabled');
 }
 
@@ -265,17 +346,19 @@ function injectNebulaSection(features) {
 // ============================================================
 
 async function applyToggleFeatures() {
-    // Use the content-versioned asset tag (not Date.now()) so cached assets are
-    // reused across loads and only re-fetched after a real file update.
-    applyFavicon(assetsVersion);
+    // On hosts where the plugin didn't skin the loader on disk (tauri), inject
+    // the loader-screen skin at runtime. No-op on server (plugin handles it).
+    await adapter.injectLoaderSkin();
+    applyFavicon();
     startLogoObserver(assetsVersion);
-    await applyAssistantOnServer();
+    await applyAssistant();
 }
 
 async function revertToggleFeatures() {
+    adapter.removeLoaderSkin();
     revertFavicon();
     stopLogoObserver();
-    await restoreAssistantOnServer();
+    await restoreAssistant();
 }
 
 // ============================================================
@@ -283,14 +366,17 @@ async function revertToggleFeatures() {
 // ============================================================
 
 export async function initCuteLoader() {
-    const info = await probeCuteLoader();
-    if (!info) return; // nebula-loader absent — full no-op, no UI section.
+    // Resolve the host adapter once. 'server' = ST + nebula-loader (behaves
+    // exactly as before), 'tauri' = TauriTavern (extension-hosted assets +
+    // client-side swaps), 'plain' = vanilla ST without the plugin (full no-op).
+    adapter = await getAdapter();
+    if (adapter.host === 'plain') return; // preserve legacy no-op behavior.
 
     // Stable, content-based cache-bust tag for every asset URL this module
-    // builds. Older nebula-loader builds won't report it — fall back to '0'.
-    assetsVersion = String(info.assetsVersion ?? '0');
+    // builds. Server reports it via /info; tauri has none, so '0'.
+    assetsVersion = String(adapter.assetsVersion ?? '0');
 
-    const checkbox = injectNebulaSection(info.features);
+    const checkbox = injectNebulaSection(adapter.features);
     if (!checkbox) return;
 
     // Restore persisted toggle state and apply if enabled.
@@ -302,22 +388,38 @@ export async function initCuteLoader() {
     checkbox.addEventListener('change', async () => {
         const on = checkbox.checked;
         setSetting('nebulaEngine', on);
+        try { window.bdRefreshSecCounts?.(); } catch { /* non-fatal */ }
         if (on) await applyToggleFeatures();
         else await revertToggleFeatures();
     });
 
-    // Phosphor icon skin — independent toggle, its own persisted setting.
-    const phosphorCheckbox = document.querySelector('#bd-phosphor-enabled');
-    if (phosphorCheckbox) {
-        const phosphorOn = !!getSetting('phosphorIcons');
-        phosphorCheckbox.checked = phosphorOn;
-        if (phosphorOn) applyPhosphorIcons(assetsVersion);
+    // Icon sets — two independent dropdowns, same wiring for both.
+    // Note these don't call bdRefreshSecCounts: that count is defined over
+    // .bd-switch inputs, and a <select> isn't a switch. The Interface
+    // section's "on/total" simply no longer counts icons, which is correct —
+    // "default" isn't off, it's a choice.
+    for (const axis of ['general', 'topbar']) {
+        const select = document.querySelector(`#bd-iconset-${axis}`);
+        if (!select) continue;
 
-        phosphorCheckbox.addEventListener('change', () => {
-            const on = phosphorCheckbox.checked;
-            setSetting('phosphorIcons', on);
-            if (on) applyPhosphorIcons(assetsVersion);
-            else revertPhosphorIcons();
+        const key = ICON_SETTING_KEY[axis];
+        const saved = getSetting(key) || 'default';
+
+        // Only adopt the persisted value if we still ship it; otherwise fall
+        // back to default AND write that back, so the panel doesn't keep
+        // showing a selection that does nothing.
+        if (ICON_SETS[axis][saved] !== undefined) {
+            select.value = saved;
+        } else {
+            select.value = 'default';
+            setSetting(key, 'default');
+        }
+
+        if (select.value !== 'default') applyIconSet(axis, select.value, assetsVersion);
+
+        select.addEventListener('change', () => {
+            setSetting(key, select.value);
+            applyIconSet(axis, select.value, assetsVersion);
         });
     }
 }

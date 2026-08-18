@@ -17,6 +17,54 @@ let activeTab = 'theme';
 let drawerObserver = null;
 
 // ============================================================
+// Third-party interop: SillyTavern-CssSnippets
+// ============================================================
+
+/**
+ * CssSnippets appends its "Manage CSS snippets" trigger button to
+ * `#CustomCSS-block > h4` once, at its own init(), with no re-injection.
+ * When we relocate #CustomCSS-block (or ST re-renders it), that button can be
+ * lost. This re-creates it if missing so the popup stays reachable.
+ *
+ * The button's only job is to call the extension's showCssManager(), which is
+ * also registered as the `/csss` slash command — so we trigger it via that
+ * command to avoid reaching into CssSnippets' module internals.
+ *
+ * @param {HTMLElement} cssBlock  The #CustomCSS-block element (post-move).
+ */
+function ensureCssSnippetsButton(cssBlock) {
+    if (!cssBlock) return;
+    const h4 = cssBlock.querySelector(':scope > h4');
+    if (!h4) return;
+    // Already present (rode along with the move) — nothing to do.
+    if (h4.querySelector('.csss--trigger')) return;
+    // Only add our shim if CssSnippets is actually installed. Detection:
+    // the /csss slash command exists once its init() has run.
+    const ctx = (typeof SillyTavern !== 'undefined' && SillyTavern.getContext)
+        ? SillyTavern.getContext() : null;
+    const hasCsss = ctx?.SlashCommandParser?.commands?.csss
+        || document.querySelector('#csss--css-snippets') != null;
+    if (!hasCsss) return;
+
+    const btn = document.createElement('span');
+    btn.classList.add(
+        'csss--trigger', 'menu_button', 'menu_button_icon',
+        'fa-solid', 'fa-list-check',
+    );
+    btn.title = 'Manage CSS snippets';
+    btn.addEventListener('click', () => {
+        try {
+            ctx?.executeSlashCommandsWithOptions
+                ? ctx.executeSlashCommandsWithOptions('/csss')
+                : SillyTavern.getContext().executeSlashCommands('/csss');
+        } catch (e) {
+            console.error('[BD] Failed to open CSS Snippets manager:', e);
+        }
+    });
+    h4.append(btn);
+}
+
+// ============================================================
 // Drawer Takeover
 // ============================================================
 
@@ -94,6 +142,8 @@ function takeoverDrawer() {
         cssWrapper.id = 'wl-usd-css-wrapper';
         cssWrapper.appendChild(cssBlock);
         themeTop.appendChild(cssWrapper);
+        // Re-ensure third-party CssSnippets trigger survives the relocation.
+        ensureCssSnippetsButton(cssBlock);
     }
 
     // Extract themeToggles from col1 into full-width row

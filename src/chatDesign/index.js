@@ -9,8 +9,10 @@
 import { eventSource, event_types } from '../../../../../../script.js';
 import { isChatDesignEnabled } from './storage.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
+import { refreshCursorDiscovery } from './cursors.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 import { startAvatarStamping, stopAvatarStamping, stampAllMessages } from './avatarStamp.js';
+import { applyThemeForActiveChar } from './themeSwitch.js';
 
 const log = () => {};
 
@@ -25,6 +27,14 @@ export function initChatDesign() {
         startAvatarStamping();
     }
 
+    // Cursor sets are discovered from the server (nebula-loader). Kick off one
+    // scan in the background; when it resolves, re-inject so any active cursor
+    // "set" style can resolve its files. Non-blocking and self-guarding — a
+    // missing plugin resolves to "unavailable" and this becomes a no-op.
+    refreshCursorDiscovery()
+        .then(() => { if (isChatDesignEnabled()) injectChatDesignCSS(); })
+        .catch(() => {});
+
     // Re-inject CSS when chat changes (character switch, new chat, etc.)
     // Batched via cssScheduler so all three CSS modules update in one frame
     eventSource.on(event_types.CHAT_CHANGED, () => {
@@ -35,6 +45,15 @@ export function initChatDesign() {
             // render that happens on chat load.
             stampAllMessages();
         }
+
+        // Per-character UI theme switching. Deliberately OUTSIDE the
+        // isChatDesignEnabled() guard: auto-theming is its own feature (driven
+        // by its own assignment map + default), independent of whether the
+        // Chat Design CSS overrides are enabled. Self-guards internally — no-ops
+        // when nothing is assigned and no default is set. This handler only runs
+        // once UIBedazzler is loaded, which is what fixes the old quick-reply's
+        // boot-time "/split unknown command" race.
+        applyThemeForActiveChar();
     });
 
     // Re-inject on verse change (verse styles may target different characters)

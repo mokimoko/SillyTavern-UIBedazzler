@@ -1,6 +1,6 @@
 {
     "display_name": "UI Bedazzler",
-    "loading_order": 15,
+    "loading_order": 0,
     "requires": [],
     "optional": [],
     "js": "index.js",

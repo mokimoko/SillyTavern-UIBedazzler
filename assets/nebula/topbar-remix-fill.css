@@ -1,0 +1,59 @@
+/* ============================================================
+   TOPBAR PRESET — Remix Fill
+   ------------------------------------------------------------
+   GENERATED FILE — do not hand-edit.
+   Rebuild:  node _tools/build-topbar-set.cjs remix-fill
+   Icons:    _tools/mappings/topbar-remix.json
+
+   Gated on body.bd-topbar-remix-fill. Out-specifies the general
+   icon set on every slot, so a Top Bar choice always wins here.
+   ============================================================ */
+
+/* ---- Shared mask rule -------------------------------------- */
+body.bd-topbar-remix-fill #leftNavDrawerIcon::before,
+body.bd-topbar-remix-fill #API-status-top::before,
+body.bd-topbar-remix-fill .drawer-icon[title="AI Response Formatting"]::before,
+body.bd-topbar-remix-fill #WIDrawerIcon::before,
+body.bd-topbar-remix-fill .drawer-icon[title="User Settings"]::before,
+body.bd-topbar-remix-fill #backgrounds-drawer-toggle .drawer-icon::before,
+body.bd-topbar-remix-fill .drawer-icon[title="Extensions"]::before,
+body.bd-topbar-remix-fill #extensionsMenuButton::before,
+body.bd-topbar-remix-fill .drawer-icon[title="Persona Management"]::before,
+body.bd-topbar-remix-fill #mes_impersonate::before,
+body.bd-topbar-remix-fill #rightNavDrawerIcon::before,
+body.bd-topbar-remix-fill #options_button::before,
+body.bd-topbar-remix-fill #mes_continue::before,
+body.bd-topbar-remix-fill #send_but::before,
+body.bd-topbar-remix-fill #stscript_continue i::before,
+body.bd-topbar-remix-fill #stscript_pause i::before,
+body.bd-topbar-remix-fill #stscript_stop i::before,
+body.bd-topbar-remix-fill #mes_stop i::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    background-color: currentColor;
+    -webkit-mask: var(--bd-icon) no-repeat center / contain;
+    mask: var(--bd-icon) no-repeat center / contain;
+}
+
+/* ---- Per-slot sources -------------------------------------- */
+body.bd-topbar-remix-fill #leftNavDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M6.17%2018a3.001%203.001%200%200%201%205.66%200H22v2H11.83a3.001%203.001%200%200%201-5.66%200H2v-2zm6-7a3.001%203.001%200%200%201%205.66%200H22v2h-4.17a3.001%203.001%200%200%201-5.66%200H2v-2zm-6-7a3.001%203.001%200%200%201%205.66%200H22v2H11.83a3.001%203.001%200%200%201-5.66%200H2V4z%22%2F%3E%3C%2Fsvg%3E"); }  /* sliders: equalizer-fill */
+body.bd-topbar-remix-fill #API-status-top::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M13%2018v2h6v2h-6a2%202%200%200%201-2-2v-2H8a4%204%200%200%201-4-4v-4h16v4a4%204%200%200%201-4%204zm3-12h3a1%201%200%200%201%201%201v2H4V7a1%201%200%200%201%201-1h3V2h2v4h4V2h2zm-4%208.5a1%201%200%201%200%200-2a1%201%200%200%200%200%202%22%2F%3E%3C%2Fsvg%3E"); }  /* api: plug-fill */
+body.bd-topbar-remix-fill .drawer-icon[title="AI Response Formatting"]::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M10%206v15H8V6H2V4h14v2zm8%208v7h-2v-7h-3v-2h8v2z%22%2F%3E%3C%2Fsvg%3E"); }  /* formatting: font-size-2 */
+body.bd-topbar-remix-fill #WIDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M12%202c5.523%200%2010%204.477%2010%2010s-4.477%2010-10%2010S2%2017.523%202%2012S6.477%202%2012%202m4.004%2010.878c-.345-.525-.594-.903-1.542-.753c-1.79.284-1.989.597-2.074%201.113l-.024.156l-.025.166c-.097.683-.094.941.22%201.27c1.265%201.328%202.023%202.285%202.253%202.845c.112.273.4%201.1.202%201.918a8.2%208.2%200%200%200%203.151-2.237c.11-.374.19-.84.19-1.404v-.105c0-.922%200-1.343-.652-1.716a7%207%200%200%200-.645-.325c-.367-.167-.61-.276-.938-.756q-.06-.085-.116-.172M12%203.833c-2.317%200-4.41.966-5.896%202.516c.177.123.331.296.437.534c.204.457.204.928.204%201.345c0%20.328%200%20.64.105.865c.144.308.766.44%201.315.554c.197.042.399.084.583.135c.506.14.898.595%201.211.96c.13.151.323.374.42.43c.05-.036.211-.211.29-.498c.062-.22.044-.414-.045-.52c-.56-.66-.529-1.93-.356-2.399c.272-.739%201.122-.684%201.744-.644c.232.015.45.03.614.009c.622-.078.814-1.025.949-1.21c.292-.4%201.186-1.003%201.74-1.375A8.1%208.1%200%200%200%2012%203.833%22%2F%3E%3C%2Fsvg%3E"); }  /* worldinfo: earth-fill */
+body.bd-topbar-remix-fill .drawer-icon[title="User Settings"]::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M9.954%202.21a10%2010%200%200%201%204.09-.002A4%204%200%200%200%2016%205.07a4%204%200%200%200%203.457.261A10%2010%200%200%201%2021.5%208.877a4%204%200%200%200-1.5%203.122c0%201.264.586%202.391%201.501%203.124a10%2010%200%200%201-2.045%203.543a4%204%200%200%200-3.456.261a4%204%200%200%200-1.955%202.86a10%2010%200%200%201-4.09.004A4%204%200%200%200%208%2018.927a4%204%200%200%200-3.457-.26A10%2010%200%200%201%202.5%2015.121A4%204%200%200%200%204%2011.999c0-1.264-.587-2.39-1.502-3.124a10%2010%200%200%201%202.045-3.542A4%204%200%200%200%208%205.07a4%204%200%200%200%201.954-2.86M12%2015a3%203%200%201%200%200-6a3%203%200%200%200%200%206%22%2F%3E%3C%2Fsvg%3E"); }  /* settings: settings-3-fill */
+body.bd-topbar-remix-fill #backgrounds-drawer-toggle .drawer-icon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M20%205H4v14l9.292-9.294a1%201%200%200%201%201.415%200L20%2015.01zM2%203.993A1%201%200%200%201%202.992%203h18.016c.548%200%20.992.445.992.993v16.014a1%201%200%200%201-.992.993H2.992A.993.993%200%200%201%202%2020.007zM8%2011a2%202%200%201%201%200-4a2%202%200%200%201%200%204%22%2F%3E%3C%2Fsvg%3E"); }  /* background: image-fill */
+body.bd-topbar-remix-fill .drawer-icon[title="Extensions"]::before,
+body.bd-topbar-remix-fill #extensionsMenuButton::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M8%204a3%203%200%201%201%205.83%201H18a1%201%200%200%201%201%201v4.17a3%203%200%201%201%200%205.659V20a1%201%200%200%201-1%201H4a1%201%200%200%201-1-1V6a1%201%200%200%201%201-1h4.17C8.06%204.687%208%204.35%208%204%22%2F%3E%3C%2Fsvg%3E"); }  /* extensions: puzzle-fill */
+body.bd-topbar-remix-fill .drawer-icon[title="Persona Management"]::before,
+body.bd-topbar-remix-fill #mes_impersonate::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M12%202c5.52%200%2010%204.48%2010%2010s-4.48%2010-10%2010S2%2017.52%202%2012S6.48%202%2012%202M6.023%2015.416C7.491%2017.606%209.695%2019%2012.16%2019s4.669-1.393%206.136-3.584A8.97%208.97%200%200%200%2012.16%2013a8.97%208.97%200%200%200-6.137%202.416M12%2011a3%203%200%201%200%200-6a3%203%200%200%200%200%206%22%2F%3E%3C%2Fsvg%3E"); }  /* persona: account-circle-fill */
+body.bd-topbar-remix-fill #rightNavDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M16.5%203C19.538%203%2022%205.5%2022%209c0%207-7.5%2011-10%2012.5C9.5%2020%202%2016%202%209c0-3.5%202.5-6%205.5-6C9.36%203%2011%204%2012%205c1-1%202.64-2%204.5-2%22%2F%3E%3C%2Fsvg%3E"); }  /* characters: heart-3-fill */
+body.bd-topbar-remix-fill #options_button::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M5%2010c-1.1%200-2%20.9-2%202s.9%202%202%202s2-.9%202-2s-.9-2-2-2m14%200c-1.1%200-2%20.9-2%202s.9%202%202%202s2-.9%202-2s-.9-2-2-2m-7%200c-1.1%200-2%20.9-2%202s.9%202%202%202s2-.9%202-2s-.9-2-2-2%22%2F%3E%3C%2Fsvg%3E"); }  /* options: more-fill */
+body.bd-topbar-remix-fill #mes_continue::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M12%2013H4v-2h8V4l8%208l-8%208z%22%2F%3E%3C%2Fsvg%3E"); }  /* continue: arrow-right-fill */
+body.bd-topbar-remix-fill #send_but::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M1.946%209.315c-.522-.174-.527-.455.01-.634L21.044%202.32c.529-.176.832.12.684.638l-5.454%2019.086c-.15.529-.455.547-.679.045L12%2014l6-8l-8%206z%22%2F%3E%3C%2Fsvg%3E"); }  /* send: send-plane-fill */
+body.bd-topbar-remix-fill #stscript_continue i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M19.376%2012.416L8.777%2019.482A.5.5%200%200%201%208%2019.066V4.934a.5.5%200%200%201%20.777-.416l10.599%207.066a.5.5%200%200%201%200%20.832%22%2F%3E%3C%2Fsvg%3E"); }  /* play: play-fill */
+body.bd-topbar-remix-fill #stscript_pause i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M6%205h2v14H6zm10%200h2v14h-2z%22%2F%3E%3C%2Fsvg%3E"); }  /* pause: pause-fill */
+body.bd-topbar-remix-fill #stscript_stop i::before,
+body.bd-topbar-remix-fill #mes_stop i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22m12%2010.587l4.95-4.95l1.414%201.414l-4.95%204.95l4.95%204.95l-1.415%201.414l-4.95-4.95l-4.949%204.95l-1.414-1.415l4.95-4.95l-4.95-4.95L7.05%205.638z%22%2F%3E%3C%2Fsvg%3E"); }  /* stop: close-fill */

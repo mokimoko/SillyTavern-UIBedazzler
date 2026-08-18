@@ -1,0 +1,1454 @@
+/* ============================================================
+   World Info v2 — full-viewport overlay shell
+   Prefix: wl-wi2-  (expanded char drawer owns wl-xd-)
+   Scaffold only for now: layout skeleton matching the mock's regions.
+   The mock's real styling gets ported pour-by-pour.
+   ============================================================ */
+
+/* Expand button injected into ST's NATIVE World Info drawer header (right of
+   the lock #WI_panel_pin_div). Opens the v2 overlay. No explicit font-size:
+   like the lock glyph it inherits the header row's base size, so the two icons
+   read at the same scale. Only affordances (pointer, muted default, hover/focus
+   lift) are styled, to match the lock's light, chrome-free look. Formerly lived
+   here with the rest of the expanded drawer styles. */
+#wl-wi2-native-expand-btn {
+    cursor: pointer;
+    opacity: 0.7;
+    line-height: 1;
+    transition: opacity .15s, color .15s;
+}
+#wl-wi2-native-expand-btn:hover,
+#wl-wi2-native-expand-btn:focus-visible {
+    opacity: 1;
+    color: var(--SmartThemeQuoteColor, #9b8cff);
+    outline: none;
+}
+
+#wl-wi2-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10000; /* matches #wl-xd-root: above ST panels, below toasts */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* Opaque like #wl-xd-root (the expanded char drawer). --SmartThemeBlur
+       TintColor is a SEMI-TRANSPARENT tint meant to sit over a backdrop-filter
+       blur; painted straight onto the root with nothing behind it, the page
+       showed through. The char drawer avoids this by backing its tinted columns
+       with a solid #000 root. We do the same in one element: a flat tint LAYER
+       (gradient with equal stops = solid fill, the only way to stack a colour
+       as a background layer) over an opaque black background-color, so the theme
+       tint still reads but the page can't bleed through. */
+    background-color: #000;
+    background-image: linear-gradient(var(--SmartThemeBlurTintColor, #111), var(--SmartThemeBlurTintColor, #111));
+    color: var(--SmartThemeBodyColor, #ddd);
+    overflow: hidden;
+}
+
+/* ── Topbar ─────────────────────────────────────────────── */
+.wl-wi2-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+/* Close — an X on the RIGHT, matching the expanded Character Drawer's
+   .wl-xd-close (36×36, subtle hover) rather than a left-side back arrow.
+   The meter-wrap's margin-left:auto pushes it (and this, which follows it in
+   the topbar) to the far right; the topbar gap sets it off from the meter. */
+.wl-wi2-close {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; aspect-ratio: 1;
+    background: none; border: none; cursor: pointer;
+    font-size: 1.3em; border-radius: 6px;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    transition: background .15s, color .15s;
+}
+.wl-wi2-close:hover {
+    background: rgba(255,255,255,.07);
+    color: #fff;
+}
+
+/* Tabs — underline style, matching the expanded Character Drawer's
+   .wl-xd-tab: dimmed text buttons with an accent bar under the active one
+   (via ::after on the tab bar's bottom border), not bordered pills. */
+.wl-wi2-tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #2f2b40);
+    flex-wrap: wrap;
+}
+
+.wl-wi2-tab {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    padding: 8px 13px;
+    font-size: .87em;
+    font-weight: 500;
+    opacity: .55;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: opacity .15s;
+}
+.wl-wi2-tab:hover { opacity: .85; }
+.wl-wi2-tab.active { opacity: 1; }
+.wl-wi2-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-radius: 2px 2px 0 0;
+}
+
+/* .wl-wi2-meter-wrap moved to the topbar block below (topbar pour) —
+   it gained position:relative (popover anchor) and lives with its kin. */
+
+/* ── Main + views ───────────────────────────────────────── */
+.wl-wi2-main {
+    flex: 1 1 auto;
+    min-height: 0; /* let children scroll instead of overflowing viewport */
+    display: flex;
+}
+
+.wl-wi2-view {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.wl-wi2-view.active {
+    display: flex;
+}
+
+/* Editor view — mock's three columns: rail / listcol / editor */
+#wl-wi2-view-editor.active {
+    display: grid;
+    grid-template-columns: 296px 340px 1fr; /* rail widened slightly from the mock's 272px */
+    grid-template-rows: 100%;
+    width: 100%;
+    gap: 1px;
+    background: var(--SmartThemeBorderColor, #333); /* 1px column seams */
+}
+
+.wl-wi2-rail,
+.wl-wi2-listcol,
+.wl-wi2-editor {
+    background: var(--SmartThemeBlurTintColor, #111);
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* Simulator view — a scrolling column host (poured by initSim). The inner
+   .wl-wi2-sim-wrap owns the scroll + padding, matching the editor pane. */
+#wl-wi2-view-sim.active {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* Solid backing so text reads on an opaque surface, like the editor
+       panes — without this the sim wrap is transparent and the overlay
+       tint bleeds through, washing the prose out. */
+    background: var(--SmartThemeBlurTintColor, #111);
+}
+
+/* ── Scaffold placeholder chips (die as regions get poured) ── */
+.wl-wi2-placeholder {
+    font-size: .85em;
+    opacity: .45;
+    font-style: italic;
+    user-select: none;
+}
+
+/* ============================================================
+   RAIL — ported from the mock (~226-360), classes prefixed wl-wi2-.
+   Local tokens map the mock's palette roles onto the theme layer so
+   later pours can copy mock rules nearly verbatim. --sage stays literal:
+   it's semantic ("read/on"), per style.css's rule for meaning-colors.
+   ============================================================ */
+
+#wl-wi2-root {
+    --panel: var(--bd-surface);
+    --panel-2: var(--bd-surface-2);
+    --raise: var(--bd-surface-hover);
+    --border: var(--bd-border);
+    --border-soft: color-mix(in srgb, var(--bd-border) 55%, transparent);
+    --text: var(--bd-text);
+    --muted: var(--bd-text-dim);
+    --faint: var(--bd-text-faint);
+    --gold: var(--bd-accent);
+    --gold-dim: var(--bd-accent-dim);
+    --sage: #8fae7d;
+    --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+/* Rail region: overrides the scaffold's generic column padding */
+.wl-wi2-rail {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ── Presets (§9.28) — v1's shape, shared module, v2 prefix ── */
+.wl-wi2-preset-row { display: flex; gap: 4px; align-items: center; padding: 0 12px 8px; }
+.wl-wi2-preset-select {
+    flex: 1; min-width: 0; padding: 4px 6px; font-size: 11.5px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text);
+}
+.wl-wi2-preset-actions { display: flex; gap: 1px; flex-shrink: 0; }
+.wl-wi2-preset-actions button {
+    width: 20px; height: 22px; font-size: 11px; color: var(--faint);
+    background: transparent; cursor: pointer;
+    border: 1px solid transparent; border-radius: 3px; line-height: 1;
+}
+.wl-wi2-preset-actions button:hover {
+    color: var(--gold); border-color: var(--gold-dim);
+    background: color-mix(in srgb, var(--bd-accent) 8%, transparent);
+}
+.wl-wi2-preset-flash { color: var(--sage) !important; border-color: var(--sage) !important; }
+.wl-wi2-preset-overflow {
+    position: fixed; z-index: 10010; background: var(--raise);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px;
+    box-shadow: 0 8px 24px var(--bd-shadow-strong); min-width: 130px;
+}
+.wl-wi2-preset-overflow-item {
+    padding: 5px 10px; font-size: 12px; color: var(--muted);
+    border-radius: 4px; cursor: pointer;
+}
+.wl-wi2-preset-overflow-item:hover {
+    background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text);
+}
+
+/* ── Collapsible "Read for this chat" (§9.25/§9.27, default OPEN) ── */
+.wl-wi2-rail-label {
+    display: flex; align-items: center;
+    font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase;
+    color: var(--faint); padding: 4px 14px 6px; font-weight: 600;
+}
+.wl-wi2-rail-label-hot {
+    width: 100%; text-align: left; cursor: pointer; gap: 6px;
+    color: var(--sage); background: transparent; border: none;
+}
+.wl-wi2-rail-label-hot:hover { color: var(--text); }
+.wl-wi2-rail-label-hot .wl-wi2-chev { font-size: 8px; transition: transform .18s; }
+.wl-wi2-rail.wl-wi2-active-closed .wl-wi2-chev { transform: rotate(-90deg); }
+.wl-wi2-rail.wl-wi2-active-closed .wl-wi2-rail-active { display: none; }
+.wl-wi2-rail-count {
+    margin-left: auto; font-family: var(--mono); font-size: 9.5px;
+    color: var(--faint); letter-spacing: 0;
+}
+.wl-wi2-rail-active {
+    flex: 0 1 auto; overflow-y: auto; min-height: 0; max-height: 45%;
+    padding-bottom: 4px; position: relative;
+}
+.wl-wi2-rail-sep { height: 1px; background: var(--border-soft); margin: 10px 14px; flex-shrink: 0; }
+.wl-wi2-rail-hint { font-size: 10px; color: var(--faint); padding: 5px 14px 0; line-height: 1.5; }
+.wl-wi2-rail-search {
+    margin: 2px 14px 6px; padding: 4px 8px; font-size: 11.5px;
+    width: calc(100% - 28px); flex-shrink: 0;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text);
+}
+.wl-wi2-rail-scroll { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 8px; }
+
+/* ── Book rows — the dot tracks ONE fact: global membership ── */
+.wl-wi2-book {
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px;
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    border-left: 2px solid transparent;
+}
+.wl-wi2-book:hover { color: var(--text); background: color-mix(in srgb, var(--bd-text) 2%, transparent); }
+.wl-wi2-book.sel { color: var(--text); background: color-mix(in srgb, var(--bd-accent) 5%, transparent); }
+.wl-wi2-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.wl-wi2-dot.lit { background: var(--sage); box-shadow: 0 0 5px rgba(143, 174, 125, 0.6); }
+/* Read-but-not-ours: the ROW says "read" via border + hollow ring on the dot */
+.wl-wi2-book.on:not(.ours) { border-left-color: var(--sage); }
+.wl-wi2-book.on:not(.ours) .wl-wi2-dot { box-shadow: inset 0 0 0 1px var(--sage); background: transparent; }
+/* Open beats read-here for the border (§9.26) — re-asserted after the sage rule */
+.wl-wi2-book.sel { border-left-color: var(--gold); }
+/* The dot is a control only where OURS; the row is always one (it opens) */
+.wl-wi2-book.ours .wl-wi2-dot { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.wl-wi2-book.ours .wl-wi2-dot:hover {
+    transform: scale(1.9); background: var(--gold);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--bd-accent) 70%, transparent);
+}
+.wl-wi2-book:not(.ours) .wl-wi2-dot { cursor: default; }
+.wl-wi2-cnt { margin-left: auto; font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
+
+/* ── Read-order bindings (1/2/3) + strategy picker ── */
+.wl-wi2-bind-group { position: relative; margin-bottom: 7px; }
+.wl-wi2-bind-head {
+    display: flex; align-items: center; gap: 6px; padding: 3px 14px 3px 12px;
+    font-size: 11px; color: var(--muted);
+}
+.wl-wi2-bind-n {
+    width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(143, 174, 125, 0.18); color: var(--sage);
+    font-family: var(--mono); font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+}
+.wl-wi2-bind-sub {
+    font-size: 9.5px; letter-spacing: .8px; text-transform: uppercase;
+    color: var(--faint); padding: 4px 14px 2px 32px;
+}
+.wl-wi2-bind-group .wl-wi2-book { padding-left: 32px; }
+.wl-wi2-strat-btn {
+    font-size: 11px; color: var(--sage); background: transparent; cursor: pointer;
+    border: none; border-bottom: 1px dotted rgba(143, 174, 125, 0.5);
+    padding: 0; text-align: left;
+}
+.wl-wi2-strat-btn:hover { color: var(--text); }
+.wl-wi2-strat-pop {
+    display: none; position: absolute; left: 8px; right: 8px; top: 24px; z-index: 10005;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px; flex-direction: column; box-shadow: 0 8px 24px var(--bd-shadow-strong);
+}
+.wl-wi2-strat-pop.open { display: flex; }
+.wl-wi2-strat-pop button {
+    text-align: left; padding: 6px 9px; font-size: 12px; color: var(--muted);
+    background: transparent; border: none; cursor: pointer; border-radius: 4px;
+}
+.wl-wi2-strat-pop button:hover { background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text); }
+.wl-wi2-strat-pop button.on { color: var(--sage); }
+.wl-wi2-strat-pop button small { display: block; color: var(--faint); font-size: 10px; margin-top: 1px; line-height: 1.4; }
+
+
+/* ============================================================
+   LISTCOL — ported from the mock (~439-535), classes prefixed wl-wi2-.
+   Token additions first: the mock's listcol rules read --line / --dim /
+   --serif / --sans / --violet, which the rail's token block didn't need.
+   --line and --dim alias the roles the block already has; --violet stays
+   literal (semantic — outlets/cast/meaning — same §9.19 rule as --sage);
+   the font stacks fall back gracefully (ST doesn't load Fraunces or
+   Instrument Sans; Georgia / Segoe UI are the mock's own fallbacks).
+   ============================================================ */
+
+#wl-wi2-root {
+    --line: var(--border-soft);
+    --dim: var(--muted);
+    --violet: #a795c8;
+    /* Match the Character Browser / Character Drawer: they set no custom
+       font stacks and simply inherit SillyTavern's theme UI font. Neutralizing
+       --serif/--sans here flips every entry name, editor title, and content
+       body from Fraunces/Georgia to the inherited theme font in one place.
+       --mono is left intact (counts, slot inputs, code snippets), mirroring the
+       Char Drawer's monospace hex value. */
+    --serif: inherit;
+    --sans: inherit;
+}
+
+/* Listcol region: overrides the scaffold's generic column padding.
+   Width comes from the shell grid (340px column), not from here. */
+.wl-wi2-listcol {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    background: color-mix(in srgb, black 12%, var(--panel));
+}
+
+/* ── Listhead: search · sort · select · new ── */
+.wl-wi2-listhead {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+}
+.wl-wi2-search {
+    flex: 1; min-width: 0; padding: 5px 9px; font-size: 12.5px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text);
+}
+.wl-wi2-sortsel {
+    flex: 0 1 auto; max-width: 108px; padding: 4px 4px; font-size: 11px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--muted); cursor: pointer;
+}
+.wl-wi2-sortsel:hover { color: var(--text); }
+
+/* Square icon buttons (mock): ST loads Font Awesome anyway. Every one
+   carries title + aria-label — an icon with no name is a rebus. */
+.wl-wi2-iconbtn {
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    width: 26px; height: 26px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 11px; border-radius: 4px; cursor: pointer;
+}
+.wl-wi2-iconbtn:hover { border-color: var(--bd-border-hover); color: var(--text); }
+.wl-wi2-iconbtn:disabled { opacity: .35; cursor: default; }
+.wl-wi2-iconbtn.on {
+    border-color: var(--gold-dim); color: var(--gold);
+    background: color-mix(in srgb, var(--bd-accent) 8%, transparent);
+}
+/* Danger variant — the editor's per-note Delete. Neutral until hovered, then
+   it reads red, so a destructive control looks destructive only on intent. */
+#wl-wi2-root .wl-wi2-iconbtn-danger:hover {
+    border-color: color-mix(in srgb, #e5484d 55%, var(--line));
+    color: #e5484d;
+    background: color-mix(in srgb, #e5484d 8%, transparent);
+}
+
+/* + New keeps its gold accent — the column's primary action. */
+.wl-wi2-newbtn { border-color: var(--gold-dim); color: var(--gold); transition: background .15s; }
+.wl-wi2-newbtn:hover {
+    background: color-mix(in srgb, var(--bd-accent) 10%, transparent);
+    border-color: var(--gold-dim); color: var(--gold);
+}
+
+/* ── The note list ── */
+.wl-wi2-entries { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 20px; }
+.wl-wi2-subject { margin-top: 6px; }
+.wl-wi2-subject-head {
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    padding: 7px 12px 5px; font-size: 10.5px; letter-spacing: 1.3px;
+    text-transform: uppercase; color: var(--faint); font-weight: 600;
+    background: transparent; border: none; cursor: pointer; text-align: left;
+}
+.wl-wi2-subject-head:hover { color: var(--muted); }
+.wl-wi2-subject-chev { transition: transform .18s; font-size: 9px; }
+.wl-wi2-subject.closed .wl-wi2-subject-chev { transform: rotate(-90deg); }
+.wl-wi2-subject.closed .wl-wi2-entry { display: none; }
+.wl-wi2-subject-n { margin-left: auto; font-family: var(--mono); font-size: 10px; letter-spacing: 0; }
+
+.wl-wi2-entry {
+    display: flex; align-items: center; gap: 9px; padding: 7px 12px 7px 16px;
+    cursor: pointer; border-left: 2px solid transparent;
+    color: var(--text);
+}
+.wl-wi2-entry:hover { background: color-mix(in srgb, var(--bd-text) 2.5%, transparent); }
+.wl-wi2-entry.sel { background: color-mix(in srgb, var(--bd-accent) 7%, transparent); border-left-color: var(--gold); }
+.wl-wi2-entry.shelved { opacity: 0.42; }
+.wl-wi2-entry .wl-wi2-name {
+    font-family: var(--serif); font-size: 14px; flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Mode glyphs — one glyph, one meaning (§9.17). The dot is also the fast
+   shelve/re-enable toggle (click-target), so it reads as pressable: pointer
+   cursor, a hover ring, and a nudge up in scale/opacity on hover. The mode
+   COLORS are untouched (§9.17 still holds — one glyph, one meaning). */
+.wl-wi2-glyph {
+    width: 14px; text-align: center; font-size: 11px; flex-shrink: 0;
+    cursor: pointer; border-radius: 50%; line-height: 14px;
+    transition: transform .12s, background .12s, opacity .12s;
+}
+.wl-wi2-glyph:hover {
+    transform: scale(1.25);
+    background: color-mix(in srgb, var(--bd-text) 10%, transparent);
+}
+.wl-wi2-glyph:focus-visible {
+    outline: 1px solid var(--gold-dim); outline-offset: 1px;
+}
+/* Shelved dot is faint by design; lift it on hover so "click to re-enable"
+   reads as reachable rather than disabled. */
+.wl-wi2-glyph.shelved:hover { opacity: .85; }
+.wl-wi2-glyph.always { color: var(--gold); }
+.wl-wi2-glyph.topic { color: var(--sage); }
+.wl-wi2-glyph.meaning { color: var(--violet); }
+.wl-wi2-glyph.shelved { color: var(--faint); }
+
+.wl-wi2-rankchip {
+    font-family: var(--mono); font-size: 10px; color: var(--gold-dim);
+    border: 1px solid color-mix(in srgb, var(--bd-accent) 25%, transparent);
+    padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+}
+.wl-wi2-timeicons { display: flex; gap: 4px; font-size: 9.5px; color: var(--faint); }
+
+/* ── Multi-select & bulk actions ──
+   The resting list is unchanged: every bulk cell is display:none until
+   the listcol carries .wl-wi2-msel — the affordance doesn't exist until
+   you ask for it (mock + v1's multiselect-on). */
+.wl-wi2-cbcell { display: none; flex-shrink: 0; align-items: center; }
+.wl-wi2-listcol.wl-wi2-msel .wl-wi2-cbcell { display: flex; }
+.wl-wi2-cbcell input { margin: 0; cursor: pointer; accent-color: var(--gold); }
+.wl-wi2-entry.ticked { background: color-mix(in srgb, var(--bd-accent) 10%, transparent); }
+.wl-wi2-subject-head .wl-wi2-cbcell { margin-right: 2px; }
+
+/* The bulk bar. Present only in multi-select mode — same rule as the cells,
+   so exactly one thing turns this feature on. Actions are DISABLED at zero
+   selection rather than hidden: a bar that changes shape as you tick is
+   harder to aim at than one that greys out. */
+.wl-wi2-bulkbar {
+    display: none; gap: 8px; align-items: center; padding: 8px 12px;
+    border-bottom: 1px solid var(--line); background: var(--panel-2); flex-wrap: wrap;
+    flex-shrink: 0;
+}
+.wl-wi2-listcol.wl-wi2-msel .wl-wi2-bulkbar { display: flex; }
+.wl-wi2-bulkcount { font-size: 11px; color: var(--dim); font-family: var(--mono); }
+.wl-wi2-bulkbar .wl-wi2-spacer { flex: 1; }
+.wl-wi2-bulkact {
+    background: none; border: 1px solid var(--line); color: var(--text);
+    font-family: var(--sans); font-size: 11px; padding: 4px 9px;
+    border-radius: 4px; cursor: pointer;
+}
+.wl-wi2-bulkact:hover:not(:disabled) { border-color: var(--gold-dim); color: var(--gold); }
+.wl-wi2-bulkact:disabled { opacity: 0.35; cursor: default; }
+/* Danger red is hardcoded, per §9.19: semantic colors signal MEANING, not
+   surface, so they must not follow the theme accent. */
+.wl-wi2-bulkact.danger:hover:not(:disabled) { border-color: #c4877d; color: #c4877d; }
+/* Not-wired-yet actions: dashed hairline, disabled, titles say why. The
+   dash only needs to say "not wired yet" — marked, not faked (§9.33). */
+.wl-wi2-bulkact.wl-wi2-inert {
+    border-style: dashed; border-width: 1px;
+    border-color: color-mix(in srgb, var(--bd-text) 18%, transparent);
+}
+
+/* ── Pager — exists only when there is somewhere to go ── */
+.wl-wi2-pager {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 6px 12px; border-top: 1px solid var(--line); flex-shrink: 0;
+}
+.wl-wi2-pager.on { display: flex; }
+.wl-wi2-pageinfo { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+
+
+/* ============================================================
+   Editor pane — the sentence view (editor pour, 2026-07-18)
+   Port of the mock's editor CSS (~534-840) with wl-wi2- prefixes.
+   #c4877d literals are the §9.19 danger tone (matches listcol's).
+   ============================================================ */
+
+#wl-wi2-root .wl-wi2-editor {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    overflow-y: auto;
+}
+#wl-wi2-root .wl-wi2-edhead { padding: 22px 30px 0; }
+#wl-wi2-root .wl-wi2-idrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+/* The per-note action cluster (move/copy · duplicate · delete) pushed to the
+   right edge of the id row. margin-left:auto eats the free space so the icons
+   sit opposite the type chip + subject. */
+#wl-wi2-root .wl-wi2-ed-actions { margin-left: auto; display: inline-flex; gap: 6px; flex-shrink: 0; }
+
+/* Single-note transfer picker rows: a book name (moves) + a clone glyph
+   (copies), sharing the subj-pop chrome. The name grows; the copy button is a
+   fixed square that lights on hover, so "copy here" reads distinct from the
+   default move-on-click of the row. */
+#wl-wi2-root .wl-wi2-notexfer-row { display: flex; align-items: stretch; gap: 2px; }
+#wl-wi2-root .wl-wi2-notexfer-row .wl-wi2-notexfer-name { flex: 1; text-align: left; }
+#wl-wi2-root .wl-wi2-notexfer-copy {
+    flex-shrink: 0; width: 30px; background: none; border: none; cursor: pointer;
+    color: var(--faint); font-size: 11px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+}
+#wl-wi2-root .wl-wi2-notexfer-copy:hover {
+    color: var(--gold); background: color-mix(in srgb, var(--bd-accent) 10%, transparent);
+}
+
+/* The chip is an INPUT — free text, the writer's own word for the note. */
+#wl-wi2-root .wl-wi2-type-chip {
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--gold-dim); background: none;
+    border: 1px solid color-mix(in srgb, var(--bd-accent) 30%, transparent);
+    padding: 3px 9px; border-radius: 20px; font-weight: 600;
+}
+#wl-wi2-root .wl-wi2-type-chip:focus { outline: none; border-color: var(--gold-dim); color: var(--gold); }
+/* Empty = the invitation state: dim, dashed, '+ type' — the only chip that
+   can't be wrong about a note nobody has described yet. */
+#wl-wi2-root .wl-wi2-type-chip:placeholder-shown { border-style: dashed; border-color: var(--border); }
+#wl-wi2-root .wl-wi2-type-chip::placeholder { color: var(--faint); font-weight: 500; }
+#wl-wi2-root .wl-wi2-id-sep { color: var(--faint); font-size: 10.5px; font-style: italic; }
+
+#wl-wi2-root .wl-wi2-subj-wrap { position: relative; display: inline-flex; }
+#wl-wi2-root .wl-wi2-subj-pick {
+    font-size: 11px; color: var(--muted); background: none; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+#wl-wi2-root .wl-wi2-subj-pick:hover { border-color: var(--gold-dim); color: var(--text); }
+#wl-wi2-root .wl-wi2-subj-caret { font-size: 8px; color: var(--faint); }
+
+/* Marked-inert affordances (§9.33): visibly not-yet-real, never fake. */
+#wl-wi2-root .wl-wi2-inert,
+#wl-wi2-root .wl-wi2-inert:hover {
+    border-style: dashed !important; border-color: var(--border) !important;
+    color: var(--faint) !important; cursor: not-allowed; opacity: .75;
+}
+
+#wl-wi2-root .wl-wi2-subj-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; background: var(--raise);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px;
+    display: none; flex-direction: column; min-width: 170px; z-index: 30;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#wl-wi2-root .wl-wi2-subj-pop.open { display: flex; }
+#wl-wi2-root .wl-wi2-subj-opt {
+    text-align: left; padding: 6px 10px; font-size: 12.5px; color: var(--muted);
+    border-radius: 4px; background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-subj-opt:hover { background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text); }
+
+/* Cast picker: a subj-pop with a live text filter over a scrolling roster.
+   Reuses the subj-pop box + subj-opt rows; adds only the filter field, the
+   scroll region, and the honest empty-state line. */
+#wl-wi2-root .wl-wi2-castpick { min-width: 220px; max-width: 320px; }
+/* Opens upward: clear the base pop's `top` anchor so the inline `bottom`
+   (set in JS, pinned just above the opener) wins. */
+#wl-wi2-root .wl-wi2-castpick-up { top: auto; }
+#wl-wi2-root .wl-wi2-castpick-filter {
+    margin: 1px 2px 5px; padding: 5px 8px; font-size: 12.5px;
+    background: var(--panel, var(--bg)); color: var(--text);
+    border: 1px solid var(--border); border-radius: 5px; outline: none;
+}
+#wl-wi2-root .wl-wi2-castpick-filter:focus {
+    border-color: var(--bd-accent);
+    background: color-mix(in srgb, var(--bd-accent) 5%, transparent);
+}
+#wl-wi2-root .wl-wi2-castpick-filter::placeholder { color: var(--faint); font-style: italic; }
+#wl-wi2-root .wl-wi2-castpick-list {
+    display: flex; flex-direction: column; gap: 1px;
+    max-height: 240px; overflow-y: auto;
+}
+#wl-wi2-root .wl-wi2-castpick-empty {
+    padding: 8px 10px; font-size: 12px; line-height: 1.45;
+    color: var(--faint); max-width: 260px;
+}
+
+/* Subject picker (§9.4): a downward subj-pop listing canonical + in-use
+   subjects, with a free-text field to mint a new one. Reuses subj-opt rows;
+   adds the scroll cap, the current-marker, and the new-subject field. */
+#wl-wi2-root .wl-wi2-subjpick { min-width: 190px; }
+#wl-wi2-root .wl-wi2-subjpick-list {
+    display: flex; flex-direction: column; gap: 1px;
+    max-height: 260px; overflow-y: auto;
+}
+#wl-wi2-root .wl-wi2-subj-opt { position: relative; display: flex; align-items: center; justify-content: space-between; }
+#wl-wi2-root .wl-wi2-subj-opt.cur { color: var(--text); }
+#wl-wi2-root .wl-wi2-subj-cur { font-size: 11px; color: var(--bd-accent); margin-left: 8px; }
+#wl-wi2-root .wl-wi2-subjpick-new {
+    margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--border);
+}
+#wl-wi2-root .wl-wi2-subjpick-input {
+    width: 100%; box-sizing: border-box; margin: 1px 0;
+    padding: 6px 9px; font-size: 12.5px;
+    background: var(--panel, var(--bg)); color: var(--text);
+    border: 1px dashed var(--border); border-radius: 5px; outline: none;
+}
+#wl-wi2-root .wl-wi2-subjpick-input:focus {
+    border-style: solid; border-color: var(--bd-accent);
+    background: color-mix(in srgb, var(--bd-accent) 5%, transparent);
+}
+#wl-wi2-root .wl-wi2-subjpick-input::placeholder { color: var(--faint); font-style: italic; }
+
+#wl-wi2-root .wl-wi2-ed-title {
+    font-family: var(--serif); font-size: 27px; font-weight: 500;
+    background: none; border: none; width: 100%; color: var(--text); padding: 0;
+}
+#wl-wi2-root .wl-wi2-ed-title:focus { outline: none; border-bottom: 1px solid var(--gold-dim); }
+#wl-wi2-root .wl-wi2-ed-title::placeholder { color: var(--faint); }
+#wl-wi2-root .wl-wi2-ed-sub { color: var(--faint); font-size: 11.5px; margin-top: 5px; font-family: var(--mono); }
+
+#wl-wi2-root .wl-wi2-ed-body {
+    padding: 16px 30px 40px; display: flex; flex-direction: column;
+    gap: 18px; max-width: 1060px;
+}
+#wl-wi2-root .wl-wi2-ed-content {
+    width: 100%; min-height: 170px; padding: 13px 15px; font-size: 14px;
+    line-height: 1.65; resize: vertical; font-family: var(--serif);
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+}
+#wl-wi2-root .wl-wi2-ed-content:focus { outline: none; border-color: var(--gold-dim); }
+
+/* ---------------- Sentence builder ---------------- */
+#wl-wi2-root .wl-wi2-sentence-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px 20px 14px; position: relative;
+}
+#wl-wi2-root .wl-wi2-sentence-card::before {
+    content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px;
+    background: linear-gradient(var(--gold), transparent); border-radius: 2px;
+}
+#wl-wi2-root .wl-wi2-s-line {
+    font-size: 14.5px; line-height: 2.15; color: var(--muted); position: relative;
+}
+#wl-wi2-root .wl-wi2-s-line b { color: var(--text); font-weight: 500; }
+#wl-wi2-root .wl-wi2-slot {
+    display: inline-block; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 1px 8px;
+    font-size: 13px; margin: 0 2px; cursor: pointer; transition: border-color .15s;
+}
+#wl-wi2-root .wl-wi2-slot:hover { border-color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-slot.mode { color: var(--sage); }
+#wl-wi2-root .wl-wi2-slot.mini { font-size: 10.5px; padding: 0 6px; color: var(--muted); }
+#wl-wi2-root .wl-wi2-slot-input {
+    font-family: var(--mono); font-size: 12px; color: var(--gold); width: 46px;
+    text-align: center; padding: 1px 4px; margin: 0 2px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+}
+#wl-wi2-root .wl-wi2-slot-input:hover,
+#wl-wi2-root .wl-wi2-slot-input:focus { border-color: var(--gold-dim); outline: none; }
+/* no spinners — slot-input width is sized to the digits, spinners would clip */
+#wl-wi2-root .wl-wi2-slot-input::-webkit-outer-spin-button,
+#wl-wi2-root .wl-wi2-slot-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#wl-wi2-root .wl-wi2-slot-input { -moz-appearance: textfield; appearance: textfield; }
+#wl-wi2-root .wl-wi2-s-caveat { font-size: 11.5px; color: var(--faint); font-style: italic; }
+
+/* ---------------- Mode picker (direction chosen at open time) ---------------- */
+#wl-wi2-root .wl-wi2-mode-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px;
+    display: none; flex-direction: column; min-width: min(320px, 100%); max-width: 100%; z-index: 30;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    max-height: var(--wl-wi2-pop-maxh, none); overflow-y: auto;
+}
+/* Flip overrides (flipPopIntoView). Default is downward; -up anchors it above. */
+#wl-wi2-root .wl-wi2-mode-pop.wl-wi2-pop-down { bottom: auto; top: calc(100% + 6px); }
+#wl-wi2-root .wl-wi2-mode-pop.wl-wi2-pop-up { top: auto; bottom: calc(100% + 6px); }
+#wl-wi2-root .wl-wi2-mode-pop.open { display: flex; }
+#wl-wi2-root .wl-wi2-mode-opt {
+    display: grid; grid-template-columns: 16px 1fr; gap: 9px; align-items: baseline;
+    text-align: left; padding: 7px 9px; border-radius: 4px; color: var(--muted);
+    font-size: 13px; background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-mode-opt:hover { background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text); }
+#wl-wi2-root .wl-wi2-mode-opt.cur { background: color-mix(in srgb, var(--bd-accent) 6%, transparent); color: var(--text); }
+#wl-wi2-root .wl-wi2-mode-opt small { display: block; color: var(--faint); font-size: 10.5px; margin-top: 2px; line-height: 1.45; }
+#wl-wi2-root .wl-wi2-mode-opt .wl-wi2-mode-g { font-size: 11px; text-align: center; }
+#wl-wi2-root .wl-wi2-mode-g.always { color: var(--gold); }
+#wl-wi2-root .wl-wi2-mode-g.topic { color: var(--sage); }
+#wl-wi2-root .wl-wi2-mode-g.meaning { color: var(--violet); }
+#wl-wi2-root .wl-wi2-mode-g.shelved { color: var(--faint); }
+/* §9.5 — "By meaning" must never silently fall back to keyword behaviour. */
+#wl-wi2-root .wl-wi2-mode-opt.off { opacity: .55; }
+#wl-wi2-root .wl-wi2-mode-opt.off:hover { background: none; color: var(--muted); cursor: not-allowed; }
+#wl-wi2-root .wl-wi2-mode-warn { color: #c4877d; font-size: 10.5px; font-style: italic; }
+
+/* ---------------- Chips ---------------- */
+#wl-wi2-root .wl-wi2-chip {
+    display: inline-block; background: rgba(143, 174, 125, 0.12); color: var(--sage);
+    border: 1px solid rgba(143, 174, 125, 0.3); border-radius: 4px; padding: 0 7px;
+    font-size: 12.5px; margin: 0 2px;
+}
+#wl-wi2-root .wl-wi2-chip.neg { background: rgba(196, 120, 110, 0.1); color: #c4877d; border-color: rgba(196, 120, 110, 0.3); }
+#wl-wi2-root .wl-wi2-chip.cast { background: rgba(167, 149, 200, 0.1); color: var(--violet); border-color: rgba(167, 149, 200, 0.3); }
+#wl-wi2-root .wl-wi2-chip.alt { background: color-mix(in srgb, var(--bd-accent) 10%, transparent); color: var(--gold); border-color: color-mix(in srgb, var(--bd-accent) 30%, transparent); }
+#wl-wi2-root .wl-wi2-chip.out {
+    background: rgba(167, 149, 200, 0.1); color: var(--violet);
+    border-color: rgba(167, 149, 200, 0.3); font-family: var(--mono); font-size: 11px;
+}
+#wl-wi2-root .wl-wi2-chip-x {
+    font-size: 9px; opacity: 0; margin-left: 4px; padding: 0; transition: opacity .15s;
+    background: none; border: none; color: inherit; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-s-line:hover .wl-wi2-chip-x { opacity: .6; }
+#wl-wi2-root .wl-wi2-chip-x:hover { opacity: 1; color: #c4877d; }
+/* Editable chips: the body renames on click, so cue it; the ✕ removes.
+   chip-ph is a fresh condition's '…' seed — muted so it reads "fill me in". */
+#wl-wi2-root .wl-wi2-chip-edit { cursor: text; }
+#wl-wi2-root .wl-wi2-chip-edit:hover { border-color: var(--sage); }
+#wl-wi2-root .wl-wi2-chip-edit.neg:hover { border-color: #c4877d; }
+#wl-wi2-root .wl-wi2-chip-ph { opacity: .5; font-style: italic; }
+/* Inline add-input: reads as a ghost chip until focused. Type + Enter (or
+   comma) commits; it grows a little on focus so there's room to type. */
+#wl-wi2-root .wl-wi2-chip-input {
+    display: inline-block; width: 8.5em; max-width: 100%;
+    background: transparent; color: var(--sage);
+    border: 1px dashed rgba(143, 174, 125, 0.35); border-radius: 4px;
+    padding: 0 7px; font-size: 12.5px; font-family: inherit; margin: 0 2px;
+    vertical-align: baseline; transition: border-color .15s, width .15s;
+}
+#wl-wi2-root .wl-wi2-chip-input::placeholder { color: var(--faint); font-style: italic; }
+#wl-wi2-root .wl-wi2-chip-input:hover { border-color: rgba(143, 174, 125, 0.6); }
+#wl-wi2-root .wl-wi2-chip-input:focus {
+    outline: none; width: 11em;
+    border-style: solid; border-color: var(--sage);
+    background: rgba(143, 174, 125, 0.08);
+}
+#wl-wi2-root .wl-wi2-s-line.s-sub { margin-top: -8px; padding-left: 4px; }
+#wl-wi2-root .wl-wi2-s-remove {
+    color: var(--faint); font-size: 11px; margin-left: 6px; opacity: 0;
+    transition: opacity .15s; background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-s-line:hover .wl-wi2-s-remove { opacity: 1; }
+#wl-wi2-root .wl-wi2-s-remove:hover { color: #c4877d; }
+
+/* ---------------- Add row + menus ---------------- */
+#wl-wi2-root .wl-wi2-addrow {
+    display: flex; gap: 8px; margin-top: 10px; padding-top: 12px;
+    border-top: 1px dashed var(--border-soft); position: relative;
+}
+#wl-wi2-root .wl-wi2-addbtn {
+    font-size: 11.5px; color: var(--faint); border: 1px dashed var(--border);
+    border-radius: 4px; padding: 3px 10px; transition: all .15s;
+    background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-addbtn:hover { color: var(--gold); border-color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-addmenu {
+    position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px;
+    display: none; flex-direction: column; min-width: 230px; max-width: 420px; z-index: 30;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    max-height: var(--wl-wi2-pop-maxh, none); overflow-y: auto;
+}
+/* Flip overrides (flipPopIntoView). Default is upward; -down anchors it below. */
+#wl-wi2-root .wl-wi2-addmenu.wl-wi2-pop-up { top: auto; bottom: calc(100% + 6px); }
+#wl-wi2-root .wl-wi2-addmenu.wl-wi2-pop-down { bottom: auto; top: calc(100% + 6px); }
+#wl-wi2-root .wl-wi2-addmenu.open { display: flex; }
+#wl-wi2-root .wl-wi2-addmenu button {
+    text-align: left; padding: 6px 10px; font-size: 12.5px; color: var(--muted);
+    border-radius: 4px; background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-addmenu button:hover { background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text); }
+#wl-wi2-root .wl-wi2-addmenu button small { display: block; color: var(--faint); font-size: 10.5px; margin-top: 1px; }
+#wl-wi2-root .wl-wi2-addmenu-label {
+    font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; padding: 5px 6px 3px;
+}
+#wl-wi2-root .wl-wi2-addmenu-sub { text-transform: none; letter-spacing: 0; font-weight: 400; font-style: italic; }
+#wl-wi2-root .wl-wi2-addmenu.wl-wi2-typemenu button.cur { color: var(--gold); background: color-mix(in srgb, var(--bd-accent) 6%, transparent); }
+
+/* ---------------- Mechanics grid (editable, two-way) ---------------- */
+#wl-wi2-root .wl-wi2-mech-flip {
+    align-self: flex-start; font-size: 11.5px; color: var(--faint);
+    font-family: var(--mono); background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-mech-flip:hover { color: var(--muted); text-decoration: underline; }
+#wl-wi2-root .wl-wi2-mech-grid {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 13px 17px; font-family: var(--mono); font-size: 11px;
+    display: grid; grid-template-columns: max-content 1fr; gap: 3px 20px;
+    align-items: center;
+}
+#wl-wi2-root .wl-wi2-mech-grid .k { color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-mech-grid .v {
+    color: var(--muted); word-break: break-word; display: flex;
+    align-items: center; gap: 7px; flex-wrap: wrap;
+}
+#wl-wi2-root .wl-wi2-mech-caveat {
+    grid-column: 1 / -1; color: var(--muted); font-family: var(--sans);
+    font-size: 10.5px; line-height: 1.5; padding: 0 0 9px; margin-bottom: 4px;
+    border-bottom: 1px dashed var(--border-soft);
+}
+#wl-wi2-root .wl-wi2-mech-in {
+    font-family: var(--mono); font-size: 11px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px;
+    padding: 1px 5px; min-width: 4ch;
+}
+#wl-wi2-root .wl-wi2-mech-in:hover,
+#wl-wi2-root .wl-wi2-mech-in:focus { outline: none; border-color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-mech-in::-webkit-outer-spin-button,
+#wl-wi2-root .wl-wi2-mech-in::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#wl-wi2-root .wl-wi2-mech-in[type=number] { -moz-appearance: textfield; appearance: textfield; }
+#wl-wi2-root .wl-wi2-mech-sel {
+    font-family: var(--mono); font-size: 10.5px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px;
+    padding: 1px 4px;
+}
+#wl-wi2-root .wl-wi2-mech-sel:hover { border-color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-mech-bool {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted);
+}
+#wl-wi2-root .wl-wi2-mech-bool input { accent-color: var(--gold); cursor: pointer; }
+#wl-wi2-root .wl-wi2-mech-ro { color: var(--faint); }
+#wl-wi2-root .wl-wi2-mech-hint { color: var(--faint); font-family: var(--sans); font-style: italic; font-size: 9.5px; }
+#wl-wi2-root .wl-wi2-mech-hint.wl-wi2-sp-danger { color: #c4877d; }
+
+/* ---------------- Placement picker (direction chosen at open time) ---------------- */
+#wl-wi2-root .wl-wi2-placement-pop {
+    position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40;
+    display: none; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+    /* Never wider than the sentence card (the s-line is the containing
+       block) — a fixed 470px would force a horizontal scrollbar in narrow
+       editor panes. Below ~470px the inner flex wraps step2 under step1. */
+    min-width: min(470px, 100%); max-width: 100%;
+    /* Backstop: when neither side fully fits, the JS caps height to the room
+       on the chosen side (via --wl-wi2-pop-maxh) and the pop scrolls inside. */
+    max-height: var(--wl-wi2-pop-maxh, none); overflow-y: auto;
+}
+/* Direction overrides set by flipPopIntoView (editor.js). -up anchors the pop's
+   bottom to the trigger's top (grows upward); -down anchors its top to the
+   trigger's bottom (grows downward). One always wins over the default above. */
+#wl-wi2-root .wl-wi2-placement-pop.wl-wi2-pop-up { top: auto; bottom: calc(100% + 8px); }
+#wl-wi2-root .wl-wi2-placement-pop.wl-wi2-pop-down { bottom: auto; top: calc(100% + 8px); }
+#wl-wi2-root .wl-wi2-placement-pop.open { display: block; }
+#wl-wi2-root .wl-wi2-pp-inner { display: flex; flex-wrap: wrap; }
+#wl-wi2-root .wl-wi2-pp-step1 { flex: 1 1 218px; border-right: 1px solid var(--border-soft); padding: 9px 7px; }
+#wl-wi2-root .wl-wi2-pp-s1-label,
+#wl-wi2-root .wl-wi2-pp-s2-label {
+    font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; padding: 3px 6px 6px;
+}
+#wl-wi2-root .wl-wi2-pp-anchor {
+    display: block; width: 100%; text-align: left; padding: 7px 9px;
+    border-radius: 5px; transition: background .12s;
+    background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-pp-anchor:hover { background: color-mix(in srgb, var(--bd-text) 4%, transparent); }
+#wl-wi2-root .wl-wi2-pp-anchor.on { background: color-mix(in srgb, var(--bd-accent) 12%, transparent); }
+#wl-wi2-root .wl-wi2-pp-a-label { display: block; font-size: 13px; color: var(--text); }
+#wl-wi2-root .wl-wi2-pp-anchor.on .wl-wi2-pp-a-label { color: var(--gold); }
+#wl-wi2-root .wl-wi2-pp-a-sub { display: block; font-size: 10.5px; color: var(--faint); margin-top: 1px; line-height: 1.35; }
+#wl-wi2-root .wl-wi2-pp-step2 { flex: 1; padding: 9px 12px 12px; min-width: 235px; }
+
+/* before/after */
+#wl-wi2-root .wl-wi2-pp-ba { display: flex; flex-direction: column; gap: 5px; }
+#wl-wi2-root .wl-wi2-pp-ba-slot {
+    border: 1px dashed var(--border); border-radius: 5px; padding: 6px; font-size: 12px;
+    color: var(--muted); transition: all .12s; background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-pp-ba-slot:hover { border-color: var(--gold-dim); color: var(--text); }
+#wl-wi2-root .wl-wi2-pp-ba-slot.on { border-style: solid; border-color: var(--gold); background: color-mix(in srgb, var(--bd-accent) 12%, transparent); color: var(--gold); }
+#wl-wi2-root .wl-wi2-pp-ba-block {
+    border: 1px solid var(--border); border-radius: 5px; padding: 9px 6px; text-align: center;
+    font-size: 12px; color: var(--muted); background: var(--panel-2); font-family: var(--serif);
+}
+
+/* at-depth ladder */
+#wl-wi2-root .wl-wi2-pp-depth-viz { border: 1px solid var(--border-soft); border-radius: 5px; overflow: hidden; margin-bottom: 9px; }
+#wl-wi2-root .wl-wi2-pp-msg { padding: 4px 9px; font-size: 11px; color: var(--faint); background: var(--panel-2); border-bottom: 1px solid var(--border-soft); }
+#wl-wi2-root .wl-wi2-pp-msg.wl-wi2-pp-latest { border-bottom: none; color: var(--muted); }
+/* The elided middle — a seam in the ladder, not an eighth message. */
+#wl-wi2-root .wl-wi2-pp-elide {
+    padding: 3px 9px; font-size: 9.5px; color: var(--faint); text-align: center;
+    font-family: var(--mono); letter-spacing: .3px;
+    background: var(--panel); border-bottom: 1px solid var(--border-soft);
+}
+#wl-wi2-root .wl-wi2-pp-here {
+    padding: 5px 9px; font-size: 11.5px; color: var(--gold);
+    background: color-mix(in srgb, var(--bd-accent) 12%, transparent);
+    border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 7px;
+}
+#wl-wi2-root .wl-wi2-pp-d { margin-left: auto; font-family: var(--mono); font-size: 9.5px; color: var(--gold-dim); }
+#wl-wi2-root .wl-wi2-pp-roles { display: flex; flex-direction: column; gap: 3px; }
+#wl-wi2-root .wl-wi2-pp-role {
+    text-align: left; padding: 5px 8px; border-radius: 4px; font-size: 12px;
+    color: var(--muted); border: 1px solid transparent; background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-pp-role:hover { background: color-mix(in srgb, var(--bd-text) 4%, transparent); }
+#wl-wi2-root .wl-wi2-pp-role.on { color: var(--gold); border-color: var(--gold-dim); background: color-mix(in srgb, var(--bd-accent) 8%, transparent); }
+
+/* outlet */
+#wl-wi2-root .wl-wi2-pp-outlet-note { font-size: 11px; color: var(--muted); line-height: 1.5; margin-bottom: 9px; }
+#wl-wi2-root .wl-wi2-pp-outlet-note b { color: var(--text); font-weight: 500; }
+#wl-wi2-root .wl-wi2-pp-outlets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+#wl-wi2-root .wl-wi2-pp-out {
+    border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 12px;
+    color: var(--muted); display: flex; gap: 6px; align-items: baseline;
+    background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-pp-out:hover { border-color: var(--violet); color: var(--text); }
+#wl-wi2-root .wl-wi2-pp-out.on { border-color: var(--violet); background: rgba(167, 149, 200, 0.14); color: var(--violet); }
+#wl-wi2-root .wl-wi2-pp-out-n { font-family: var(--mono); font-size: 9px; opacity: .7; }
+#wl-wi2-root .wl-wi2-pp-out-new { border-style: dashed; }
+#wl-wi2-root .wl-wi2-pp-macro { font-size: 10.5px; color: var(--faint); }
+#wl-wi2-root .wl-wi2-pp-macro-hint { color: var(--faint); }
+#wl-wi2-root .wl-wi2-pp-macro code {
+    font-family: var(--mono); font-size: 11px; color: var(--violet);
+    background: rgba(167, 149, 200, 0.1); border: 1px solid rgba(167, 149, 200, 0.25);
+    border-radius: 3px; padding: 1px 5px;
+}
+
+/* Engine-term subtitles: hidden from LAYOUT (not just sight) until revealed,
+   so invisible subtitles never wrap sentence lines. Reveal on parent hover;
+   the global body toggle arrives with the topbar pour (eng-toggle) but the
+   class contract is set now. */
+#wl-wi2-root .wl-wi2-eng {
+    font-family: var(--mono); font-size: 9.5px; color: var(--gold-dim);
+    display: none; opacity: .85; margin-left: 5px; letter-spacing: .3px;
+}
+#wl-wi2-root *:hover > .wl-wi2-eng { display: inline; }
+body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-eng { display: inline; }
+
+
+/* ============================================================
+   Topbar — budget meter · scan · engine terms (topbar pour, 2026-07-18)
+   Port of the mock's topbar CSS (~194-210, ~362-430) with wl-wi2- prefixes.
+   #c4877d literals are the §9.19 danger tone (matches the editor's).
+   ============================================================ */
+
+#wl-wi2-root .wl-wi2-meter-wrap {
+    margin-left: auto; display: flex; align-items: center; gap: 10px;
+    position: relative;
+}
+#wl-wi2-root .wl-wi2-meter-btn {
+    display: flex; align-items: center; gap: 10px; padding: 4px 8px;
+    border-radius: 5px; transition: background .15s;
+    background: none; border: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-meter-btn:hover { background: color-mix(in srgb, var(--bd-text) 4%, transparent); }
+#wl-wi2-root .wl-wi2-meter-label { color: var(--muted); font-size: 11.5px; }
+#wl-wi2-root .wl-wi2-meter-label b { color: var(--text); font-weight: 500; }
+#wl-wi2-root .wl-wi2-meter {
+    width: 150px; height: 6px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 3px; overflow: hidden;
+}
+#wl-wi2-root .wl-wi2-meter-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    border-radius: 3px;
+}
+
+/* Budget popover — the meter is the control. right: 110px (mock's offset)
+   keeps it under the meter rather than the topbar's far edge; the width
+   clamps to the viewport so a narrow window scrolls the POPOVER's text,
+   never the page (same lesson as the editor's placement pop). */
+#wl-wi2-root .wl-wi2-budget-pop {
+    display: none; position: absolute; top: calc(100% + 8px); right: 110px; z-index: 60;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 15px; width: min(430px, calc(100vw - 24px));
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+#wl-wi2-root .wl-wi2-budget-pop.open { display: block; }
+#wl-wi2-root .wl-wi2-bp-line { font-size: 12.5px; color: var(--muted); line-height: 2.1; }
+#wl-wi2-root .wl-wi2-bp-line b { color: var(--text); }
+#wl-wi2-root .wl-wi2-bp-hint { color: var(--faint); font-size: 11px; }
+#wl-wi2-root .wl-wi2-bp-note { font-size: 11px; color: var(--faint); margin: 3px 0 5px; line-height: 1.6; }
+#wl-wi2-root .wl-wi2-bp-note b { color: var(--gold); }
+#wl-wi2-root .wl-wi2-bp-warn { display: block; color: var(--muted); margin-top: 3px; }
+#wl-wi2-root .wl-wi2-bp-check {
+    display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12px;
+    color: var(--muted); border-top: 1px dashed var(--border-soft);
+    margin-top: 5px; padding-top: 9px;
+}
+#wl-wi2-root .wl-wi2-bp-check input { accent-color: var(--gold); cursor: pointer; }
+
+/* Scan popover — deliberately shares .wl-wi2-bp-* with the budget popover:
+   two views of the same KIND of thing (a global setting stated as a
+   sentence), so a second set of near-identical classes would be the "two
+   class names for one box" §9.32 already deleted once. */
+#wl-wi2-root .wl-wi2-scan-btn {
+    display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 5px;
+    font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+    background: transparent; transition: background .15s, color .15s; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-scan-btn:hover { background: color-mix(in srgb, var(--bd-text) 4%, transparent); color: var(--text); }
+#wl-wi2-root .wl-wi2-scan-btn i { font-size: 11px; opacity: .75; }
+#wl-wi2-root .wl-wi2-scan-pop {
+    display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 15px; width: min(430px, calc(100vw - 24px));
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+#wl-wi2-root .wl-wi2-scan-pop.open { display: block; }
+
+/* The exclusive pair as what it always was: a radio group. The constraint
+   becomes the shape instead of a surprise (vs ST's mutual-zeroing inputs
+   + flashHighlight apology, audit §18). */
+#wl-wi2-root .wl-wi2-sp-modes { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; }
+#wl-wi2-root .wl-wi2-sp-mode {
+    display: flex; align-items: baseline; gap: 8px; text-align: left; width: 100%;
+    padding: 7px 9px; border-radius: 5px; font-size: 12.5px; color: var(--muted);
+    border: 1px solid transparent; transition: background .15s, color .15s;
+    background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-sp-mode:hover { background: color-mix(in srgb, var(--bd-accent) 8%, transparent); color: var(--text); }
+#wl-wi2-root .wl-wi2-sp-mode.on {
+    color: var(--text); border-color: var(--gold-dim);
+    background: color-mix(in srgb, var(--bd-accent) 10%, transparent);
+}
+#wl-wi2-root .wl-wi2-sp-radio {
+    flex-shrink: 0; width: 11px; height: 11px; border-radius: 50%;
+    border: 1px solid var(--border); position: relative; top: 2px;
+}
+#wl-wi2-root .wl-wi2-sp-mode.on .wl-wi2-sp-radio {
+    border-color: var(--gold); background: var(--gold);
+    box-shadow: inset 0 0 0 2px var(--raise);
+}
+#wl-wi2-root .wl-wi2-sp-mode small { display: block; color: var(--faint); font-size: 10.5px; margin-top: 2px; line-height: 1.5; }
+
+/* The mode's own number sits INSIDE its row — it only exists while that
+   mode is chosen, so it can't be edited into a state the engine ignores. */
+#wl-wi2-root .wl-wi2-sp-sub { padding: 1px 0 0 19px; font-size: 12px; color: var(--muted); line-height: 2; }
+#wl-wi2-root .wl-wi2-sp-rules { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
+#wl-wi2-root .wl-wi2-sp-sep { border-top: 1px dashed var(--border-soft); margin: 9px 0 6px; }
+#wl-wi2-root .wl-wi2-sp-head {
+    font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 0 0 4px;
+}
+/* Depth 0 = empty haystack = silent no-match (audit §18) — the one value
+   the control must never let you set without saying so. Standalone rule:
+   the editor's variant is scoped to .wl-wi2-mech-hint, this one is the
+   topbar's own. Hardcoded red per §9.19 (meaning, not surface). */
+#wl-wi2-root .wl-wi2-sp-danger { color: #c4877d; font-style: italic; }
+
+/* Engine-terms toggle — flips body.wl-wi2-show-eng (the editor pour's
+   class contract; its .wl-wi2-eng rules already listen for it). */
+#wl-wi2-root .wl-wi2-eng-toggle {
+    display: flex; align-items: center; gap: 6px; color: var(--faint);
+    font-size: 11px; font-family: var(--mono); padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 5px; transition: all .15s;
+    background: none; cursor: pointer;
+}
+#wl-wi2-root .wl-wi2-eng-toggle:hover { color: var(--muted); }
+body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-eng-toggle { color: var(--gold); border-color: var(--gold-dim); }
+
+/* Popover engine terms sit on their OWN line, so revealing them grows the
+   popover downward (it floats) instead of wrapping a sentence sideways —
+   the mock's rule, extended to the topbar's two popovers. Elsewhere
+   .wl-wi2-eng stays inline (see the editor block's rule). */
+#wl-wi2-root .wl-wi2-budget-pop .wl-wi2-eng,
+#wl-wi2-root .wl-wi2-scan-pop .wl-wi2-eng { margin-left: 0; }
+body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-budget-pop .wl-wi2-eng,
+body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-scan-pop .wl-wi2-eng,
+#wl-wi2-root .wl-wi2-budget-pop *:hover > .wl-wi2-eng,
+#wl-wi2-root .wl-wi2-scan-pop *:hover > .wl-wi2-eng { display: block; }
+
+
+/* ============================================================
+   SIMULATOR — ported from the mock (~800-895 CSS, #view-sim markup),
+   classes prefixed wl-wi2-. The mock's .trace-* prose rules and .sim-*
+   frame rules, made real. --serif in the mock → the theme's own font here
+   (no serif token); --violet chip color wasn't needed. Mark colors reuse
+   --sage / --gold, the semantic on/always roles style.css already defines.
+   ============================================================ */
+
+.wl-wi2-sim-wrap { flex: 1; overflow-y: auto; padding: 26px 48px 50px; min-height: 0; }
+/* Full-width body — the two columns use the room on either side rather than
+   capping to a narrow centred measure. */
+.wl-wi2-sim-inner { max-width: none; margin: 0; }
+
+/* Two-column body. LEFT = the whole "control" side: src-switch, header prose,
+   then the input (scene textarea) or the captured turn (last source). RIGHT =
+   the note rows only. The left takes a generous fixed-ish share and the
+   messages/textarea inside it fill that width (so the header, the messages and
+   the input all share one measure); the right takes the rest. Top-aligned; the
+   whole view scrolls as one. On a narrow overlay it stacks, control side above
+   the rows. */
+.wl-wi2-sim-cols {
+    display: grid;
+    grid-template-columns: minmax(480px, 640px) minmax(0, 720px);
+    gap: 40px;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .wl-wi2-sim-cols { grid-template-columns: 1fr; gap: 22px; }
+}
+.wl-wi2-sim-left { min-width: 0; }
+.wl-wi2-sim-right { min-width: 0; }
+
+/* At the two-column width the rows are ~half as wide, so the title's 150px
+   min-width forced an awkward wrap. Relax it in the sim right-column: let the
+   title shrink and the why-text take what it needs. The token column can also
+   drop its own no-shrink so a tight row doesn't overflow. */
+.wl-wi2-sim-right .wl-wi2-tnote .wl-wi2-tt { min-width: 0; }
+.wl-wi2-sim-right .wl-wi2-tnote { gap: 10px; padding: 11px 13px; }
+
+/* ── Message view (LEFT column, 'last' source) ─────────────
+   The turn that triggered the scan, with the depth window folded above it.
+   Reuses the panel surfaces so it reads as a sibling of the scene textarea. */
+.wl-wi2-msg-view[hidden] { display: none; }
+.wl-wi2-msg {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; margin-bottom: 10px;
+}
+.wl-wi2-msg-who {
+    font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase;
+    font-weight: 600; margin-bottom: 5px;
+}
+.wl-wi2-msg.user .wl-wi2-msg-who { color: var(--gold); }
+.wl-wi2-msg.char .wl-wi2-msg-who { color: var(--sage); }
+.wl-wi2-msg-body {
+    font-size: 13px; line-height: 1.55; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+    /* Keep any single message from dominating the column — long turns scroll
+       inside their own card rather than pushing the row list far down. */
+    max-height: 300px; overflow-y: auto;
+}
+.wl-wi2-msg-latest-label {
+    font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase;
+    font-weight: 600; color: var(--faint); margin: 2px 0 7px;
+}
+.wl-wi2-msg-none {
+    color: var(--muted); font-size: 12.5px; line-height: 1.6;
+    padding: 16px 15px; border: 1px dashed var(--border); border-radius: 8px;
+    background: var(--panel-2);
+}
+
+/* The depth-window fold — same collapsible shape as the always-group, so the
+   two folds in the drawer read as siblings. Sits ABOVE the latest turn. */
+.wl-wi2-msgwin { margin-bottom: 14px; }
+.wl-wi2-msgwin-head {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 4px; background: none; border: none; cursor: pointer;
+    text-align: left; color: var(--faint);
+    font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;
+}
+.wl-wi2-msgwin-head:hover { color: var(--muted); }
+.wl-wi2-msgwin-chev { font-size: 9px; transition: transform .18s; }
+.wl-wi2-msgwin.closed .wl-wi2-msgwin-chev { transform: rotate(-90deg); }
+.wl-wi2-msgwin-n {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    color: var(--faint); letter-spacing: 0;
+}
+.wl-wi2-msgwin.closed .wl-wi2-msgwin-body { display: none; }
+/* Window messages read a touch quieter than the latest turn — they're
+   context, not the headline. */
+.wl-wi2-msgwin-body .wl-wi2-msg { background: var(--panel-2); opacity: .9; }
+.wl-wi2-msgwin-body .wl-wi2-msg-body { max-height: 160px; font-size: 12.5px; }
+
+.wl-wi2-sim-input {
+    width: 100%; min-height: 110px; padding: 13px 15px; font-size: 13.5px;
+    line-height: 1.6; resize: vertical; box-sizing: border-box;
+    /* Opaque field, same as the editor's content box — a bare textarea let
+       the overlay tint through and read as translucent. */
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+}
+.wl-wi2-sim-input:focus { outline: none; border-color: var(--gold-dim); }
+.wl-wi2-sim-row { display: flex; gap: 10px; margin: 12px 0 26px; align-items: center; }
+/* The run button. Matches the editor's outlined actions (+ New / add-row)
+   rather than a loud solid fill — quiet gold outline, accent wash on hover —
+   so the Editor and Simulator read as one UI. min-width + no-wrap keep the
+   label on one line; the fills carry !important only to beat ST's
+   .menu_button (which the markup also carries and which otherwise repaints
+   the border and background). */
+.wl-wi2-sim-btn {
+    min-width: 130px; white-space: nowrap; text-align: center;
+    padding: 6px 18px; font-size: 12.5px; font-weight: 500; cursor: pointer;
+    color: var(--gold) !important;
+    background: transparent !important;
+    border: 1px solid var(--gold-dim) !important; border-radius: 5px;
+    transition: background .15s;
+}
+.wl-wi2-sim-btn:hover {
+    background: color-mix(in srgb, var(--bd-accent) 10%, transparent) !important;
+    color: var(--gold) !important; border-color: var(--gold-dim) !important;
+}
+
+/* Source switch — a MODE, not a filter: the rows below say either "came up"
+   (fact about your chat) or "would be included" (a dry run), so it's a
+   segmented control with a lit state, above the header it changes. */
+.wl-wi2-src-switch {
+    display: inline-flex; gap: 2px; margin-bottom: 22px;
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+    background: var(--panel-2);
+}
+.wl-wi2-src {
+    padding: 5px 14px; font-size: 12.5px; border-radius: 4px; color: var(--muted);
+    background: transparent; border: none; cursor: pointer;
+    transition: background .12s, color .12s;
+}
+.wl-wi2-src:hover { color: var(--text); }
+.wl-wi2-src.on {
+    background: color-mix(in srgb, var(--bd-accent) 14%, transparent);
+    color: var(--gold); font-weight: 500;
+}
+.wl-wi2-scene-input[hidden] { display: none; }
+
+/* Scene scope toggle — sits between the passage textarea and the run button.
+   Same segmented-control shape as .wl-wi2-src-switch but smaller/quieter (a
+   secondary choice, not the primary source flip). Picks what the dry run
+   SCANS: the passage alone, or the passage in the real chat. */
+.wl-wi2-scene-scope {
+    display: inline-flex; gap: 2px; margin: 8px 0 4px;
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+    background: var(--panel-2);
+}
+.wl-wi2-scope {
+    padding: 4px 11px; font-size: 11.5px; border-radius: 4px; color: var(--muted);
+    background: transparent; border: none; cursor: pointer;
+    transition: background .12s, color .12s;
+}
+.wl-wi2-scope:hover { color: var(--text); }
+.wl-wi2-scope.on {
+    background: color-mix(in srgb, var(--bd-accent) 14%, transparent);
+    color: var(--gold); font-weight: 500;
+}
+
+/* Results view — the header + prose + rows (mock's .trace-* / .tnote). Shared
+   by both sources; only the words inside differ. The header now lives INSIDE
+   the left column, so it fills that column's width (matching the messages /
+   textarea below it) rather than capping to its own measure. */
+.wl-wi2-trace-head { font-size: 21px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+.wl-wi2-trace-sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
+.wl-wi2-trace-sub b { color: var(--gold); font-weight: 500; }
+.wl-wi2-trace-order {
+    font-size: 11.5px; color: var(--faint); line-height: 1.6; margin: -14px 0 20px;
+    padding: 8px 12px; border-left: 2px solid var(--border); background: var(--panel-2);
+    border-radius: 0 5px 5px 0;
+}
+.wl-wi2-trace-order b { color: var(--sage); font-weight: 500; }
+
+.wl-wi2-tnote {
+    display: flex; gap: 14px; padding: 12px 16px; border: 1px solid var(--border);
+    border-radius: 7px; margin-bottom: 9px; background: var(--panel); align-items: baseline;
+}
+.wl-wi2-tnote .wl-wi2-mark { font-size: 12px; width: 16px; text-align: center; flex-shrink: 0; }
+.wl-wi2-tnote.hit .wl-wi2-mark { color: var(--sage); }
+.wl-wi2-tnote.chain .wl-wi2-mark { color: var(--sage); }
+.wl-wi2-tnote.always .wl-wi2-mark { color: var(--gold); }
+.wl-wi2-tnote.dropped { opacity: .65; border-style: dashed; }
+.wl-wi2-tnote.dropped .wl-wi2-mark { color: #c4877d; }
+.wl-wi2-tnote.waitish { opacity: .65; }
+.wl-wi2-tnote.waitish .wl-wi2-mark { color: var(--faint); }
+
+.wl-wi2-tnote .wl-wi2-tt { font-size: 15px; min-width: 150px; flex-shrink: 0; color: var(--text); }
+/* The linked title (§9.33): a <button> where the row names a note that exists,
+   a plain <span> where it names a category. Left-aligned, zero padding, so the
+   button sits exactly where the span did — the same text becoming a control. */
+.wl-wi2-tnote button.wl-wi2-tt-link {
+    text-align: left; padding: 0; background: none; border: none; cursor: pointer;
+    font: inherit; color: var(--text);
+    border-bottom: 1px solid transparent; transition: color .12s, border-color .12s;
+}
+.wl-wi2-tnote button.wl-wi2-tt-link:hover { color: var(--gold); border-bottom-color: var(--gold-dim); }
+.wl-wi2-tnote button.wl-wi2-tt-link:focus-visible { outline: 1px solid var(--gold-dim); outline-offset: 2px; }
+
+.wl-wi2-tnote .wl-wi2-why { color: var(--muted); font-size: 12.5px; line-height: 1.5; flex: 1; }
+.wl-wi2-tnote .wl-wi2-why em { color: var(--text); font-style: normal; }
+/* Keyword clause (mock A — inline in the sentence). The keys themselves read
+   in the accent (they're the note's own words); the surrounding "Listening
+   for" / "The passage mentions" framing stays in the why-sentence's muted
+   tone. The by-meaning note is fainter still — it's an absence-of-keywords
+   fact, not a match. Both scoped under .wl-wi2-kw so they don't affect the
+   timing <em>s ("lingering" etc.), which stay --text per the rule above. */
+.wl-wi2-tnote .wl-wi2-kw { color: var(--muted); }
+.wl-wi2-tnote .wl-wi2-kw em { color: var(--gold); font-style: normal; }
+.wl-wi2-tnote .wl-wi2-kw-meaning { color: var(--faint); font-style: italic; }
+.wl-wi2-tnote .wl-wi2-tok { font-family: var(--mono); font-size: 10.5px; color: var(--faint); flex-shrink: 0; }
+
+.wl-wi2-trace-legend { margin-top: 18px; font-size: 11px; color: var(--faint); line-height: 1.7; }
+
+/* Always-on group — constant (◉) rows fold behind a header so the conditional
+   rows stay front and centre (the mock's ordering, made collapsible). Header
+   borrows the listcol subject-head's shape (uppercase label · chevron · count)
+   so the two collapsibles in the drawer read as siblings. Collapsed by default
+   in JS; .closed hides the body and rotates the chevron. */
+.wl-wi2-always-group { margin: 4px 0 9px; }
+.wl-wi2-always-head {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 4px; background: none; border: none; cursor: pointer;
+    text-align: left; color: var(--faint);
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 600;
+}
+.wl-wi2-always-head:hover { color: var(--muted); }
+.wl-wi2-always-chev { font-size: 9px; transition: transform .18s; }
+.wl-wi2-always-group.closed .wl-wi2-always-chev { transform: rotate(-90deg); }
+.wl-wi2-always-mark { color: var(--gold); font-size: 11px; letter-spacing: 0; }
+.wl-wi2-always-n {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    color: var(--faint); letter-spacing: 0;
+}
+.wl-wi2-always-group.closed .wl-wi2-always-body { display: none; }
+
+/* States the mock never needed (its data was always there): the async fetch
+   window, and the honest "nothing captured / nothing matched" messages. */
+.wl-wi2-sim-note { color: var(--faint); font-size: 12.5px; padding: 8px 2px; }
+.wl-wi2-sim-empty {
+    color: var(--muted); font-size: 13px; line-height: 1.6;
+    padding: 20px 18px; border: 1px dashed var(--border); border-radius: 8px;
+    background: var(--panel-2);
+}
+
+
+/* ============================================================
+   Lorebook actions toolbar (topbar) — New · Rename · Duplicate · Export ·
+   Import · Delete. The same lorebook-level operations ST's native WI drawer
+   offers, driven through its own controls (bookActions.js). Sits to the RIGHT
+   of the engine-terms toggle, inside the meter-wrap cluster; a left divider
+   sets it off. Per-book actions (rename/duplicate/export/delete) carry
+   [data-needs-book] and disable when no book is open; New + Import stay live.
+   ============================================================ */
+#wl-wi2-root .wl-wi2-book-actions {
+    display: flex; align-items: center; gap: 2px;
+    padding-left: 9px; margin-left: 1px;
+    border-left: 1px solid var(--border);
+}
+#wl-wi2-root .wl-wi2-ba-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 5px;
+    background: none; border: 1px solid transparent; cursor: pointer;
+    color: var(--muted); font-size: 12px;
+    transition: background .15s, color .15s, border-color .15s;
+}
+#wl-wi2-root .wl-wi2-ba-btn:hover:not(:disabled) {
+    color: var(--text);
+    background: color-mix(in srgb, var(--bd-text) 6%, transparent);
+    border-color: var(--border);
+}
+#wl-wi2-root .wl-wi2-ba-btn:disabled { opacity: .3; cursor: default; }
+/* Delete reads red on hover, flagging destructiveness (matches the rail menu). */
+#wl-wi2-root .wl-wi2-ba-danger:hover:not(:disabled) {
+    color: #fff;
+    background: color-mix(in srgb, #e06c6c 32%, transparent);
+    border-color: color-mix(in srgb, #e06c6c 55%, transparent);
+}
+
+/* ============================================================
+   Lorebook right-click context menu (#wl-wi2-bookmenu)
+   Opened from a rail book row's contextmenu event by bookMenu.js. Lives on
+   <body> (cursor-anchored), OUTSIDE #wl-wi2-root's scoped tokens, so it uses
+   global SmartTheme* vars and a z-index above the v2 overlay (10000) — a direct
+   twin of charBrowser's .wl-cb-cardmenu. Opaque so it reads over the rail.
+   ============================================================ */
+.wl-wi2-bookmenu {
+    position: fixed;
+    z-index: 10030;
+    min-width: 170px;
+    max-width: 260px;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    /* Opaque tint LAYER over an opaque black base (same technique as the card
+       menu): bare colors aren't valid background layers, so each tint is a
+       flat gradient; only background-color may be a plain color. */
+    background-color: #000;
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent),
+                        color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent)),
+        linear-gradient(var(--SmartThemeBlurTintColor, #16161c),
+                        var(--SmartThemeBlurTintColor, #16161c));
+    box-shadow: 0 10px 30px -6px rgba(0, 0, 0, .6);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    user-select: none;
+}
+.wl-wi2-bookmenu-head {
+    padding: 5px 9px 6px;
+    margin-bottom: 2px;
+    font-size: .82em;
+    font-weight: 700;
+    opacity: .7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+.wl-wi2-bookmenu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .88em;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background .1s;
+}
+.wl-wi2-bookmenu-item i {
+    width: 16px;
+    text-align: center;
+    opacity: .85;
+    font-size: .95em;
+}
+.wl-wi2-bookmenu-item:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 28%, transparent);
+}
+/* Delete row reads red (solid-red on hover) to flag destructiveness. */
+.wl-wi2-bookmenu-danger { color: #e88; }
+.wl-wi2-bookmenu-danger i { color: #e88; }
+.wl-wi2-bookmenu-danger:hover {
+    background: color-mix(in srgb, #e06c6c 30%, transparent);
+    color: #fff;
+}
+.wl-wi2-bookmenu-danger:hover i { color: #fff; }

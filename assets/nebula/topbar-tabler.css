@@ -1,0 +1,59 @@
+/* ============================================================
+   TOPBAR PRESET — Tabler
+   ------------------------------------------------------------
+   GENERATED FILE — do not hand-edit.
+   Rebuild:  node _tools/build-topbar-set.cjs tabler
+   Icons:    _tools/mappings/topbar-tabler.json
+
+   Gated on body.bd-topbar-tabler. Out-specifies the general
+   icon set on every slot, so a Top Bar choice always wins here.
+   ============================================================ */
+
+/* ---- Shared mask rule -------------------------------------- */
+body.bd-topbar-tabler #leftNavDrawerIcon::before,
+body.bd-topbar-tabler #API-status-top::before,
+body.bd-topbar-tabler .drawer-icon[title="AI Response Formatting"]::before,
+body.bd-topbar-tabler #WIDrawerIcon::before,
+body.bd-topbar-tabler .drawer-icon[title="User Settings"]::before,
+body.bd-topbar-tabler #backgrounds-drawer-toggle .drawer-icon::before,
+body.bd-topbar-tabler .drawer-icon[title="Extensions"]::before,
+body.bd-topbar-tabler #extensionsMenuButton::before,
+body.bd-topbar-tabler .drawer-icon[title="Persona Management"]::before,
+body.bd-topbar-tabler #mes_impersonate::before,
+body.bd-topbar-tabler #rightNavDrawerIcon::before,
+body.bd-topbar-tabler #options_button::before,
+body.bd-topbar-tabler #mes_continue::before,
+body.bd-topbar-tabler #send_but::before,
+body.bd-topbar-tabler #stscript_continue i::before,
+body.bd-topbar-tabler #stscript_pause i::before,
+body.bd-topbar-tabler #stscript_stop i::before,
+body.bd-topbar-tabler #mes_stop i::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    background-color: currentColor;
+    -webkit-mask: var(--bd-icon) no-repeat center / contain;
+    mask: var(--bd-icon) no-repeat center / contain;
+}
+
+/* ---- Per-slot sources -------------------------------------- */
+body.bd-topbar-tabler #leftNavDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M12%206a2%202%200%201%200%204%200a2%202%200%201%200-4%200M4%206h8m4%200h4M6%2012a2%202%200%201%200%204%200a2%202%200%201%200-4%200m-2%200h2m4%200h10m-5%206a2%202%200%201%200%204%200a2%202%200%201%200-4%200M4%2018h11m4%200h1%22%2F%3E%3C%2Fsvg%3E"); }  /* sliders: adjustments-horizontal */
+body.bd-topbar-tabler #API-status-top::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M9.785%206L18%2014.215l-2.054%202.054a5.81%205.81%200%201%201-8.215-8.215zM4%2020l3.5-3.5M15%204l-3.5%203.5M20%209l-3.5%203.5%22%2F%3E%3C%2Fsvg%3E"); }  /* api: plug */
+body.bd-topbar-tabler .drawer-icon[title="AI Response Formatting"]::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M3%207V5h13v2m-6-2v14m2%200H8m7-6v-1h6v1m-3-1v7m-1%200h2%22%2F%3E%3C%2Fsvg%3E"); }  /* formatting: text-size */
+body.bd-topbar-tabler #WIDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M3%2012a9%209%200%201%200%2018%200a9%209%200%200%200-18%200m.6-3h16.8M3.6%2015h16.8%22%2F%3E%3Cpath%20d%3D%22M11.5%203a17%2017%200%200%200%200%2018m1-18a17%2017%200%200%201%200%2018%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* worldinfo: world */
+body.bd-topbar-tabler .drawer-icon[title="User Settings"]::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M10.325%204.317c.426-1.756%202.924-1.756%203.35%200a1.724%201.724%200%200%200%202.573%201.066c1.543-.94%203.31.826%202.37%202.37a1.724%201.724%200%200%200%201.065%202.572c1.756.426%201.756%202.924%200%203.35a1.724%201.724%200%200%200-1.066%202.573c.94%201.543-.826%203.31-2.37%202.37a1.724%201.724%200%200%200-2.572%201.065c-.426%201.756-2.924%201.756-3.35%200a1.724%201.724%200%200%200-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724%201.724%200%200%200-1.065-2.572c-1.756-.426-1.756-2.924%200-3.35a1.724%201.724%200%200%200%201.066-2.573c-.94-1.543.826-3.31%202.37-2.37c1%20.608%202.296.07%202.572-1.065%22%2F%3E%3Cpath%20d%3D%22M9%2012a3%203%200%201%200%206%200a3%203%200%200%200-6%200%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* settings: settings */
+body.bd-topbar-tabler #backgrounds-drawer-toggle .drawer-icon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M15%208h.01M3%206a3%203%200%200%201%203-3h12a3%203%200%200%201%203%203v12a3%203%200%200%201-3%203H6a3%203%200%200%201-3-3z%22%2F%3E%3Cpath%20d%3D%22m3%2016l5-5c.928-.893%202.072-.893%203%200l5%205%22%2F%3E%3Cpath%20d%3D%22m14%2014l1-1c.928-.893%202.072-.893%203%200l3%203%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* background: photo */
+body.bd-topbar-tabler .drawer-icon[title="Extensions"]::before,
+body.bd-topbar-tabler #extensionsMenuButton::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M4%207h3a1%201%200%200%200%201-1V5a2%202%200%200%201%204%200v1a1%201%200%200%200%201%201h3a1%201%200%200%201%201%201v3a1%201%200%200%200%201%201h1a2%202%200%200%201%200%204h-1a1%201%200%200%200-1%201v3a1%201%200%200%201-1%201h-3a1%201%200%200%201-1-1v-1a2%202%200%200%200-4%200v1a1%201%200%200%201-1%201H4a1%201%200%200%201-1-1v-3a1%201%200%200%201%201-1h1a2%202%200%200%200%200-4H4a1%201%200%200%201-1-1V8a1%201%200%200%201%201-1%22%2F%3E%3C%2Fsvg%3E"); }  /* extensions: puzzle */
+body.bd-topbar-tabler .drawer-icon[title="Persona Management"]::before,
+body.bd-topbar-tabler #mes_impersonate::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M3%2012a9%209%200%201%200%2018%200a9%209%200%201%200-18%200%22%2F%3E%3Cpath%20d%3D%22M9%2010a3%203%200%201%200%206%200a3%203%200%201%200-6%200m-2.832%208.849A4%204%200%200%201%2010%2016h4a4%204%200%200%201%203.834%202.855%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* persona: user-circle */
+body.bd-topbar-tabler #rightNavDrawerIcon::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M19.5%2012.572L12%2020l-7.5-7.428A5%205%200%201%201%2012%206.006a5%205%200%201%201%207.5%206.572%22%2F%3E%3C%2Fsvg%3E"); }  /* characters: heart */
+body.bd-topbar-tabler #options_button::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M4%2012a1%201%200%201%200%202%200a1%201%200%201%200-2%200m7%200a1%201%200%201%200%202%200a1%201%200%201%200-2%200m7%200a1%201%200%201%200%202%200a1%201%200%201%200-2%200%22%2F%3E%3C%2Fsvg%3E"); }  /* options: dots */
+body.bd-topbar-tabler #mes_continue::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M5%2012h14m-6%206l6-6m-6-6l6%206%22%2F%3E%3C%2Fsvg%3E"); }  /* continue: arrow-right */
+body.bd-topbar-tabler #send_but::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M10%2014L21%203m0%200l-6.5%2018a.55.55%200%200%201-1%200L10%2014l-7-3.5a.55.55%200%200%201%200-1z%22%2F%3E%3C%2Fsvg%3E"); }  /* send: send */
+body.bd-topbar-tabler #stscript_continue i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M7%204v16l13-8z%22%2F%3E%3C%2Fsvg%3E"); }  /* play: player-play */
+body.bd-topbar-tabler #stscript_pause i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M6%206a1%201%200%200%201%201-1h2a1%201%200%200%201%201%201v12a1%201%200%200%201-1%201H7a1%201%200%200%201-1-1zm8%200a1%201%200%200%201%201-1h2a1%201%200%200%201%201%201v12a1%201%200%200%201-1%201h-2a1%201%200%200%201-1-1z%22%2F%3E%3C%2Fsvg%3E"); }  /* pause: player-pause */
+body.bd-topbar-tabler #stscript_stop i::before,
+body.bd-topbar-tabler #mes_stop i::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M18%206L6%2018M6%206l12%2012%22%2F%3E%3C%2Fsvg%3E"); }  /* stop: x */

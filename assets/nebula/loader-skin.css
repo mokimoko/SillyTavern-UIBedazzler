@@ -1,0 +1,149 @@
+/* ============================================================
+   Nebula Loader — "Nebula Dark" loading screen
+   Matches the Nebula Dark theme: charcoal surfaces, periwinkle
+   accent, bone text, sharp edges, sleek minimal motion.
+
+   Tweak the three colors below to reskin everything at once.
+   Images live in assets/ and are served at:
+       /api/plugins/nebula-loader/assets/<file>
+   ============================================================ */
+
+:root {
+    --cl-bg:     rgba(33, 34, 36, 0.97);   /* charcoal (Nebula blur tint) */
+    --cl-accent: rgba(151, 167, 198, 1);   /* periwinkle (Nebula quote)   */
+    --cl-text:   rgba(207, 203, 197, 1);   /* bone (Nebula main text)     */
+}
+
+/* (1) PRELOADER — first paint, before any JS. Flat charcoal. */
+#preloader {
+    background-color: var(--cl-bg) !important;
+    backdrop-filter: blur(16px) !important;
+}
+
+/* (2) SPLASH CONTAINER — faint nebula glow, otherwise clean. */
+#loader.splash-screen {
+    gap: 2.75rem;
+    background: radial-gradient(ellipse 60% 50% at center,
+        rgba(151, 167, 198, 0.10), transparent 70%);
+}
+
+/* (3) LOGO — your logo.png, swapped in via `content`.
+   Subtle breathe (reduced-motion friendly), cool drop-shadow. */
+.splash-logo {
+    /* __ASSET_BASE__ is substituted at inject time by hostAdapter so this
+       resolves to the plugin route on ST or the extension path on TauriTavern. */
+    content: url("__ASSET_BASE__/logo.png") !important;
+    width: min(150px, 42%) !important;
+    height: auto !important;
+    filter: drop-shadow(0 0 18px rgba(151, 167, 198, 0.35)) !important;
+    animation: clBreathe 3.4s ease-in-out infinite;
+}
+
+@keyframes clBreathe {
+    0%, 100% { opacity: 0.82; }
+    50%      { opacity: 1; }
+}
+
+/* (4) LOADER — replaces the spinning gear with a thin
+   indeterminate progress bar (sharp-edged, periwinkle sweep). */
+#load-spinner {
+    width: 170px !important;
+    height: 2px !important;
+    background: rgba(207, 203, 197, 0.10) !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    position: relative !important;
+    display: block !important;
+    /* neutralize the FontAwesome gear */
+    animation: none !important;
+    color: transparent !important;
+    font-size: 0 !important;
+}
+
+/* kill the gear glyph */
+#load-spinner::before {
+    content: "" !important;
+    display: none !important;
+}
+
+/* the sweeping accent segment */
+#load-spinner::after {
+    content: "" !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: var(--cl-accent);
+    box-shadow: 0 0 10px rgba(151, 167, 198, 0.8);
+    animation: clSweep 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes clSweep {
+    0%   { transform: translateX(-130%); }
+    100% { transform: translateX(330%); }
+}
+
+/* (5) MESSAGE — the "Initializing…" caption.
+   Restyled to match Nebula: uppercase, tracked-out, bone, thin. */
+.splash-message {
+    color: rgba(207, 203, 197, 0.55) !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.32em !important;
+    /* trim the trailing ellipsis's right-side gap from the tracking */
+    text-indent: 0.32em !important;
+    margin: 0 !important;
+}
+
+/* To change the WORDS too, uncomment both rules below
+   (hides the original text, draws your own): */
+/*
+.splash-message { font-size: 0 !important; }
+.splash-message::after {
+    content: "entering the nebula";
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-indent: 0.32em;
+    color: rgba(207, 203, 197, 0.55);
+}
+*/
+
+
+/* ============================================================
+   (6) HANDOFF CLOAK — bridges the gap between the loading screen
+   tearing down and the real destination (ST shell, or a landing-page
+   extension) actually painting. Without it you get a brief flash of
+   bare ST UI in that gap.
+
+   The cloak is a full-viewport overlay created at first paint by an
+   inline script (see index.js). It paints the SAME background as the
+   loader (#preloader charcoal + the splash periwinkle glow), so the
+   loader -> cloak -> content sequence reads as one continuous screen.
+
+   It lifts (fades out, then removes itself) when the destination is
+   painted: LandingPageRedux lifts it as it sets .lp-loaded; if no
+   landing page is involved, the inline script's failsafe lifts it.
+   pointer-events stay off the whole time so it never eats clicks.
+   ============================================================ */
+#nebula-cloak {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;            /* above ST shell (#top-bar 3005, LP container 9000); below LP menus (10000) + modals */
+    pointer-events: none;     /* never intercept input, even mid-fade */
+    opacity: 1;
+    transition: opacity 450ms ease;
+    background-color: var(--cl-bg);
+    backdrop-filter: blur(16px);
+    /* same faint periwinkle glow the splash screen uses */
+    background-image: radial-gradient(ellipse 60% 50% at center,
+        rgba(151, 167, 198, 0.10), transparent 70%);
+}
+
+/* Lift: fade to transparent. The element removes itself on transitionend
+   (with a timeout backup), so this class is only ever briefly present. */
+#nebula-cloak.nebula-cloak-lift {
+    opacity: 0;
+}

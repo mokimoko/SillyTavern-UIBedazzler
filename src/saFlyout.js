@@ -11,13 +11,15 @@
 // (window.SuperAgents.agents / .groups / .ui.resolveAgentIcon). It degrades
 // gracefully: if SuperAgents isn't present, nothing is attached.
 
-const log = (...a) => console.log('[UIBedazzler:SAFlyout]', ...a);
+import { makeDebug } from './debug.js';
+const log = makeDebug('[UIBedazzler:SAFlyout]');
 
 const FLYOUT_ID = 'bd-sa-flyout';
 const CLOSE_DELAY = 220; // ms grace so moving cursor button→panel doesn't close
 
 let closeTimer = null;
 let boundBtn = null;
+let runStateBound = false;
 
 // ── SuperAgents API access (all optional / defensive) ──────────────
 function SA() { return window.SuperAgents || null; }
@@ -43,6 +45,17 @@ function toggleAgent(id) {
 }
 function toggleGroup(id) {
     try { return SA()?.groups?.toggle?.(id); } catch { return null; }
+}
+// Fire an agent on the most recent assistant message. SuperAgents owns the
+// "which message is last" rule and the toasts; we just call and forget.
+function runAgentOnLast(id) {
+    try { return SA()?.agents?.runOnLast?.(id); } catch { return null; }
+}
+// True while any SuperAgents run is in flight. The engine is single-flight, so
+// this doubles as "is THIS agent running" for our purposes: if anything is
+// running, a second play click would only be rejected anyway.
+function isRunActive() {
+    try { return !!SA()?.lifecycle?.isActive?.(); } catch { return false; }
 }
 
 function esc(str) {
@@ -81,16 +94,25 @@ function renderFlyoutBody(panel) {
             }).join('')}
         </div>` : '';
 
+    const running = isRunActive();
     const agentGrid = agents.length ? `
         <div class="bd-saf-section-label">Agents</div>
         <div class="bd-saf-agents">
             ${agents.map(a => {
                 const icon = resolveAgentIcon(a);
+                const name = esc(a.name || 'Unnamed');
                 return `
-                <button type="button" class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}"
-                        data-agent-id="${esc(a.id)}" data-name="${esc(a.name || 'Unnamed')}">
+                <div class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}${running ? ' bd-saf-busy' : ''}"
+                     role="button" tabindex="0"
+                     data-agent-id="${esc(a.id)}" data-name="${name}">
                     <i class="fa-solid ${esc(icon)}"></i>
-                </button>`;
+                    <button type="button" class="bd-saf-run" tabindex="-1"
+                            data-run-id="${esc(a.id)}"
+                            aria-label="Run ${name} on last message"
+                            title="Run on last message">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                </div>`;
             }).join('')}
         </div>` : `<div class="bd-saf-empty">No agents yet.</div>`;
 
@@ -109,6 +131,25 @@ function positionFlyout(panel, anchor) {
     panel.style.right = `${Math.round(window.innerWidth - r.left + 8)}px`;
 }
 
+// ── Keep the grid's busy/idle state honest ─────────────────────────
+// When a run starts or ends, re-render the open panel so the play badges dim
+// out during a run and light back up when it finishes. Subscribed once, the
+// first time the panel is built. No-op if SuperAgents doesn't expose the hook.
+function subscribeRunState() {
+    if (runStateBound) return;
+    const sub = SA()?.lifecycle?.onRunStateChange;
+    if (typeof sub !== 'function') return;
+    try {
+        sub(() => {
+            const panel = document.getElementById(FLYOUT_ID);
+            if (panel && panel.classList.contains('bd-saf-visible')) {
+                renderFlyoutBody(panel);
+            }
+        });
+        runStateBound = true;
+    } catch { /* hook shape changed — safe to skip, badges still work */ }
+}
+
 // ── Show / hide ────────────────────────────────────────────────────
 function showFlyout(anchor) {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
@@ -120,6 +161,7 @@ function showFlyout(anchor) {
         panel.id = FLYOUT_ID;
         document.body.appendChild(panel);
         wirePanelEvents(panel);
+        subscribeRunState();
     }
     renderFlyoutBody(panel);
     positionFlyout(panel, anchor);
@@ -160,6 +202,19 @@ function wirePanelEvents(panel) {
     });
 
     panel.addEventListener('click', (e) => {
+        // Play badge first — it lives INSIDE the agent cell, so a badge click
+        // also matches the cell. Catch it here and stop it bubbling to toggle.
+        const runBtn = e.target.closest('.bd-saf-run');
+        if (runBtn) {
+            e.stopPropagation();
+            // Single-flight: ignore the click if a run is already in progress
+            // (the badge is styled disabled in that state as a visual cue).
+            if (isRunActive()) return;
+            runAgentOnLast(runBtn.dataset.runId);
+            // Reflect the now-busy state on the grid (badges dim out).
+            renderFlyoutBody(panel);
+            return;
+        }
         const agentCell = e.target.closest('.bd-saf-icon');
         if (agentCell) {
             toggleAgent(agentCell.dataset.agentId);

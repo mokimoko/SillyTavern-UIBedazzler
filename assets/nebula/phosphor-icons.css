@@ -1,0 +1,412 @@
+/* ============================================================
+   PHOSPHOR ICON SKIN for SillyTavern  (Regular weight)
+   ------------------------------------------------------------
+   Served by nebula-loader at:
+     /api/plugins/nebula-loader/assets/phosphor-icons.css
+   Loaded + toggled by UI Bedazzler's "Phosphor Icons" switch
+   (src/cuteLoader.js), gated on body.phosphor-on.
+
+   METHOD: explicit Unicode codepoints. Codepoints verified
+   against Phosphor web v2.1.2 (regular), matching the bundled
+   assets/Phosphor.woff2 exactly.
+
+   TOGGLE OFF: remove body.phosphor-on -> instant vanilla FA.
+   REMOVE: delete this file + assets/Phosphor.woff2, drop the
+   <link> injection in cuteLoader.js. Zero residue.
+
+   To change an icon: edit its codepoint line in section 3.
+   To stop overriding one: delete its selector from section 2
+   AND its line in section 3 -> that icon reverts to FA.
+   ============================================================ */
+
+/* ---- 1. Load the font -------------------------------------- */
+@font-face {
+    font-family: "Phosphor";
+    /* Relative to this stylesheet's own URL so it resolves whether the CSS is
+       served from the nebula-loader plugin (/api/plugins/nebula-loader/assets/)
+       or the UIBedazzler extension (/scripts/extensions/.../assets/nebula/). */
+    src: url("Phosphor.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+
+/* ---- 2. Shared rule: re-point FA ::before at Phosphor ------ */
+body.phosphor-on .fa-circle-info::before,
+body.phosphor-on .fa-info-circle::before,
+body.phosphor-on .fa-circle-question::before,
+body.phosphor-on .fa-question-circle::before,
+body.phosphor-on .fa-key::before,
+body.phosphor-on .fa-circle-chevron-down::before,
+body.phosphor-on .fa-circle-chevron-up::before,
+body.phosphor-on .fa-trash-can::before,
+body.phosphor-on .fa-trash::before,
+body.phosphor-on .fa-trash-alt::before,
+body.phosphor-on .fa-maximize::before,
+body.phosphor-on .fa-minimize::before,
+body.phosphor-on .fa-file-import::before,
+body.phosphor-on .fa-file-export::before,
+body.phosphor-on .fa-pencil::before,
+body.phosphor-on .fa-pen-to-square::before,
+body.phosphor-on .fa-edit::before,
+body.phosphor-on .fa-user-pen::before,
+body.phosphor-on .fa-save::before,
+body.phosphor-on .fa-clock-rotate-left::before,
+body.phosphor-on .fa-grip::before,
+body.phosphor-on .fa-file-circle-plus::before,
+body.phosphor-on .fa-plus::before,
+body.phosphor-on .fa-circle-xmark::before,
+body.phosphor-on .fa-xmark::before,
+body.phosphor-on .fa-times::before,
+body.phosphor-on .fa-close::before,
+body.phosphor-on .fa-recycle::before,
+body.phosphor-on .fa-lock::before,
+body.phosphor-on .fa-unlock::before,
+body.phosphor-on .fa-lock-open::before,
+body.phosphor-on .fa-circle-exclamation::before,
+body.phosphor-on .fa-exclamation-triangle::before,
+body.phosphor-on .fa-triangle-exclamation::before,
+body.phosphor-on .fa-chevron-up::before,
+body.phosphor-on .fa-chevron-down::before,
+body.phosphor-on .fa-chevron-left::before,
+body.phosphor-on .fa-chevron-right::before,
+body.phosphor-on .fa-comments::before,
+body.phosphor-on .fa-comment::before,
+body.phosphor-on .fa-comment-slash::before,
+body.phosphor-on .fa-link::before,
+body.phosphor-on .fa-link-slash::before,
+body.phosphor-on .fa-image::before,
+body.phosphor-on .fa-images::before,
+body.phosphor-on .fa-lightbulb::before,
+body.phosphor-on .fa-table-cells-large::before,
+body.phosphor-on .fa-globe::before,
+body.phosphor-on .fa-eye::before,
+body.phosphor-on .fa-eye-slash::before,
+body.phosphor-on .fa-star::before,
+body.phosphor-on .fa-power-off::before,
+body.phosphor-on .fa-flask::before,
+body.phosphor-on .fa-right-from-bracket::before,
+body.phosphor-on .fa-desktop::before,
+body.phosphor-on .fa-mobile-screen-button::before,
+body.phosphor-on .fa-cloud-arrow-down::before,
+body.phosphor-on .fa-face-smile::before,
+body.phosphor-on .fa-skull::before,
+body.phosphor-on .fa-left-long::before,
+body.phosphor-on .fa-check::before,
+body.phosphor-on .fa-copy::before,
+body.phosphor-on .fa-clone::before,
+body.phosphor-on .fa-paste::before,
+body.phosphor-on .fa-magnifying-glass::before,
+body.phosphor-on .fa-search::before,
+body.phosphor-on .fa-window-maximize::before,
+body.phosphor-on .fa-window-restore::before,
+body.phosphor-on .fa-film::before,
+body.phosphor-on .fa-music::before,
+body.phosphor-on .fa-repeat::before,
+body.phosphor-on .fa-download::before,
+body.phosphor-on .fa-upload::before,
+body.phosphor-on .fa-bolt::before,
+body.phosphor-on .fa-folder-plus::before,
+body.phosphor-on .fa-folder::before,
+body.phosphor-on .fa-folder-open::before,
+body.phosphor-on .fa-folder-minus::before,
+body.phosphor-on .fa-folder-tree::before,
+body.phosphor-on .fa-paintbrush::before,
+body.phosphor-on .fa-palette::before,
+body.phosphor-on .fa-cubes::before,
+body.phosphor-on .fa-ranking-star::before,
+body.phosphor-on .fa-passport::before,
+body.phosphor-on .fa-scroll::before,
+body.phosphor-on .fa-tags::before,
+body.phosphor-on .fa-tag::before,
+body.phosphor-on .fa-ellipsis-vertical::before,
+body.phosphor-on .fa-ellipsis::before,
+body.phosphor-on .fa-flag::before,
+body.phosphor-on .fa-flag-checkered::before,
+body.phosphor-on .fa-image-portrait::before,
+body.phosphor-on .fa-file-alt::before,
+body.phosphor-on .fa-file-lines::before,
+body.phosphor-on .fa-envelope-open-text::before,
+body.phosphor-on .fa-play::before,
+body.phosphor-on .fa-pause::before,
+body.phosphor-on .fa-stop::before,
+body.phosphor-on .fa-circle-stop::before,
+body.phosphor-on .fa-user-secret::before,
+body.phosphor-on .fa-arrow-right::before,
+body.phosphor-on .fa-arrow-left::before,
+body.phosphor-on .fa-arrow-down-9-1::before,
+body.phosphor-on .fa-sliders::before,
+body.phosphor-on .fa-cog::before,
+body.phosphor-on .fa-gear::before,
+body.phosphor-on .fa-up-right-from-square::before,
+body.phosphor-on .fa-circle-check::before,
+body.phosphor-on .fa-plug::before,
+body.phosphor-on .fa-plug-circle-exclamation::before,
+body.phosphor-on .fa-font::before,
+body.phosphor-on .fa-book-atlas::before,
+body.phosphor-on .fa-book::before,
+body.phosphor-on .fa-expand::before,
+body.phosphor-on .fa-compress::before,
+body.phosphor-on .fa-notes-medical::before,
+body.phosphor-on .fa-arrows-rotate::before,
+body.phosphor-on .fa-sync::before,
+body.phosphor-on .fa-user-cog::before,
+body.phosphor-on .fa-user-shield::before,
+body.phosphor-on .fa-user-tie::before,
+body.phosphor-on .fa-markdown::before,
+body.phosphor-on .fa-panorama::before,
+body.phosphor-on .fa-wand-magic::before,
+body.phosphor-on .fa-wand-magic-sparkles::before,
+body.phosphor-on .fa-minus::before,
+body.phosphor-on .fa-person-circle-question::before,
+body.phosphor-on .fa-crown::before,
+body.phosphor-on .fa-address-card::before,
+body.phosphor-on .fa-list-ul::before,
+body.phosphor-on .fa-user-check::before,
+body.phosphor-on .fa-user-plus::before,
+body.phosphor-on .fa-users-gear::before,
+body.phosphor-on .fa-check-double::before,
+body.phosphor-on .fa-user::before,
+body.phosphor-on .fa-file-arrow-up::before,
+body.phosphor-on .fa-toggle-on::before,
+body.phosphor-on .fa-right-left::before,
+body.phosphor-on .fa-user-graduate::before,
+body.phosphor-on .fa-undo::before,
+body.phosphor-on .fa-redo::before,
+body.phosphor-on .fa-ghost::before,
+body.phosphor-on .fa-language::before,
+body.phosphor-on .fa-bullhorn::before,
+body.phosphor-on .fa-square-poll-horizontal::before,
+body.phosphor-on .fa-photo-film::before,
+body.phosphor-on .fa-paperclip::before,
+body.phosphor-on .fa-bookmark::before,
+body.phosphor-on .fa-code-branch::before,
+body.phosphor-on .fa-volume-high::before,
+body.phosphor-on .fa-bars::before,
+body.phosphor-on .fa-paper-plane::before,
+body.phosphor-on .fa-note-sticky::before,
+body.phosphor-on .fa-scale-balanced::before,
+body.phosphor-on .fa-pie-chart::before,
+body.phosphor-on .fa-people-arrows::before,
+body.phosphor-on .fa-address-book::before,
+body.phosphor-on .fa-pen::before,
+body.phosphor-on .fa-users::before,
+body.phosphor-on .fa-truck-arrow-right::before,
+body.phosphor-on .fa-cut::before,
+body.phosphor-on .fa-message::before,
+body.phosphor-on .fa-layer-group::before,
+body.phosphor-on .fa-filter-circle-xmark::before,
+body.phosphor-on .fa-scissors::before,
+body.phosphor-on .fa-thumbtack::before,
+body.phosphor-on .fa-comment-dots::before,
+body.phosphor-on .fa-github::before,
+body.phosphor-on .fa-discord::before,
+body.phosphor-on .fa-grip-vertical::before,
+body.phosphor-on .fa-box-archive::before,
+body.phosphor-on .fa-network-wired::before,
+body.phosphor-on .fa-box-open::before,
+body.phosphor-on .fa-brain::before,
+body.phosphor-on .fa-wrench::before,
+body.phosphor-on .fa-book-open::before,
+body.phosphor-on .fa-robot::before,
+body.phosphor-on .fa-headphones-simple::before,
+body.phosphor-on .fa-toggle-off::before,
+body.phosphor-on .fa-code-compare::before,
+body.phosphor-on .fa-people-group::before {
+    font-family: "Phosphor" !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+}
+
+/* ---- 3. Mapping table: FA class -> Phosphor codepoint ------ */
+body.phosphor-on .fa-circle-info::before,
+body.phosphor-on .fa-info-circle::before     { content: "\e2ce"; }  /* info */
+body.phosphor-on .fa-circle-question::before,
+body.phosphor-on .fa-question-circle::before { content: "\e3e8"; }  /* question */
+body.phosphor-on .fa-key::before             { content: "\e2d6"; }  /* key */
+body.phosphor-on .fa-circle-chevron-down::before { content: "\e11e"; }  /* caret-circle-down */
+body.phosphor-on .fa-circle-chevron-up::before   { content: "\e124"; }  /* caret-circle-up */
+body.phosphor-on .fa-trash-can::before,
+body.phosphor-on .fa-trash::before,
+body.phosphor-on .fa-trash-alt::before       { content: "\e4a6"; }  /* trash */
+body.phosphor-on .fa-maximize::before        { content: "\e0a2"; }  /* arrows-out */
+body.phosphor-on .fa-minimize::before        { content: "\e09a"; }  /* arrows-in */
+body.phosphor-on .fa-file-import::before     { content: "\e232"; }  /* file-arrow-down */
+body.phosphor-on .fa-file-export::before,
+body.phosphor-on .fa-file-arrow-up::before   { content: "\e61e"; }  /* file-arrow-up */
+body.phosphor-on .fa-pencil::before          { content: "\e3b4"; }  /* pencil-simple */
+body.phosphor-on .fa-pen-to-square::before,
+body.phosphor-on .fa-edit::before            { content: "\e34c"; }  /* note-pencil */
+body.phosphor-on .fa-user-pen::before        { content: "\e4c6"; }  /* user-circle-gear */
+body.phosphor-on .fa-save::before            { content: "\e248"; }  /* floppy-disk */
+body.phosphor-on .fa-clock-rotate-left::before { content: "\e1a0"; }  /* clock-counter-clockwise */
+body.phosphor-on .fa-grip::before            { content: "\e794"; }  /* dots-six */
+body.phosphor-on .fa-file-circle-plus::before { content: "\e236"; }  /* file-plus */
+body.phosphor-on .fa-plus::before            { content: "\e3d4"; }  /* plus */
+body.phosphor-on .fa-circle-xmark::before    { content: "\e4f8"; }  /* x-circle */
+body.phosphor-on .fa-xmark::before,
+body.phosphor-on .fa-times::before,
+body.phosphor-on .fa-close::before           { content: "\e4f6"; }  /* x */
+body.phosphor-on .fa-recycle::before         { content: "\e75a"; }  /* recycle */
+body.phosphor-on .fa-lock::before            { content: "\e2fa"; }  /* lock */
+body.phosphor-on .fa-unlock::before,
+body.phosphor-on .fa-lock-open::before       { content: "\e306"; }  /* lock-open */
+body.phosphor-on .fa-circle-exclamation::before { content: "\e4e2"; }  /* warning-circle */
+body.phosphor-on .fa-exclamation-triangle::before,
+body.phosphor-on .fa-triangle-exclamation::before { content: "\e4e0"; }  /* warning */
+body.phosphor-on .fa-chevron-up::before      { content: "\e13c"; }  /* caret-up */
+body.phosphor-on .fa-chevron-down::before    { content: "\e136"; }  /* caret-down */
+body.phosphor-on .fa-chevron-left::before    { content: "\e138"; }  /* caret-left */
+body.phosphor-on .fa-chevron-right::before   { content: "\e13a"; }  /* caret-right */
+body.phosphor-on .fa-comments::before        { content: "\e17c"; }  /* chats */
+body.phosphor-on .fa-comment::before         { content: "\e15c"; }  /* chat */
+body.phosphor-on .fa-comment-slash::before   { content: "\e15e"; }  /* chat-slash */
+body.phosphor-on .fa-link::before            { content: "\e2e2"; }  /* link */
+body.phosphor-on .fa-link-slash::before      { content: "\e2e4"; }  /* link-break */
+body.phosphor-on .fa-image::before,
+body.phosphor-on .fa-image-portrait::before,
+body.phosphor-on .fa-panorama::before        { content: "\e2ca"; }  /* image */
+body.phosphor-on .fa-images::before,
+body.phosphor-on .fa-photo-film::before      { content: "\e836"; }  /* images */
+body.phosphor-on .fa-lightbulb::before       { content: "\e2dc"; }  /* lightbulb */
+body.phosphor-on .fa-table-cells-large::before { content: "\e464"; }  /* squares-four */
+body.phosphor-on .fa-globe::before           { content: "\e288"; }  /* globe */
+body.phosphor-on .fa-eye::before             { content: "\e220"; }  /* eye */
+body.phosphor-on .fa-eye-slash::before       { content: "\e224"; }  /* eye-slash */
+body.phosphor-on .fa-star::before            { content: "\e46a"; }  /* star */
+body.phosphor-on .fa-power-off::before       { content: "\e3da"; }  /* power */
+body.phosphor-on .fa-flask::before           { content: "\e79e"; }  /* flask */
+body.phosphor-on .fa-right-from-bracket::before { content: "\e42a"; }  /* sign-out */
+body.phosphor-on .fa-desktop::before         { content: "\e560"; }  /* desktop */
+body.phosphor-on .fa-mobile-screen-button::before { content: "\e1e0"; }  /* device-mobile */
+body.phosphor-on .fa-cloud-arrow-down::before { content: "\e1ac"; }  /* cloud-arrow-down */
+body.phosphor-on .fa-face-smile::before      { content: "\e436"; }  /* smiley */
+body.phosphor-on .fa-skull::before           { content: "\e916"; }  /* skull */
+body.phosphor-on .fa-left-long::before,
+body.phosphor-on .fa-arrow-left::before      { content: "\e058"; }  /* arrow-left */
+body.phosphor-on .fa-check::before           { content: "\e182"; }  /* check */
+body.phosphor-on .fa-copy::before,
+body.phosphor-on .fa-clone::before           { content: "\e1ca"; }  /* copy */
+body.phosphor-on .fa-paste::before           { content: "\e198"; }  /* clipboard-text */
+body.phosphor-on .fa-magnifying-glass::before,
+body.phosphor-on .fa-search::before          { content: "\e30c"; }  /* magnifying-glass */
+body.phosphor-on .fa-window-maximize::before { content: "\e0f4"; }  /* browser */
+body.phosphor-on .fa-window-restore::before  { content: "\e0f6"; }  /* browsers */
+body.phosphor-on .fa-film::before            { content: "\e792"; }  /* film-strip */
+body.phosphor-on .fa-music::before           { content: "\e340"; }  /* music-notes */
+body.phosphor-on .fa-repeat::before          { content: "\e3f6"; }  /* repeat */
+body.phosphor-on .fa-download::before        { content: "\e20c"; }  /* download-simple */
+body.phosphor-on .fa-upload::before          { content: "\e4c0"; }  /* upload-simple */
+body.phosphor-on .fa-bolt::before            { content: "\e2de"; }  /* lightning */
+body.phosphor-on .fa-folder-plus::before     { content: "\e258"; }  /* folder-plus */
+body.phosphor-on .fa-folder::before          { content: "\e24a"; }  /* folder */
+body.phosphor-on .fa-folder-open::before     { content: "\e256"; }  /* folder-open */
+body.phosphor-on .fa-folder-minus::before    { content: "\e254"; }  /* folder-minus */
+body.phosphor-on .fa-folder-tree::before     { content: "\e67c"; }  /* tree-structure */
+body.phosphor-on .fa-paintbrush::before      { content: "\e6f0"; }  /* paint-brush */
+body.phosphor-on .fa-palette::before         { content: "\e6c8"; }  /* palette */
+body.phosphor-on .fa-cubes::before           { content: "\e1da"; }  /* cube */
+body.phosphor-on .fa-ranking-star::before    { content: "\ed62"; }  /* ranking */
+body.phosphor-on .fa-passport::before,
+body.phosphor-on .fa-address-card::before    { content: "\e2c8"; }  /* identification-card */
+body.phosphor-on .fa-scroll::before          { content: "\eb7a"; }  /* scroll */
+body.phosphor-on .fa-tags::before,
+body.phosphor-on .fa-tag::before             { content: "\e478"; }  /* tag */
+body.phosphor-on .fa-ellipsis-vertical::before { content: "\e208"; }  /* dots-three-vertical */
+body.phosphor-on .fa-ellipsis::before        { content: "\e1fe"; }  /* dots-three */
+body.phosphor-on .fa-flag::before            { content: "\e244"; }  /* flag */
+body.phosphor-on .fa-flag-checkered::before  { content: "\ea38"; }  /* flag-checkered */
+body.phosphor-on .fa-file-alt::before,
+body.phosphor-on .fa-file-lines::before      { content: "\e23a"; }  /* file-text */
+body.phosphor-on .fa-envelope-open-text::before { content: "\e216"; }  /* envelope-open */
+body.phosphor-on .fa-play::before            { content: "\e3d0"; }  /* play */
+body.phosphor-on .fa-pause::before           { content: "\e39e"; }  /* pause */
+body.phosphor-on .fa-stop::before            { content: "\e46c"; }  /* stop */
+body.phosphor-on .fa-circle-stop::before     { content: "\e46e"; }  /* stop-circle */
+body.phosphor-on .fa-user-secret::before     { content: "\e6fc"; }  /* user-focus */
+body.phosphor-on .fa-arrow-right::before     { content: "\e06c"; }  /* arrow-right */
+body.phosphor-on .fa-arrow-down-9-1::before  { content: "\e446"; }  /* sort-descending */
+body.phosphor-on .fa-sliders::before         { content: "\e434"; }  /* sliders-horizontal */
+body.phosphor-on .fa-cog::before,
+body.phosphor-on .fa-gear::before            { content: "\e272"; }  /* gear-six */
+body.phosphor-on .fa-up-right-from-square::before { content: "\e5de"; }  /* arrow-square-out */
+body.phosphor-on .fa-circle-check::before    { content: "\e184"; }  /* check-circle */
+body.phosphor-on .fa-plug::before,
+body.phosphor-on .fa-plug-circle-exclamation::before { content: "\e946"; }  /* plug */
+body.phosphor-on .fa-font::before            { content: "\e6ee"; }  /* text-aa */
+body.phosphor-on .fa-book-atlas::before      { content: "\e0e6"; }  /* book-open */
+body.phosphor-on .fa-book::before            { content: "\e0e2"; }  /* book */
+body.phosphor-on .fa-expand::before          { content: "\e0a6"; }  /* arrows-out-simple */
+body.phosphor-on .fa-compress::before        { content: "\e09e"; }  /* arrows-in-simple */
+body.phosphor-on .fa-notes-medical::before   { content: "\e56e"; }  /* first-aid */
+body.phosphor-on .fa-arrows-rotate::before,
+body.phosphor-on .fa-sync::before            { content: "\e094"; }  /* arrows-clockwise */
+body.phosphor-on .fa-user-cog::before        { content: "\e4cc"; }  /* user-gear */
+body.phosphor-on .fa-user-shield::before,
+body.phosphor-on .fa-person-circle-question::before { content: "\e4c4"; }  /* user-circle */
+body.phosphor-on .fa-user-tie::before,
+body.phosphor-on .fa-user::before            { content: "\e4c2"; }  /* user */
+body.phosphor-on .fa-markdown::before        { content: "\e508"; }  /* markdown-logo */
+body.phosphor-on .fa-wand-magic::before,
+body.phosphor-on .fa-wand-magic-sparkles::before { content: "\e6b6"; }  /* magic-wand */
+body.phosphor-on .fa-minus::before           { content: "\e32a"; }  /* minus */
+body.phosphor-on .fa-crown::before           { content: "\e614"; }  /* crown */
+body.phosphor-on .fa-list-ul::before         { content: "\e2f2"; }  /* list-bullets */
+body.phosphor-on .fa-user-check::before      { content: "\eafa"; }  /* user-check */
+body.phosphor-on .fa-user-plus::before       { content: "\e4d0"; }  /* user-plus */
+body.phosphor-on .fa-users-gear::before      { content: "\e68e"; }  /* users-three */
+body.phosphor-on .fa-check-double::before    { content: "\e53a"; }  /* checks */
+body.phosphor-on .fa-toggle-on::before       { content: "\e676"; }  /* toggle-right */
+body.phosphor-on .fa-right-left::before      { content: "\e0a0"; }  /* arrows-left-right */
+body.phosphor-on .fa-user-graduate::before   { content: "\e73e"; }  /* student */
+body.phosphor-on .fa-undo::before            { content: "\e038"; }  /* arrow-counter-clockwise */
+body.phosphor-on .fa-redo::before            { content: "\e036"; }  /* arrow-clockwise */
+body.phosphor-on .fa-ghost::before           { content: "\e62a"; }  /* ghost */
+body.phosphor-on .fa-language::before        { content: "\e4a2"; }  /* translate */
+body.phosphor-on .fa-bullhorn::before        { content: "\e324"; }  /* megaphone */
+body.phosphor-on .fa-square-poll-horizontal::before { content: "\e152"; }  /* chart-bar-horizontal */
+body.phosphor-on .fa-paperclip::before       { content: "\e39a"; }  /* paperclip */
+body.phosphor-on .fa-bookmark::before        { content: "\e0e8"; }  /* bookmark */
+body.phosphor-on .fa-code-branch::before     { content: "\e278"; }  /* git-branch */
+body.phosphor-on .fa-volume-high::before     { content: "\e44a"; }  /* speaker-high */
+body.phosphor-on .fa-bars::before            { content: "\e2f0"; }  /* list */
+body.phosphor-on .fa-paper-plane::before     { content: "\e396"; }  /* paper-plane-right */
+body.phosphor-on .fa-note-sticky::before     { content: "\e348"; }  /* note */
+body.phosphor-on .fa-scale-balanced::before  { content: "\e750"; }  /* scales */
+body.phosphor-on .fa-pie-chart::before       { content: "\e158"; }  /* chart-pie */
+body.phosphor-on .fa-people-arrows::before   { content: "\e4d6"; }  /* users */
+body.phosphor-on .fa-address-book::before    { content: "\e6f8"; }  /* address-book */
+body.phosphor-on .fa-grip-vertical::before   { content: "\eae2"; }  /* dots-six-vertical */
+
+/* --- added batch: runtime-injected icons not in index.html --- */
+body.phosphor-on .fa-pen::before             { content: "\e3b4"; }  /* pencil-simple -> edit */
+body.phosphor-on .fa-users::before           { content: "\e4d6"; }  /* users -> group */
+body.phosphor-on .fa-truck-arrow-right::before { content: "\e4b4"; }  /* truck (no arrow variant) */
+body.phosphor-on .fa-cut::before             { content: "\eae0"; }  /* scissors -> cut */
+body.phosphor-on .fa-message::before         { content: "\e168"; }  /* chat-circle -> message */
+body.phosphor-on .fa-layer-group::before     { content: "\e466"; }  /* stack -> layers */
+body.phosphor-on .fa-filter-circle-xmark::before { content: "\e26c"; }  /* funnel-x -> clear filter */
+body.phosphor-on .fa-scissors::before,
+body.phosphor-on .fa-cut::before             { content: "\eae0"; }  /* scissors */
+body.phosphor-on .fa-thumbtack::before       { content: "\e3e2"; }  /* push-pin */
+body.phosphor-on .fa-comment-dots::before    { content: "\e16c"; }  /* chat-circle-dots */
+body.phosphor-on .fa-github::before          { content: "\e576"; }  /* github-logo */
+body.phosphor-on .fa-discord::before         { content: "\e61a"; }  /* discord-logo */
+body.phosphor-on .fa-box-archive::before     { content: "\e00c"; }  /* archive */
+body.phosphor-on .fa-network-wired::before   { content: "\edde"; }  /* network */
+body.phosphor-on .fa-box-open::before        { content: "\e390"; }  /* package (no open-box in v2.1.2) */
+body.phosphor-on .fa-brain::before            { content: "\e74e"; }  /* brain */
+body.phosphor-on .fa-wrench::before           { content: "\e5d4"; }  /* wrench */
+body.phosphor-on .fa-book-open::before        { content: "\e8f2"; }  /* book-open-text (book-open used by fa-book-atlas) */
+body.phosphor-on .fa-robot::before            { content: "\e762"; }  /* robot */
+body.phosphor-on .fa-headphones-simple::before { content: "\e2a6"; }  /* headphones (no -simple variant) */
+body.phosphor-on .fa-toggle-off::before       { content: "\e674"; }  /* toggle-left */
+body.phosphor-on .fa-code-compare::before     { content: "\e27c"; }  /* git-diff */
+body.phosphor-on .fa-people-group::before     { content: "\e68c"; }  /* users-four */
+
+/* ============================================================
+   End of mapping table. ~150 FA classes covered.
+   Icons not listed here keep their stock Font Awesome glyph.
+   ============================================================ */

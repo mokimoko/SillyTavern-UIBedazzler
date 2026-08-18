@@ -25,9 +25,11 @@ let observer = null;
  */
 function avatarFromSrc(src) {
     if (!src) return '';
-    const m = src.match(/[?&]file=([^&]+)/);
-    if (!m) return '';
-    try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+    try {
+        return new URL(src, window.location.href).searchParams.get('file') || '';
+    } catch {
+        return '';
+    }
 }
 
 /**

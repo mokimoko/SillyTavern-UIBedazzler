@@ -1,0 +1,1146 @@
+/* ============================================================
+   Expanded Preset Drawer — full-viewport overlay shell
+   Prefix: wl-pe-   (Phase 1: shell + 3-column relocation)
+   Colors derive from the shared --bd-* theme tokens (style.css),
+   so the drawer follows the active SillyTavern theme.
+   ============================================================ */
+
+/* Expand button injected into the CC preset controls row. Light, chrome-free
+   like ST's icon buttons; only affordances (pointer, hover lift) are styled. */
+#wl-pe-expand-btn {
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity .15s, color .15s;
+}
+#wl-pe-expand-btn:hover {
+    opacity: 1;
+    color: var(--bd-accent, #97a7c6);
+}
+
+/* ── Root overlay ─────────────────────────────────────────
+   Opaque like the char/WI expanded drawers: a flat theme-tint LAYER over an
+   opaque black background so the page can't bleed through the semi-transparent
+   --SmartThemeBlurTintColor. */
+#wl-pe-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #000;
+    background-image: linear-gradient(var(--SmartThemeBlurTintColor, #1e1f21), var(--SmartThemeBlurTintColor, #1e1f21));
+    color: var(--bd-text, #cfcbc5);
+    overflow: hidden;
+}
+
+/* ── Topbar ───────────────────────────────────────────────── */
+/* Topbar + close mirror the WI drawer's (.wl-wi2-topbar / .wl-wi2-close): thin
+   bar, hairline underline, no title, and a 36×36 close on the right with a
+   subtle white hover. FA glyph sits on the button itself. */
+.wl-pe-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--bd-border, #333);
+}
+.wl-pe-close {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; aspect-ratio: 1;
+    background: none; border: none; cursor: pointer;
+    font-size: 1.3em; border-radius: 6px;
+    color: var(--bd-text, #cfccdd);
+    transition: background .15s, color .15s;
+}
+.wl-pe-close:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+
+/* ── Column grid: 1px seams, flat panels, independent scroll ── */
+.wl-pe-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 300px) minmax(0, 384px) minmax(0, 1fr);  /* left < center < right */
+    gap: 1px;
+    background: var(--bd-border, #000);       /* the seams */
+}
+.wl-pe-col {
+    background: var(--bd-surface, #212224);
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 12px;
+}
+.wl-pe-col-center {
+    min-width: 0;
+    overflow-x: hidden;
+    background: color-mix(in srgb, #000 12%, var(--bd-surface, #212224));
+}
+
+/* ST's prompt manager and list normally size themselves in the wider native
+   drawer. Once relocated here, keep every containing box bound to the fixed
+   center track so a long generated group label cannot establish a new
+   intrinsic width before the label's ellipsis is calculated. */
+#wl-pe-root .wl-pe-col-center .range-block,
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager,
+#wl-pe-root .wl-pe-col-center .completion_prompt_manager_list {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Right column owns the topbar as its header: don't scroll/pad the column
+   itself — the header stays pinned and the body (#wl-pe-right-body) scrolls. */
+.wl-pe-col-editor {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+.wl-pe-right-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 12px;
+}
+
+/* ── Right column: Edit / Test tabs ──────────────────────────
+   Tabs sit in the right column's header (the former topbar). WI-drawer style:
+   dimmed text buttons, accent underline under the active one. Close stays right. */
+.wl-pe-topbar { padding: 0 8px 0 4px; gap: 2px; }
+.wl-pe-tabs { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.wl-pe-tab {
+    position: relative; background: none; border: none; cursor: pointer;
+    color: var(--bd-text, #cfccdd); opacity: .5;
+    font-size: 12px; font-weight: 600; padding: 11px 13px 10px;
+    transition: opacity .15s;
+}
+.wl-pe-tab:hover { opacity: .82; }
+.wl-pe-tab.active { opacity: 1; }
+.wl-pe-tab.active::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 2px; background: var(--bd-accent, #97a7c6);
+}
+
+/* View stack below the header. Each view fills the column; only one is shown. */
+.wl-pe-rt-views { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.wl-pe-rt-view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.wl-pe-rt-view[hidden] { display: none; }
+
+/* ── Test view (dummy chat) ──────────────────────────────────
+   --wl-pe-user is the distinct name color for user turns (character uses the
+   theme accent); overridable per-theme. */
+.wl-pe-test {
+    --wl-pe-user: #8fae7d;
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+}
+
+.wl-pe-test-toolbar {
+    flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px;
+    padding: 8px 11px; border-bottom: 1px solid var(--bd-border, #333);
+}
+/* Each toolbar row: connection on top; character + persona + actions below. */
+.wl-pe-ttrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Top row (profile + sampler): stretch both selects to fill the row width. */
+.wl-pe-ttrow-profiles { flex-wrap: nowrap; }
+.wl-pe-ttrow-profiles .wl-pe-tsel { flex: 1 1 0; min-width: 0; }
+.wl-pe-ttrow-profiles .wl-pe-tsel select { width: 100%; min-width: 0; max-width: none; }
+
+/* Actors row: character + persona share the space the icon buttons freed up. */
+.wl-pe-ttrow-actors { flex-wrap: nowrap; }
+.wl-pe-ttrow-actors .wl-pe-tsel { flex: 1 1 0; min-width: 0; }
+.wl-pe-ttrow-actors .wl-pe-tsel select { width: 100%; min-width: 0; max-width: none; }
+.wl-pe-tbtns { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wl-pe-tsel { display: flex; align-items: center; gap: 5px; }
+.wl-pe-tsel > i { font-size: 10px; color: var(--bd-text-faint, #888); }
+.wl-pe-tsel select {
+    max-width: 150px; padding: 4px 20px 4px 7px; font-size: 11px;
+    color: var(--bd-text, #cfcbc5); background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333); border-radius: 0; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5L5 6.5L8 3.5' stroke='%23888' fill='none' stroke-width='1.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 6px center;
+}
+.wl-pe-tbtn {
+    display: flex; align-items: center; gap: 5px; padding: 4px 9px; font-size: 11px;
+    color: var(--bd-text-dim, #999); background: none;
+    border: 1px solid var(--bd-border, #333); border-radius: 0; cursor: pointer;
+    transition: color .13s, border-color .13s;
+}
+.wl-pe-tbtn i { font-size: 10px; }
+/* Icon-only actions (Context / Prompt / Clear): square, centered, no label. */
+.wl-pe-tbtn-icon {
+    gap: 0; justify-content: center; padding: 0;
+    width: 28px; height: 26px; flex: 0 0 auto;
+}
+.wl-pe-tbtn-icon i { font-size: 11px; }
+.wl-pe-tbtn:hover { color: var(--bd-text, #cfcbc5); border-color: var(--bd-accent-dim, #556); }
+.wl-pe-tbtn.on {
+    color: var(--bd-accent, #97a7c6); border-color: var(--bd-accent-dim, #556);
+    background: color-mix(in srgb, var(--bd-accent, #97a7c6) 10%, transparent);
+}
+.wl-pe-tbtn.wl-pe-danger:hover { color: var(--bd-danger, #c4877d); border-color: color-mix(in srgb, var(--bd-danger, #c4877d) 45%, transparent); }
+.wl-pe-tbtn.wl-pe-disabled { opacity: .38; cursor: not-allowed; }
+.wl-pe-tbtn.wl-pe-disabled:hover { color: var(--bd-text-dim, #999); border-color: var(--bd-border, #333); }
+
+/* Scene-context panel */
+.wl-pe-test-context {
+    flex: 0 0 auto; padding: 9px 13px; border-bottom: 1px solid var(--bd-border, #333);
+    background: rgba(255, 255, 255, .02);
+}
+.wl-pe-test-context[hidden] { display: none; }
+.wl-pe-test-context label {
+    display: block; font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--bd-text-faint, #888); font-weight: 600; margin-bottom: 5px;
+}
+.wl-pe-test-context textarea {
+    width: 100%; min-height: 54px; padding: 7px 9px; font-size: 12px;
+    color: var(--bd-text, #cfcbc5); background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333); border-radius: 0; resize: vertical;
+    font-family: inherit; line-height: 1.5;
+}
+.wl-pe-test-context textarea:focus { outline: none; border-color: var(--bd-accent-dim, #556); }
+
+/* Chat — text-based, no bubbles */
+.wl-pe-test-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 16px 6px; }
+.wl-pe-test-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; text-align: center; color: var(--bd-text-dim, #999); font-size: 13px; line-height: 1.8;
+}
+.wl-pe-test-empty span { color: var(--bd-text-faint, #777); font-size: 11px; font-style: italic; }
+
+.wl-pe-msg { padding: 6px 0; }
+.wl-pe-msg-head { display: flex; align-items: center; gap: 9px; margin-bottom: 2px; }
+.wl-pe-who { font-size: 12px; font-weight: 700; letter-spacing: .2px; }
+.wl-pe-msg-char .wl-pe-who { color: var(--bd-accent, #97a7c6); }
+.wl-pe-msg-user .wl-pe-who { color: var(--wl-pe-user, #8fae7d); }
+.wl-pe-msg-text { font-size: 13px; line-height: 1.62; color: var(--bd-text, #cfcbc5); white-space: pre-wrap; }
+.wl-pe-msg-user .wl-pe-msg-text { color: var(--bd-text-dim, #aaa); }
+
+/* Rendered messages (real-chat parity): messageFormatting emits markdown/HTML,
+   so newlines are handled by <p>/<br> — pre-wrap would double the spacing.
+   The `mes_text` class stays on the element so ST-scoped message CSS and
+   embedded <style> blocks (scoped to `.mes_text `) apply just like live chat. */
+.wl-pe-msg-text.wl-pe-rendered { white-space: normal; }
+.wl-pe-msg-text.wl-pe-rendered > :first-child { margin-top: 0; }
+.wl-pe-msg-text.wl-pe-rendered > :last-child { margin-bottom: 0; }
+.wl-pe-msg-text.wl-pe-rendered p { margin: 0 0 0.6em; }
+.wl-pe-msg-text.wl-pe-rendered img { max-width: 100%; height: auto; }
+
+/* messageFormatting deliberately emits <q> with the original quote characters
+   still inside it. The native chat suppresses the browser's generated quote
+   pair; mirror that reset here. :where() keeps specificity at zero so a test
+   message's own embedded CSS can still intentionally style q/its pseudo-elements. */
+.wl-pe-test-chat :where(.wl-pe-rendered q) { quotes: none; }
+.wl-pe-test-chat :where(.wl-pe-rendered q)::before,
+.wl-pe-test-chat :where(.wl-pe-rendered q)::after { content: none; }
+
+/* System note (Phase-1 placeholder for the not-yet-wired engine) */
+.wl-pe-msg-note .wl-pe-msg-text {
+    font-size: 11.5px; font-style: italic; color: var(--bd-text-faint, #888);
+    border-left: 2px solid var(--bd-border, #333); padding-left: 9px;
+}
+
+.wl-pe-msg-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity .12s; }
+.wl-pe-msg:hover .wl-pe-msg-actions { opacity: 1; }
+.wl-pe-msg-actions i { font-size: 10px; color: var(--bd-text-faint, #888); cursor: pointer; }
+.wl-pe-msg-actions i:hover { color: var(--bd-accent, #97a7c6); }
+.wl-pe-msg-actions .wl-pe-del:hover { color: var(--bd-danger, #c4877d); }
+
+.wl-pe-swipe { display: inline-flex; align-items: center; gap: 7px; font-family: ui-monospace, Consolas, monospace; font-size: 10px; color: var(--bd-text-faint, #888); }
+.wl-pe-swipe i { font-size: 9px; cursor: pointer; }
+.wl-pe-swipe i:hover { color: var(--bd-accent, #97a7c6); }
+
+.wl-pe-msg-edit {
+    width: 100%; min-height: 60px; padding: 7px 9px; font-size: 13px; line-height: 1.62;
+    color: var(--bd-text, #cfcbc5); background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-accent-dim, #556); border-radius: 0; resize: vertical; font-family: inherit;
+    /* Auto-grown to fit the full message (JS sets height = scrollHeight). */
+    box-sizing: border-box; overflow-y: hidden;
+}
+.wl-pe-msg-edit:focus { outline: none; border-color: var(--bd-accent, #97a7c6); }
+
+/* Regenerate button on an empty/failed-response note. */
+.wl-pe-note-regen {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+    padding: 3px 10px; font-size: 10.5px; letter-spacing: .3px;
+    color: var(--bd-accent, #97a7c6); background: transparent; cursor: pointer;
+    border: 1px solid color-mix(in srgb, var(--bd-accent, #97a7c6) 50%, transparent); border-radius: 0;
+    transition: background .13s, border-color .13s;
+}
+.wl-pe-note-regen i { font-size: 10px; }
+.wl-pe-note-regen:hover {
+    background: color-mix(in srgb, var(--bd-accent, #97a7c6) 12%, transparent);
+    border-color: var(--bd-accent, #97a7c6);
+}
+
+/* Input bar */
+.wl-pe-test-input {
+    flex: 0 0 auto; display: flex; gap: 8px; align-items: flex-end;
+    padding: 10px 12px; border-top: 1px solid var(--bd-border, #333); background: var(--bd-surface, #212224);
+}
+.wl-pe-test-input textarea {
+    flex: 1; min-height: 38px; max-height: 130px; padding: 9px 10px; font-size: 12.5px;
+    color: var(--bd-text, #cfcbc5); background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333); border-radius: 0; resize: none; font-family: inherit; line-height: 1.5;
+}
+.wl-pe-test-input textarea:focus { outline: none; border-color: var(--bd-accent-dim, #556); }
+.wl-pe-sendbtn {
+    flex-shrink: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+    background: var(--bd-accent, #97a7c6); color: #15161a; border: none; border-radius: 0; cursor: pointer; font-size: 14px;
+}
+.wl-pe-sendbtn:hover { filter: brightness(1.1); }
+
+/* Tiny uppercase column labels (match the WI drawer's section labels). */
+.wl-pe-collabel {
+    font-size: 9.5px; letter-spacing: 1.6px; text-transform: uppercase;
+    color: var(--bd-text-faint, #888); font-weight: 600;
+    padding: 4px 2px 8px;
+}
+
+/* Match the WI Drawer's quiet, top-left empty-editor message. The right body
+   normally supplies 10px/12px padding; remove it in the empty state so these
+   offsets land at the WI editor's exact 22px/30px position. */
+#wl-pe-right-body:not(.wl-pe-editing) { padding: 0; }
+.wl-pe-editor-empty {
+    padding: 22px 30px 0;
+}
+.wl-pe-editor-empty-text {
+    color: var(--bd-text-faint, #888);
+    font-size: 11.5px;
+    margin-top: 5px;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+/* ── Native controls: WI Drawer Expanded skin ───────────────
+   The preset/overview and sections DOM stays native and in-place. This shared
+   skin only gives its controls the WI drawer's quiet panels, rounded hairlines,
+   restrained type hierarchy, accent focus, and outlined actions. */
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) {
+    color: var(--bd-text, #cfcbc5);
+    font-family: inherit;
+}
+
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) select,
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) textarea {
+    box-sizing: border-box;
+    color: var(--bd-text, #cfcbc5) !important;
+    background: var(--bd-surface-2, #27282a) !important;
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    font: inherit;
+    font-size: 12px;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) textarea {
+    border-radius: 8px !important;
+    line-height: 1.6;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea):hover,
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea):focus {
+    outline: none;
+    border-color: var(--bd-accent-dim, #556) !important;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) input[type="number"] {
+    color: var(--bd-accent, #97a7c6) !important;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) :is(input[type="checkbox"], input[type="radio"], input[type="range"]) {
+    accent-color: var(--bd-accent, #97a7c6);
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) :is(input, select, textarea):disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(.range-block-title, .title_restorable strong, .inline-drawer-header b) {
+    color: var(--bd-text, #cfcbc5);
+    font-size: 13px;
+    font-weight: 500;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(.toggle-description, .text_muted, small) {
+    color: var(--bd-text-faint, #888) !important;
+    font-size: 11px;
+    line-height: 1.45;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) .checkbox_label {
+    color: var(--bd-text-dim, #999);
+    font-size: 12px;
+    cursor: pointer;
+    transition: color .15s;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) .checkbox_label:hover {
+    color: var(--bd-text, #cfcbc5);
+}
+
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) .menu_button,
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) button:not(.wl-pe-tab):not(.wl-pe-close) {
+    color: var(--bd-text-dim, #999) !important;
+    background: transparent !important;
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: background .15s, color .15s, border-color .15s;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) .menu_button:hover,
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) button:not(.wl-pe-tab):not(.wl-pe-close):hover {
+    color: var(--bd-text, #cfcbc5) !important;
+    background: color-mix(in srgb, var(--bd-text, #cfcbc5) 6%, transparent) !important;
+    border-color: var(--bd-border-hover, var(--bd-border, #555)) !important;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(.menu_button:has(input:checked), button.active, button.selected, button[aria-pressed="true"]) {
+    color: var(--bd-accent, #97a7c6) !important;
+    background: color-mix(in srgb, var(--bd-accent, #97a7c6) 8%, transparent) !important;
+    border-color: var(--bd-accent-dim, #556) !important;
+}
+#wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
+    :is(#delete_oai_preset, [data-preset-manager-delete]):hover {
+    color: var(--bd-danger, #c4877d) !important;
+    border-color: color-mix(in srgb, var(--bd-danger, #c4877d) 55%, transparent) !important;
+}
+
+/* The center list borrows WI's compact list rows and mono metadata. Group tint
+   and collapse chrome below still win because those rules are more specific. */
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager .completion_prompt_manager_header,
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager .completion_prompt_manager_list_head {
+    color: var(--bd-text-faint, #888) !important;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 10.5px;
+}
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager_list {
+    background: transparent !important;
+    border: none !important;
+}
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager_list li.completion_prompt_manager_prompt {
+    color: var(--bd-text, #cfcbc5);
+    background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px;
+    transition: background .15s, border-color .15s, opacity .15s;
+}
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager_list li.completion_prompt_manager_prompt:hover {
+    background: color-mix(in srgb, var(--bd-text, #cfcbc5) 6%, var(--bd-surface-2, #27282a));
+    border-color: var(--bd-border-hover, var(--bd-border, #555)) !important;
+}
+#wl-pe-root .wl-pe-col-center #completion_prompt_manager_list li.completion_prompt_manager_prompt_disabled {
+    opacity: .48;
+}
+#wl-pe-root .wl-pe-col-center .completion_prompt_manager_prompt_name {
+    color: var(--bd-text, #cfcbc5) !important;
+    font-size: 12.5px;
+}
+#wl-pe-root .wl-pe-col-center .prompt_manager_prompt_tokens {
+    color: var(--bd-text-faint, #888);
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 10px !important;
+}
+#wl-pe-root .wl-pe-col-center .prompt_manager_prompt_controls :is(span, a),
+#wl-pe-root .wl-pe-col-center .completion_prompt_manager_header_advanced span {
+    color: var(--bd-text-dim, #999) !important;
+    filter: none !important;
+    opacity: .72;
+}
+#wl-pe-root .wl-pe-col-center .prompt_manager_prompt_controls :is(span, a):hover,
+#wl-pe-root .wl-pe-col-center .completion_prompt_manager_header_advanced span:hover {
+    color: var(--bd-accent, #97a7c6) !important;
+    opacity: 1;
+}
+
+/* While the expanded overlay is open, keep the tabbed drawer's leftover
+   container from painting behind it (belt-and-braces with the JS handshake). */
+body.wl-pe-open #wl-pd-container { visibility: hidden; }
+
+/* The expand button lives in the preset row, so it rides into the left column
+   when that row is relocated. It has no purpose inside the open overlay — hide
+   it there (it returns to the native drawer, visible again, on close). */
+#wl-pe-root #wl-pe-expand-btn { display: none !important; }
+
+/* Relocated native blocks: give the slots a little breathing room and let the
+   preset row's controls wrap comfortably in the narrower left column. */
+#wl-pe-preset-slot, #wl-pe-overview-slot { margin-bottom: 6px; }
+#wl-pe-preset-slot .flex-container { flex-wrap: wrap; }
+
+/* ── Group chrome over the native prompt-manager rows (Phase 3) ──
+   Flat + squared to match the theme: a group is a header + a run of rows that
+   each carry a colored left spine and a faint group-tint background. --gc is
+   set inline per group from the palette (Phase 5 persists/edits colors). */
+#wl-pe-root .wl-pe-group-head {
+    --gc: var(--bd-accent, #97a7c6);
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px 6px; margin-top: 6px; cursor: pointer;
+    background: color-mix(in srgb, var(--gc) 9%, transparent);
+    border-left: 2px solid var(--gc);
+    /* Never let a long auto-detected name widen the header past the column and
+       push the rows' controls out of reach — the name ellipsizes instead. */
+    width: 100%; min-width: 0; max-width: 100%;
+    box-sizing: border-box; overflow: hidden;
+}
+#wl-pe-root .wl-pe-group-head:hover { background: color-mix(in srgb, var(--gc) 13%, transparent); }
+#wl-pe-root .wl-pe-gh-chev { width: 9px; text-align: center; font-size: 8px; color: var(--gc); transition: transform .18s; }
+#wl-pe-root .wl-pe-group-head.wl-pe-collapsed .wl-pe-gh-chev { transform: rotate(-90deg); }
+#wl-pe-root .wl-pe-gh-swatch { width: 9px; height: 9px; background: var(--gc); flex-shrink: 0; }
+#wl-pe-root .wl-pe-gh-tag {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 12px; font-weight: 600; letter-spacing: .3px; color: var(--gc);
+    /* flex-basis:0 keeps the (possibly very long) auto XML/MD name from feeding
+       the list's intrinsic width — otherwise it stretches every row and pushes
+       the controls off-screen. min-width:0 lets the ellipsis engage. */
+    display: block;
+    flex: 1 1 0; width: 0; min-width: 0; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#wl-pe-root .wl-pe-gh-kind {
+    font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--bd-text-faint, #888); border: 1px solid var(--bd-border, #000);
+    padding: 1px 4px; flex-shrink: 0;
+}
+#wl-pe-root .wl-pe-gh-count {
+    margin-left: auto; flex-shrink: 0;
+    font-family: ui-monospace, Consolas, monospace; font-size: 9.5px; color: var(--bd-text-faint, #888);
+}
+
+/* Member rows: colored spine + faint group tint. Contiguous rows read as one
+   tinted block under the header. */
+/* Keyed on OUR classes only (not ST's row class) — depth-injected / in-chat
+   prompt rows can render without `completion_prompt_manager_prompt`, and they
+   still need the spine, tint, and (critically) hiding on collapse. */
+#wl-pe-root .wl-pe-grouped {
+    --gc: var(--bd-accent, #97a7c6);
+    border-left: 2px solid color-mix(in srgb, var(--gc) 55%, transparent);
+    background: color-mix(in srgb, var(--gc) 5%, transparent);
+}
+#wl-pe-root .wl-pe-g-last { margin-bottom: 4px; }
+#wl-pe-root .wl-pe-g-hidden { display: none !important; }
+
+/* ── Docked native prompt editor (Phase 4) ──
+   Strip ST's floating-popup positioning so its edit form flows as a normal
+   panel inside the right column. Only the container is neutralized; the fields
+   and the native Save/Close buttons inside are untouched (native save path). */
+#wl-pe-root .wl-pe-docked-editor {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: auto !important;
+}
+#wl-pe-root .wl-pe-docked-editor::backdrop { display: none !important; }
+
+/* The "select a prompt" placeholder hides while the editor is actively open. */
+#wl-pe-right-body.wl-pe-editing .wl-pe-editor-empty { display: none; }
+
+/* Fill the column height while editing so the form isn't squat with dead space
+   below it and the Save/Close row. The docked popup and its inner form flex to
+   fill; the prompt textarea takes the slack and stays comfortably tall. */
+#wl-pe-right-body.wl-pe-editing { display: flex; flex-direction: column; }
+#wl-pe-root .wl-pe-docked-editor {
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+/* Only override the popup's display while ST says it is actually open. */
+#wl-pe-root #wl-pe-right-body.wl-pe-editing > .wl-pe-docked-editor {
+    display: flex !important;
+}
+#wl-pe-root .wl-pe-docked-editor > form,
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_prompt {
+    flex: 1 1 auto;
+    min-height: 160px;
+    resize: vertical;
+}
+
+/* ── Docked editor skin: WI Drawer Expanded vocabulary ───────
+   The native form keeps its existing structure and behavior; these rules only
+   restyle its type, fields, toggle, and actions inside the expanded drawer. */
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_edit > h3 {
+    color: var(--bd-text, #cfcbc5);
+    font: inherit;
+    font-size: 27px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-shadow: none;
+}
+
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry_form_control > label:not(.checkbox_label) > span,
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry_form_control > label:not(.checkbox_label) {
+    color: var(--bd-text, #cfcbc5);
+    font-size: 13px;
+    font-weight: 500;
+}
+#wl-pe-root .wl-pe-docked-editor .text_muted {
+    color: var(--bd-text-faint, #888) !important;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+/* Keep the Position/Depth/Order row compact. The real Position hint is removed
+   from its narrow field flow and anchored as one fixed-height line under the
+   row, so flex sizing cannot take space away from the prompt textarea. */
+#wl-pe-root .wl-pe-docked-editor .flex-container.gap10px:has(#completion_prompt_manager_popup_entry_form_injection_position) {
+    position: relative;
+    padding-bottom: 18px;
+}
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_injection_position + .text_muted {
+    display: block;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#wl-pe-root .wl-pe-docked-editor :is(#completion_prompt_manager_depth_block, #completion_prompt_manager_order_block) .text_muted {
+    display: none;
+}
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry_form_control {
+    margin-top: 10px;
+}
+
+#wl-pe-root .wl-pe-docked-editor input.text_pole:not([type="checkbox"]),
+#wl-pe-root .wl-pe-docked-editor select.text_pole {
+    box-sizing: border-box;
+    padding: 6px 9px;
+    color: var(--bd-text, #cfcbc5);
+    background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333);
+    border-radius: 4px;
+    box-shadow: none;
+    font: inherit;
+    font-size: 12.5px;
+}
+#wl-pe-root .wl-pe-docked-editor select.text_pole { cursor: pointer; }
+#wl-pe-root .wl-pe-docked-editor input.text_pole[type="number"] {
+    color: var(--bd-accent, #97a7c6);
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 12px;
+}
+#wl-pe-root .wl-pe-docked-editor input.text_pole:not([type="checkbox"]):hover,
+#wl-pe-root .wl-pe-docked-editor select.text_pole:hover,
+#wl-pe-root .wl-pe-docked-editor input.text_pole:not([type="checkbox"]):focus,
+#wl-pe-root .wl-pe-docked-editor select.text_pole:focus {
+    outline: none;
+    border-color: var(--bd-accent-dim, #556);
+}
+
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_prompt {
+    box-sizing: border-box;
+    padding: 13px 15px;
+    color: var(--bd-text, #cfcbc5);
+    background: var(--bd-surface, #212224);
+    border: 1px solid var(--bd-border, #333);
+    border-radius: 8px;
+    box-shadow: none;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.65;
+}
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_prompt:focus {
+    outline: none;
+    border-color: var(--bd-accent-dim, #556);
+}
+#wl-pe-root .wl-pe-docked-editor input::placeholder,
+#wl-pe-root .wl-pe-docked-editor textarea::placeholder {
+    color: var(--bd-text-faint, #888);
+    font-style: italic;
+}
+#wl-pe-root .wl-pe-docked-editor :is(input, select, textarea):disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+#wl-pe-root .wl-pe-docked-editor .checkbox_label {
+    color: var(--bd-text-dim, #999);
+    font-size: 11.5px;
+    gap: 6px;
+    cursor: pointer;
+}
+#wl-pe-root .wl-pe-docked-editor .checkbox_label:hover { color: var(--bd-text, #cfcbc5); }
+#wl-pe-root .wl-pe-docked-editor input[type="checkbox"] {
+    accent-color: var(--bd-accent, #97a7c6);
+    cursor: pointer;
+}
+
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry_form_footer :is(a, button).menu_button,
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_close_button {
+    box-sizing: border-box;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0 !important;
+    color: var(--bd-text-dim, #999) !important;
+    background: transparent !important;
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 5px;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+#wl-pe-root .wl-pe-docked-editor .completion_prompt_manager_popup_entry_form_footer :is(a, button).menu_button:hover,
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_close_button:hover {
+    color: var(--bd-text, #cfcbc5) !important;
+    background: color-mix(in srgb, var(--bd-text, #cfcbc5) 6%, transparent) !important;
+    border-color: var(--bd-border-hover, var(--bd-border, #555)) !important;
+}
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_save {
+    color: var(--bd-accent, #97a7c6) !important;
+    border-color: var(--bd-accent-dim, #556) !important;
+}
+#wl-pe-root .wl-pe-docked-editor #completion_prompt_manager_popup_entry_form_save:hover {
+    background: color-mix(in srgb, var(--bd-accent, #97a7c6) 10%, transparent) !important;
+}
+
+/* ── Group color swatch + palette popover (Phase 5) ── */
+#wl-pe-root .wl-pe-gh-swatch { cursor: pointer; transition: outline-color .12s; outline: 1px solid transparent; outline-offset: 1px; }
+#wl-pe-root .wl-pe-gh-swatch:hover { outline-color: rgba(255, 255, 255, .5); }
+
+/* Appended to <body> (outside #wl-pe-root), so it must clear the overlay's
+   z-index and carry its own theme-token styling. */
+.wl-pe-palette-pop {
+    position: fixed;
+    z-index: 10011;
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    background: var(--bd-surface, #212224);
+    border: 1px solid var(--bd-border, #000);
+    box-shadow: 0 8px 24px var(--bd-shadow-strong, rgba(0, 0, 0, .55));
+}
+.wl-pe-palette-pop .wl-pe-pdot {
+    width: 16px; height: 16px; cursor: pointer;
+    outline: 1px solid transparent; outline-offset: 1px;
+    transition: outline-color .12s;
+}
+.wl-pe-palette-pop .wl-pe-pdot:hover { outline-color: rgba(255, 255, 255, .45); }
+.wl-pe-palette-pop .wl-pe-pdot.sel { outline-color: #fff; }
+
+/* ── Manual groups (Phase 6) ── */
+
+/* Sticky Groups bar with the per-preset tri-state mode toggle. */
+#wl-pe-root .wl-pe-groups-bar {
+    position: sticky;
+    /* Cancel the center scroller's top padding only once the bar sticks. */
+    top: -10px;
+    z-index: 8;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px 7px; margin: 0 -12px 2px;
+    background: color-mix(in srgb, #000 12%, var(--bd-surface, #212224));
+    border-bottom: 1px solid var(--bd-border, #000);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, .16);
+}
+#wl-pe-root .wl-pe-gb-label {
+    font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--bd-text-faint, #888);
+}
+#wl-pe-root .wl-pe-gb-auto {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 9.5px; letter-spacing: .5px; text-transform: uppercase;
+    padding: 2px 8px; cursor: pointer;
+    color: var(--bd-text-faint, #888);
+    background: transparent;
+    border: 1px solid var(--bd-border, #000);
+}
+#wl-pe-root .wl-pe-gb-auto i { font-size: 9px; }
+#wl-pe-root .wl-pe-gb-auto.on {
+    color: var(--bd-accent, #97a7c6);
+    border-color: color-mix(in srgb, var(--bd-accent, #97a7c6) 60%, transparent);
+    background: color-mix(in srgb, var(--bd-accent, #97a7c6) 10%, transparent);
+}
+/* Manual mode: accent outline, no fill — reads as "on, but user-driven". */
+#wl-pe-root .wl-pe-gb-auto.manual {
+    color: var(--bd-accent, #97a7c6);
+    border-color: color-mix(in srgb, var(--bd-accent, #97a7c6) 45%, transparent);
+    background: transparent;
+}
+/* Hidden mode: dimmed/struck — group chrome is suppressed.
+   NB: class is 'off' (not 'hidden') to avoid ST's global .hidden{display:none}. */
+#wl-pe-root .wl-pe-gb-auto.off {
+    color: var(--bd-text-faint, #888);
+    border-color: var(--bd-border, #000);
+    background: transparent;
+    opacity: .75;
+}
+
+/* Manual header: same chrome as auto, with a distinct badge + delete control. */
+#wl-pe-root .wl-pe-group-head.wl-pe-manual .wl-pe-gh-kind {
+    color: var(--gc); border-color: color-mix(in srgb, var(--gc) 55%, transparent);
+}
+#wl-pe-root .wl-pe-gh-del {
+    flex-shrink: 0; margin-left: 6px; cursor: pointer;
+    font-size: 10px; color: var(--bd-text-faint, #888);
+    opacity: 0; transition: opacity .12s, color .12s;
+}
+#wl-pe-root .wl-pe-group-head.wl-pe-manual:hover .wl-pe-gh-del { opacity: 1; }
+#wl-pe-root .wl-pe-gh-del:hover { color: var(--bd-danger, #c4877d); }
+
+/* "＋ group here" insertion affordance: a zero-height slot between rows whose
+   hit area reveals a small chip on hover. Squared to match the theme. */
+#wl-pe-root .wl-pe-add-row { position: relative; height: 0; overflow: visible; }
+/* Centered, narrow strip so it can't eat clicks on a row's edge controls. */
+#wl-pe-root .wl-pe-add-hit {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    top: -6px; height: 12px; width: 96px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 3;
+}
+#wl-pe-root .wl-pe-add-hit::before {
+    content: '\002B\00A0 group';
+    font-size: 8.5px; letter-spacing: .5px; text-transform: uppercase;
+    line-height: 12px; padding: 0 6px;
+    color: var(--bd-accent, #97a7c6);
+    background: var(--bd-surface, #212224);
+    border: 1px solid color-mix(in srgb, var(--bd-accent, #97a7c6) 70%, transparent);
+    opacity: 0; transition: opacity .12s;
+}
+#wl-pe-root .wl-pe-add-hit:hover::before { opacity: 1; }
+
+/* Name input popover (create / rename a manual group). Appended to <body>. */
+.wl-pe-name-pop {
+    position: fixed; z-index: 10011;
+    padding: 6px;
+    background: var(--bd-surface, #212224);
+    border: 1px solid var(--bd-border, #000);
+    box-shadow: 0 8px 24px var(--bd-shadow-strong, rgba(0, 0, 0, .55));
+}
+.wl-pe-name-pop .wl-pe-name-input {
+    width: 180px; padding: 4px 6px;
+    font-size: 12px; color: var(--bd-text, #ddd);
+    background: var(--bd-bg, #17181a);
+    border: 1px solid var(--bd-border, #000);
+    outline: none;
+}
+.wl-pe-name-pop .wl-pe-name-input:focus { border-color: var(--bd-accent, #97a7c6); }
+
+/* ============================================================
+   Prompt viewer — Test tab "Prompt" button popup
+   A full-viewport overlay above the expanded drawer (z 10020, over #wl-pe-root
+   at 10000) showing the exact compiled messages sent on the last generation.
+   Group view tints text backgrounds via exact Prompt Manager provenance.
+   ============================================================ */
+.wl-pe-prompt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10020;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4vh 4vw;
+    background: rgba(0, 0, 0, .55);
+}
+
+.wl-pe-prompt-overlay .wl-pe-pv-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(920px, 100%);
+    max-height: 92vh;
+    background: var(--bd-surface, #212224);
+    border: 1px solid var(--bd-border, #333);
+    border-radius: 8px;
+    box-shadow: 0 18px 50px var(--bd-shadow-strong, rgba(0, 0, 0, .55));
+    overflow: hidden;
+}
+
+/* ── Header ── */
+.wl-pe-prompt-overlay .wl-pe-pv-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--bd-border, #333);
+}
+.wl-pe-prompt-overlay .wl-pe-pv-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bd-text, #cfccdd);
+}
+.wl-pe-prompt-overlay .wl-pe-pv-title i { opacity: .7; margin-right: 4px; }
+.wl-pe-prompt-overlay .wl-pe-pv-sub {
+    font-size: 11px;
+    color: color-mix(in srgb, var(--bd-text, #cfccdd) 55%, transparent);
+}
+.wl-pe-prompt-overlay .wl-pe-pv-spacer { flex: 1 1 auto; }
+
+.wl-pe-prompt-overlay .wl-pe-pv-groups {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 9px;
+    font-size: 11px; letter-spacing: .3px;
+    color: var(--bd-text, #cfccdd);
+    background: var(--bd-bg, #17181a);
+    border: 1px solid var(--bd-border, #333);
+    border-radius: 5px; cursor: pointer;
+    opacity: .7; transition: opacity .15s, border-color .15s, color .15s;
+}
+.wl-pe-prompt-overlay .wl-pe-pv-groups:hover { opacity: 1; }
+.wl-pe-prompt-overlay .wl-pe-pv-groups.on {
+    opacity: 1;
+    color: var(--bd-accent, #97a7c6);
+    border-color: color-mix(in srgb, var(--bd-accent, #97a7c6) 60%, transparent);
+}
+
+.wl-pe-prompt-overlay .wl-pe-pv-close {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    background: none; border: none; cursor: pointer;
+    font-size: 1.15em; border-radius: 6px;
+    color: var(--bd-text, #cfccdd);
+    transition: background .15s, color .15s;
+}
+.wl-pe-prompt-overlay .wl-pe-pv-close:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+
+/* ── Body: scrollable list of messages ── */
+.wl-pe-prompt-overlay .wl-pe-pv-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+.wl-pe-prompt-overlay .wl-pe-pv-empty {
+    padding: 40px 20px;
+    text-align: center;
+    font-size: 12px;
+    color: color-mix(in srgb, var(--bd-text, #cfccdd) 55%, transparent);
+}
+
+/* One message block: a role label, then its content. No container chrome on the
+   content itself — the prompt reads as plain text, per the design. A hairline
+   separates messages. */
+.wl-pe-prompt-overlay .wl-pe-pv-msg {
+    position: relative;
+    padding: 10px 14px;
+    border-bottom: 1px solid color-mix(in srgb, var(--bd-border, #333) 55%, transparent);
+}
+.wl-pe-prompt-overlay .wl-pe-pv-msg:last-child { border-bottom: none; }
+
+.wl-pe-prompt-overlay .wl-pe-pv-role {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--bd-accent, #97a7c6);
+    margin-bottom: 5px;
+}
+
+/* Jump-to-block button: named for the source block, revealed on message hover
+   (like the middle column's "＋ group here" affordance). --gc carries the
+   group color when the message belongs to one; otherwise it falls back to the
+   accent. Sits at the right end of the role row. */
+.wl-pe-prompt-overlay .wl-pe-pv-jump {
+    --gc: var(--bd-accent, #97a7c6);
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 45%;
+    padding: 2px 8px;
+    border: 1px solid color-mix(in srgb, var(--gc) 55%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--gc) 14%, transparent);
+    color: color-mix(in srgb, var(--gc) 82%, #fff 18%);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    text-transform: none;
+    line-height: 1.4;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s, background .12s, border-color .12s;
+}
+.wl-pe-prompt-overlay .wl-pe-pv-jump i { font-size: 9px; opacity: .85; }
+.wl-pe-prompt-overlay .wl-pe-pv-jump span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wl-pe-prompt-overlay .wl-pe-pv-msg:hover .wl-pe-pv-jump,
+.wl-pe-prompt-overlay .wl-pe-pv-jump:focus-visible { opacity: .9; }
+.wl-pe-prompt-overlay .wl-pe-pv-jump:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--gc) 24%, transparent);
+    border-color: var(--gc);
+}
+
+/* Brief highlight when jumping to a non-editable (marker/system) row, so the
+   user can see where it lives in the list even though it has no editor. */
+@keyframes wl-pe-jump-flash {
+    0%   { background: color-mix(in srgb, var(--bd-accent, #97a7c6) 45%, transparent); }
+    100% { background: transparent; }
+}
+#wl-pe-root .wl-pe-jump-flash { animation: wl-pe-jump-flash 1.2s ease-out; }
+.wl-pe-prompt-overlay .wl-pe-pv-name {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: color-mix(in srgb, var(--bd-text, #cfccdd) 60%, transparent);
+}
+/* Faint role tinting so system / user / assistant are scannable at a glance,
+   without boxing the text. */
+.wl-pe-prompt-overlay .wl-pe-pv-user    .wl-pe-pv-role { color: #8fae7d; }
+.wl-pe-prompt-overlay .wl-pe-pv-assistant .wl-pe-pv-role { color: #c4877d; }
+.wl-pe-prompt-overlay .wl-pe-pv-system  .wl-pe-pv-role { color: #97a7c6; }
+
+.wl-pe-prompt-overlay .wl-pe-pv-content {
+    font-family: var(--monoFontFamily, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--bd-text, #cfccdd);
+}
+
+/* Group tint: background color behind the text, nothing else. Low alpha so the
+   text stays fully legible; the group's color arrives as --gc. */
+.wl-pe-prompt-overlay .wl-pe-pv-tint {
+    background: color-mix(in srgb, var(--gc, #97a7c6) 26%, transparent);
+    border-radius: 2px;
+    /* A hair of horizontal padding so adjacent tints of different colors read
+       as distinct without introducing box structure. */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    padding: 1px 0;
+}
+
+/* ============================================================
+   Regex tab — ST's native regex panel, relocated into the right
+   column (#regex_container docked into #wl-pe-regex-body). Same
+   WI-drawer skin vocabulary as the left/center columns and the
+   docked prompt editor. The per-script Regex Editor opens as ST's
+   own top-layer modal, so it's untouched here.
+   ============================================================ */
+
+/* View + scroll body (mirrors #wl-pe-right-body). NB: the view's flex layout
+   comes from .wl-pe-rt-view — do NOT re-declare display on #wl-pe-view-regex,
+   or the ID specificity defeats .wl-pe-rt-view[hidden]{display:none} and the
+   panel shows on top of the Edit/Test tabs. */
+.wl-pe-regex-body {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 14px;
+}
+.wl-pe-regex-body:not(.wl-pe-has-regex) { padding: 0; }
+.wl-pe-regex-body:not(.wl-pe-has-regex) .wl-pe-editor-empty { padding: 22px 30px 0; }
+.wl-pe-regex-body.wl-pe-has-regex .wl-pe-editor-empty { display: none; }
+
+/* Drop the redundant collapsible "Regex" header + chrome: the tab already says
+   Regex, and we always want the content open. Neutralize the inline-drawer and
+   the .regex_settings wrapper so the panel flows flat in the column. */
+#wl-pe-root #wl-pe-view-regex .inline-drawer-toggle { display: none !important; }
+#wl-pe-root #wl-pe-view-regex .inline-drawer-content { display: block !important; }
+#wl-pe-root #wl-pe-view-regex #regex_container,
+#wl-pe-root #wl-pe-view-regex .regex_settings,
+#wl-pe-root #wl-pe-view-regex .inline-drawer {
+    margin: 0; padding: 0; border: none; background: transparent;
+}
+
+/* Fields: same accent-focus panels as the rest of the drawer. */
+#wl-pe-root #wl-pe-view-regex
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+#wl-pe-root #wl-pe-view-regex select,
+#wl-pe-root #wl-pe-view-regex textarea {
+    box-sizing: border-box;
+    color: var(--bd-text, #cfcbc5) !important;
+    background: var(--bd-surface-2, #27282a) !important;
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    font: inherit;
+    font-size: 12px;
+}
+#wl-pe-root #wl-pe-view-regex textarea { border-radius: 8px !important; line-height: 1.6; }
+#wl-pe-root #wl-pe-view-regex
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea):hover,
+#wl-pe-root #wl-pe-view-regex
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea):focus {
+    outline: none;
+    border-color: var(--bd-accent-dim, #556) !important;
+}
+#wl-pe-root #wl-pe-view-regex input[type="number"] {
+    color: var(--bd-accent, #97a7c6) !important;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+#wl-pe-root #wl-pe-view-regex :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--bd-accent, #97a7c6); }
+
+/* Type hierarchy: section headings + muted descriptions. */
+#wl-pe-root #wl-pe-view-regex strong { color: var(--bd-text, #cfcbc5); font-size: 13px; font-weight: 500; }
+#wl-pe-root #wl-pe-view-regex small,
+#wl-pe-root #wl-pe-view-regex .text_muted {
+    color: var(--bd-text-faint, #888) !important; font-size: 11px; line-height: 1.45;
+}
+#wl-pe-root #wl-pe-view-regex hr {
+    border: none; border-top: 1px solid var(--bd-border, #333); margin: 12px 0; opacity: .55;
+}
+#wl-pe-root #wl-pe-view-regex .checkbox_label,
+#wl-pe-root #wl-pe-view-regex label.checkbox { color: var(--bd-text-dim, #999); font-size: 12px; }
+
+/* Buttons: quiet outlined chrome, accent on active — like the other columns. */
+#wl-pe-root #wl-pe-view-regex .menu_button {
+    color: var(--bd-text-dim, #999) !important;
+    background: transparent !important;
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: background .15s, color .15s, border-color .15s;
+}
+#wl-pe-root #wl-pe-view-regex .menu_button:hover {
+    color: var(--bd-text, #cfcbc5) !important;
+    background: color-mix(in srgb, var(--bd-text, #cfcbc5) 6%, transparent) !important;
+    border-color: var(--bd-border-hover, var(--bd-border, #555)) !important;
+}
+
+/* Script rows: the WI/prompt-manager card look (flat, squared, hairline). */
+#wl-pe-root #wl-pe-view-regex .regex-script-label {
+    align-items: center;
+    color: var(--bd-text, #cfcbc5);
+    background: var(--bd-surface-2, #27282a);
+    border: 1px solid var(--bd-border, #333) !important;
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin: 3px 0;
+    transition: background .15s, border-color .15s;
+}
+#wl-pe-root #wl-pe-view-regex .regex-script-label:hover {
+    background: color-mix(in srgb, var(--bd-text, #cfcbc5) 6%, var(--bd-surface-2, #27282a));
+    border-color: var(--bd-border-hover, var(--bd-border, #555)) !important;
+}
+#wl-pe-root #wl-pe-view-regex .regex_script_name { color: var(--bd-text, #cfcbc5) !important; font-size: 12.5px; }
+#wl-pe-root #wl-pe-view-regex .regex-toggle-on { color: var(--bd-accent, #97a7c6); }
+
+/* Empty-list hint + info block, kept quiet. */
+#wl-pe-root #wl-pe-view-regex .regex-script-container:empty::after { color: var(--bd-text-faint, #888); opacity: .8; }
+#wl-pe-root #wl-pe-view-regex #regex_info_block {
+    color: var(--bd-text-dim, #999);
+    background: color-mix(in srgb, #000 14%, var(--bd-surface, #212224));
+    border: 1px solid var(--bd-border, #333); border-radius: 6px;
+}
+/* Disabled sub-blocks: keep ST's dimming but on our palette. */
+#wl-pe-root #wl-pe-view-regex :is(#scoped_scripts_block, #preset_scripts_block) { opacity: 1; }

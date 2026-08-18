@@ -236,7 +236,12 @@ export async function uploadBannerImage(file, entityName) {
  * @returns {string}
  */
 export function escapeCSSName(name) {
-    return name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const raw = String(name ?? '');
+    if (globalThis.CSS?.escape) return CSS.escape(raw);
+    return raw
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/[\x00-\x1f\x7f]/g, char => `\\${char.charCodeAt(0).toString(16)} `);
 }
 
 /**

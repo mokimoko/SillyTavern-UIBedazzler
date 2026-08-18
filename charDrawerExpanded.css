@@ -1,0 +1,1138 @@
+/* ============================================
+   Expanded Character Drawer — 3-column takeover
+   Namespace: wl-xd-
+   Ported from _mockups/expanded-drawer-mockup.html.
+   Overlay: fixed, full-viewport, above ST's UI.
+   ============================================ */
+
+/* Expand button injected into the right-nav header (left of the display name).
+   Small left margin nudges it to align with the lock/characters icons stacked
+   directly above it in #CharListButtonAndHotSwaps. */
+#wl-xd-expand-btn {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: 5px;
+}
+
+/* No character loaded (welcome / create / group): greyed + non-interactive,
+   but still visible so users know the feature exists and what it needs. */
+#wl-xd-expand-btn.wl-xd-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+}
+
+/* ============================================
+   Root overlay + 3-column grid
+   ============================================ */
+
+#wl-xd-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10000; /* above ST panels; below toasts if any */
+    display: grid;
+    grid-template-columns: 400px 1fr 330px;
+    grid-template-rows: 100vh;
+    height: 100vh;
+    gap: 1px;
+    background: #000;
+    overflow: hidden;
+}
+
+/* ============================================
+   LEFT column — identity
+   ============================================ */
+
+#wl-xd-left {
+    background: var(--SmartThemeBlurTintColor, #16141f);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 12px 14px 20px;
+    gap: 12px;
+}
+
+/* Top row of the left column: the "back to browser" arrow on the LEFT, the
+   relocated dupe/delete actions pushed to the RIGHT — one line, no break. */
+.wl-xd-toprow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.wl-xd-toprow #wl-xd-actions-slot {
+    margin-left: auto;   /* actions hug the right; arrow stays left */
+}
+
+/* "Back to Character Browser" control — now an icon-only button (arrow, no
+   label) sharing the top row with the dupe/delete actions. Quiet by default
+   with a subtle hover, sized to sit level with the .menu_button actions. */
+#wl-xd-browser-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    padding: 6px 8px;
+    margin: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--SmartThemeEmColor, #9a96b0);
+    transition: background .12s, color .12s;
+}
+#wl-xd-browser-link:hover {
+    background: rgba(255, 255, 255, .06);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+}
+#wl-xd-browser-link i {
+    font-size: 1em;
+    flex: 0 0 auto;
+}
+
+.wl-xd-left-header {
+    display: flex;
+    gap: 12px;
+}
+
+.wl-xd-identity {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    min-width: 0;
+    gap: 6px;
+}
+/* Name + token sub-slots keep their content left-aligned; options/tags
+   sub-slots stretch to the full identity-column width for the button row,
+   dropdown, and tag input. */
+#wl-xd-name-slot,
+#wl-xd-title-slot,
+#wl-xd-tokens-slot {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Bedazzler "title" (subtitle) field — sits directly under the name, styled as
+   a quiet inline input that reads like display text until focused. Dimmer +
+   smaller + italic to echo the subtitle look on the browser cards. The negative
+   top margin pulls it snug under the name (trims the identity column's 6px gap).
+   text_pole (ST's input class) gives it the native focus ring on interaction. */
+#wl-xd-title-slot {
+    margin-top: -2px;
+}
+.wl-xd-title-input.text_pole {
+    width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    padding: 2px 6px;
+    font-size: 0.9em;
+    font-style: italic;
+    line-height: 1.3;
+    color: var(--SmartThemeBodyColor, #ccc);
+    opacity: 0.78;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    transition: opacity .12s, border-color .12s, background-color .12s;
+}
+.wl-xd-title-input.text_pole::placeholder {
+    font-style: italic;
+    opacity: 0.55;
+}
+.wl-xd-title-input.text_pole:hover {
+    border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, .15));
+}
+.wl-xd-title-input.text_pole:focus {
+    opacity: 1;
+    font-style: normal;
+    background-color: var(--black30a, rgba(0, 0, 0, .3));
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+}
+
+/* Optional SillyTavern-Nicknames char editor (#nickname_editor_char), relocated
+   here beneath the subtitle. It's a third-party node we don't own, so scope the
+   fit-ups tightly to this slot: compact type, let its flex rows wrap in the
+   ~210px identity column, and a hairline top rule to set it apart from the
+   subtitle. The slot is empty (and collapses) when the extension isn't
+   installed. */
+#wl-xd-nickname-slot:empty {
+    display: none;
+}
+#wl-xd-nickname-slot .nickname-editor-container {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, .12));
+    font-size: 0.9em;
+}
+#wl-xd-nickname-slot .nickname-editor-container h4 {
+    margin: 0 0 4px;
+    font-size: 1em;
+}
+/* Rows are ST flex-containers with flexNoWrap; in this narrow column we prefer
+   graceful wrapping over overflow. */
+#wl-xd-nickname-slot .nickname-input-row,
+#wl-xd-nickname-slot .context-buttons {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+#wl-xd-nickname-slot .nickname-input {
+    min-width: 0;
+}
+/* "View all levels" collapsible (.nickname-summary) — hidden in THIS slot only.
+   The <h4>'s context-indicator icons (globe/char/chat) already show at a glance
+   where a nickname is set, and the "Save to:" buttons manage each level, so the
+   read-only summary drawer is redundant here and costs scarce vertical space in
+   the ~210px identity column beside the avatar. Scoped to our slot: the native
+   SillyTavern-Nicknames drawer still shows it in full. Delete this rule to
+   restore it. */
+#wl-xd-nickname-slot .nickname-summary {
+    display: none;
+}
+
+/* Portrait slot: hosts ST's relocated avatar label (#avatar_div_div) which is
+   the <label class="add_avatar avatar"> wrapping <img id="avatar_load_preview">.
+   ST hard-sizes BOTH the label (.avatar) and the img (.avatar img) to fixed
+   pixel width/height via --avatar-base-* vars. aspect-ratio can't win against
+   an explicit height, so we set explicit pixel dimensions with !important and
+   target the img by its ID for max specificity. 150 * 5/3 = 250px tall. */
+#wl-xd-portrait-slot {
+    flex-shrink: 0;
+    width: 150px;
+    height: 250px;
+}
+#wl-xd-portrait-slot .add_avatar.avatar {
+    width: 150px !important;
+    height: 250px !important;
+    flex: none !important;
+    margin: 0 !important;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    overflow: hidden;
+}
+#wl-xd-portrait-slot #avatar_load_preview,
+#wl-xd-portrait-slot .avatar img {
+    width: 150px !important;
+    height: 250px !important;
+    object-fit: cover;
+    object-position: center top;
+    border-radius: 8px;
+    box-shadow: none;
+}
+/* ST core applies a glow to .add_avatar on hover via `filter: drop-shadow(...)`
+   — NOT box-shadow. Since the portrait is a relocated native .add_avatar label
+   (#avatar_div_div), that glow leaks in. Kill the filter and swap in a quiet
+   accent outline — cohesive with the char-browser selected-card look (outline,
+   no scale, no glow). We target the ID directly to out-specify ST core. */
+#wl-xd-portrait-slot #avatar_div_div,
+#wl-xd-portrait-slot #avatar_div_div:hover,
+#wl-xd-portrait-slot #avatar_div_div img,
+#wl-xd-portrait-slot #avatar_div_div:hover img,
+#wl-xd-portrait-slot #avatar_load_preview,
+#wl-xd-portrait-slot #avatar_load_preview:hover,
+#wl-xd-portrait-slot .avatar,
+#wl-xd-portrait-slot .avatar:hover,
+#wl-xd-portrait-slot .avatar:hover img {
+    box-shadow: none !important;
+    filter: none !important;
+}
+#wl-xd-portrait-slot #avatar_div_div {
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    border-radius: 8px;
+    transition: outline-color .12s;
+}
+#wl-xd-portrait-slot #avatar_div_div:hover {
+    outline-color: var(--SmartThemeQuoteColor, #9b8cff) !important;
+}
+
+/* Identity: relocated #rm_button_selected_ch (display name h2) + #result_info_text
+   (token counts) sit to the right of the portrait. Name truncates with ellipsis
+   when longer than the available ~120px sliver. */
+#wl-xd-identity-slot #rm_button_selected_ch {
+    width: 100%;
+    min-width: 0;
+    /* ST sets flex:1 (fills the column height, pushing tokens to the bottom)
+       and opacity:0.5 (dim unless it's the "selected right tab"). Override
+       both: pack to natural height at the top, full opacity. */
+    flex: 0 0 auto !important;
+    opacity: 1 !important;
+    padding: 0;
+}
+#wl-xd-identity-slot #rm_button_selected_ch h2 {
+    font-size: 1.25em;
+    font-weight: 650;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+}
+#wl-xd-identity-slot #result_info_text {
+    flex: 0 0 auto;
+    height: auto;
+    margin: 4px 0 0 0;
+    padding: 0;
+    font-size: .8em;
+    color: var(--SmartThemeEmColor, #8d89a3);
+    line-height: 1.5;
+    /* ST's #result_info is a flex column with text-align:right; force left. */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left !important;
+}
+#wl-xd-identity-slot #result_info_text strong {
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-weight: 600;
+}
+
+/* Top-right actions row: relocated #dupe_button + #delete_button, pinned above
+   the portrait/name header. ST's .menu_button styling carries over intact. */
+.wl-xd-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.wl-xd-actions-row .menu_button {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+/* Options slot: hosts the relocated #avatar_controls block, stacked in the
+   identity column beneath the token counts. The "More…" dropdown that natively
+   rides inside #avatar_controls is pulled OUT and relocated down to the
+   below-avatar strip (see #wl-xd-more-slot), so this slot now holds ONLY the
+   icon-buttons row. ST styles #avatar_controls for the right-nav context
+   (height:100%, padding, flex-end) — neutralize those and let the buttons wrap
+   in a left-aligned row. */
+#wl-xd-options-slot {
+    margin-top: 4px;
+}
+#wl-xd-options-slot #avatar_controls {
+    height: auto;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+#wl-xd-options-slot .form_create_bottom_buttons_block {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+    width: 100%;
+}
+
+/* ── Below-avatar strip ──────────────────────────────────────
+   Spans the full left column beneath the portrait/identity header — the space
+   the Creator's Notes display drawer used to occupy before it moved to the
+   right column. Hosts the relocated "More…" dropdown (#wl-xd-more-slot) and the
+   tag hub + pills (#wl-xd-tags-slot), stacked top-to-bottom. */
+#wl-xd-belowavatar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    /* Vertical separation from the header comes from #wl-xd-left's own
+       gap:12px; no extra margin needed here. */
+}
+
+/* "More…" dropdown, relocated here out of #avatar_controls. ST's wrapper label
+   carries height100p (height:100%) + flex1, which warp it out of a right-nav
+   context — let it size naturally and span the strip width. Target both the
+   wrapper label and the select for full width. */
+#wl-xd-more-slot {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+#wl-xd-more-slot > label {
+    height: auto;
+    width: 100%;
+    flex: 0 0 auto;
+    margin: 0;
+}
+#wl-xd-more-slot #char-management-dropdown {
+    width: 100%;
+}
+
+/* Tags slot sits below the "More…" dropdown within the below-avatar strip. */
+#wl-xd-tags-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+#wl-xd-tags-slot #tags_div {
+    width: 100%;
+}
+
+/* ============================================
+   CENTER column — tabbed fields
+   ============================================ */
+
+#wl-xd-center {
+    background: var(--SmartThemeBlurTintColor, #1c1927);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: 10px 18px 14px;
+}
+
+#wl-xd-tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #2f2b40);
+    flex-wrap: wrap;
+}
+
+.wl-xd-tab {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    padding: 8px 13px;
+    font-size: .87em;
+    font-weight: 500;
+    opacity: .55;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: opacity .15s;
+}
+.wl-xd-tab:hover { opacity: .85; }
+.wl-xd-tab.active { opacity: 1; }
+.wl-xd-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 2px;
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-radius: 2px 2px 0 0;
+}
+.wl-xd-tab i { font-size: .85em; }
+
+#wl-xd-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 14px 2px 6px;
+}
+
+.wl-xd-pane {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 100%;
+}
+.wl-xd-pane.active { display: flex; }
+
+/* Relocated field wrappers (e.g. #descriptionWrapper) fill the pane height so
+   the textarea grows to fill available space, matching the mockup's roomy feel.
+   The flex-scroll gotcha: min-height:0 lets the textarea shrink instead of
+   forcing the pane to overflow. */
+.wl-xd-pane > .flex-container.flex1 {
+    flex: 1 1 0;
+    min-height: 0;
+}
+.wl-xd-pane textarea {
+    flex: 1 1 0;
+    min-height: 60px;
+    resize: none;
+}
+
+/* ── Prompts tab ──────────────────────────────────────────────
+   Main Prompt, Post-History, and Character Note (#depth_prompt_div) are the
+   growing flex children of the pane. Weighted so Main is biggest and
+   Post-History matches the Character Note (per design). Each block is itself a
+   flex column so its inner textarea fills it (the .wl-xd-pane textarea rule
+   above then makes the textarea grow within the block).
+   Sourced from anonymous ST wrappers tagged .wl-xd-prompt-block at relocation. */
+.wl-xd-pane[data-tab="prompts"] > .wl-xd-prompt-block,
+.wl-xd-pane[data-tab="prompts"] > #depth_prompt_div {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.wl-xd-pane[data-tab="prompts"] > .wl-xd-prompt-main { flex: 2 1 0; }
+.wl-xd-pane[data-tab="prompts"] > .wl-xd-prompt-posthistory { flex: 1 1 0; }
+.wl-xd-pane[data-tab="prompts"] > #depth_prompt_div { flex: 1 1 0; }
+
+/* #depth_prompt_div is a flex ROW natively (textarea .flex1 + depth/role
+   column). Keep that row, and let its textarea column fill height. */
+.wl-xd-pane[data-tab="prompts"] > #depth_prompt_div { flex-direction: row; }
+.wl-xd-pane[data-tab="prompts"] > #depth_prompt_div > .flex1 {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* ── Metadata tab ─────────────────────────────────────────────
+   Creator + Character Version paired on one row (both short fields, no
+   grow-to-fill). Wrapped in #wl-xd-meta-row at relocation. Creator's Notes is
+   the one field that should take the leftover vertical space. */
+#wl-xd-meta-row {
+    display: flex;
+    gap: 14px;
+    flex: 0 0 auto;
+}
+#wl-xd-meta-row > .flex1 {
+    flex: 1 1 0;
+    min-width: 0;
+}
+/* Short metadata fields don't grow; their textareas stay compact (ST sets
+   rows=2). Only the Creator's Notes block grows to fill remaining space. */
+.wl-xd-pane[data-tab="metadata"] > .flex1 { flex: 0 0 auto; }
+.wl-xd-pane[data-tab="metadata"] > .flex1:has(#creator_notes_textarea) {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+/* Talkativeness slider block stays natural height. */
+.wl-xd-pane[data-tab="metadata"] > #talkativeness_div { flex: 0 0 auto; }
+
+/* ============================================
+   RIGHT column — Creator's Notes
+   ============================================ */
+
+#wl-xd-right {
+    background: var(--SmartThemeBlurTintColor, #0b0a10);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.wl-xd-right-top {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 10px 2px;
+}
+
+.wl-xd-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.3em;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    transition: background .15s, color .15s;
+}
+.wl-xd-close:hover {
+    background: rgba(255,255,255,.07);
+    color: #fff;
+}
+
+/* Notes slot fills the right column beneath the close button and scrolls its
+   own content. Hosts the relocated Creator's Notes drawer (#spoiler_free_desc),
+   expanded by default. */
+#wl-xd-notes-slot {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 4px 12px 16px;
+    gap: 6px;
+}
+/* The relocated inline-drawer spans the column width; let its expanded body
+   grow naturally and rely on the slot's scroll for overflow. */
+#wl-xd-notes-slot #spoiler_free_desc {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+/* The drawer's rendered notes body (#creator_notes_spoiler) is the actual
+   markdown render target — give it comfortable reading measure + spacing. */
+#wl-xd-notes-slot #creator_notes_spoiler {
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* While the expanded drawer is open, keep ST's body scroll from fighting it */
+body.wl-xd-open {
+    overflow: hidden;
+}
+
+
+/* ============================================
+   Greetings tab — sub-tab strip + body
+   First Message is the locked sub-tab 0; each alternate greeting is an
+   authored sub-tab. The strip scrolls horizontally with chevrons that
+   appear only on overflow. The body hosts the relocated #firstMessageWrapper
+   OR an authored alt-greeting textarea, one at a time.
+   ============================================ */
+
+.wl-xd-greet-wrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    gap: 10px;
+}
+
+/* ── Strip + chevrons ──────────────────────────────────────── */
+.wl-xd-greet-stripwrap {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #2f2b40);
+    padding-bottom: 6px;
+}
+
+.wl-xd-greet-strip {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Hide the native scrollbar; chevrons drive scrolling. */
+    scrollbar-width: none;
+}
+.wl-xd-greet-strip::-webkit-scrollbar { display: none; }
+
+/* Chevrons: hidden by default, shown only when the strip overflows. */
+.wl-xd-greet-chev {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    width: 0;
+    padding: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity .15s, width .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wl-xd-greet-overflow .wl-xd-greet-chev {
+    width: 26px;
+    opacity: .7;
+}
+.wl-xd-greet-overflow .wl-xd-greet-chev:hover { opacity: 1; }
+.wl-xd-greet-chev.wl-xd-greet-chev-disabled {
+    opacity: .2;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* ── Sub-tabs ──────────────────────────────────────────────── */
+.wl-xd-greet-tab {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: .85em;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    opacity: .6;
+    background: var(--black30a, rgba(0,0,0,.2));
+    transition: opacity .15s, background .15s;
+}
+.wl-xd-greet-tab:hover { opacity: .85; }
+.wl-xd-greet-tab.active {
+    opacity: 1;
+    background: var(--SmartThemeBlurTintColor, #24212f);
+    box-shadow: inset 0 -2px 0 var(--SmartThemeQuoteColor, #9b8cff);
+}
+
+/* Inline tab controls (up / down / delete) — shown on active/hover tabs. */
+.wl-xd-greet-tab-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.wl-xd-greet-tab:hover .wl-xd-greet-tab-ctrls,
+.wl-xd-greet-tab.active .wl-xd-greet-tab-ctrls {
+    opacity: 1;
+}
+.wl-xd-greet-tab-ctrl {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    padding: 2px 3px;
+    font-size: .8em;
+    opacity: .65;
+    border-radius: 3px;
+    line-height: 1;
+}
+.wl-xd-greet-tab-ctrl:hover {
+    opacity: 1;
+    background: rgba(255,255,255,.08);
+}
+
+/* Add (dashed +) button at the end of the strip. */
+.wl-xd-greet-add {
+    flex: 0 0 auto;
+    background: none;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    border: 1px dashed var(--SmartThemeBorderColor, #4a4560);
+    border-radius: 6px;
+    padding: 6px 12px;
+    opacity: .7;
+    transition: opacity .15s, background .15s;
+    align-self: stretch;
+}
+.wl-xd-greet-add:hover {
+    opacity: 1;
+    background: rgba(255,255,255,.05);
+}
+
+/* ── Body: holds the relocated First Message wrapper OR an alt textarea ── */
+.wl-xd-greet-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* Relocated #firstMessageWrapper fills the body; its textarea grows. */
+.wl-xd-greet-body > #firstMessageWrapper {
+    flex: 1 1 0;
+    min-height: 0;
+}
+.wl-xd-greet-body > #firstMessageWrapper > textarea {
+    flex: 1 1 0;
+    min-height: 60px;
+    resize: none;
+}
+
+/* Authored alt-greeting block: header + growing textarea. */
+.wl-xd-greet-alt {
+    flex: 1 1 0;
+    min-height: 0;
+    gap: 6px;
+}
+.wl-xd-greet-alt-header {
+    flex: 0 0 auto;
+    font-size: .9em;
+    color: var(--SmartThemeEmColor, #b9b4cc);
+}
+.wl-xd-greet-alt-text {
+    flex: 1 1 0;
+    min-height: 60px;
+    resize: none;
+    width: 100%;
+}
+
+
+/* ============================================
+   CENTER › Gallery tab
+   Authored chrome (not relocated ST DOM): a responsive thumbnail grid + our
+   own full-screen viewer. Matches the drawer's SmartTheme token palette.
+   ============================================ */
+
+.wl-xd-gallery-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    flex: 1 1 0;
+}
+
+/* Status / empty / error line. Hidden (via [hidden]) when media is present. */
+.wl-xd-gallery-status {
+    font-size: .9em;
+    color: var(--SmartThemeEmColor, #b9b4cc);
+    opacity: .85;
+    padding: 6px 2px;
+}
+.wl-xd-gallery-status[hidden] { display: none; }
+
+/* Responsive grid: fills the pane; tiles auto-flow, min ~120px each. */
+.wl-xd-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    align-content: start;
+}
+
+.wl-xd-gallery-more {
+    align-self: center;
+    min-width: 180px;
+    margin: 2px 0 8px;
+}
+.wl-xd-gallery-more[hidden] { display: none; }
+
+/* Thumbnail tile: square, cover-cropped media, subtle border that accents on
+   hover. It's a <button> so it's keyboard-focusable for free. */
+.wl-xd-gallery-tile {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    border: 1px solid var(--SmartThemeBorderColor, #2f2b40);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--SmartThemeBotMesBlurTintColor, #14121c);
+    transition: border-color .15s, transform .1s;
+}
+.wl-xd-gallery-tile:hover {
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    transform: translateY(-1px);
+}
+.wl-xd-gallery-tile:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #9b8cff);
+    outline-offset: 1px;
+}
+.wl-xd-gallery-tile img,
+.wl-xd-gallery-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ── Delete mode ─────────────────────────────────────────────
+   When the grid carries .wl-xd-gallery-deleting, tiles read as "click to
+   delete": a red cast, a crosshair-ish cursor, and a trash overlay on hover. */
+.wl-xd-gallery-grid.wl-xd-gallery-deleting .wl-xd-gallery-tile {
+    cursor: pointer;
+    border-color: var(--crimson70a, #b3103ccc);
+}
+.wl-xd-gallery-grid.wl-xd-gallery-deleting .wl-xd-gallery-tile:hover {
+    border-color: #ff4d6d;
+    outline: 2px solid #ff4d6d;
+    outline-offset: 1px;
+    transform: none;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-deleting .wl-xd-gallery-tile::after {
+    content: "\f2ed"; /* fa-trash-can */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    color: #fff;
+    background: rgba(179, 16, 60, .0);
+    opacity: 0;
+    transition: opacity .12s, background .12s;
+    pointer-events: none;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-deleting .wl-xd-gallery-tile:hover::after {
+    opacity: 1;
+    background: rgba(179, 16, 60, .45);
+}
+
+/* ── Set-avatar mode ─────────────────────────────────────────
+   When the grid carries .wl-xd-gallery-picking-avatar, tiles read as "click to
+   set as avatar": a blue cast, pointer cursor, and a user-pen overlay on hover.
+   Mirrors the delete-mode treatment with a distinct (non-destructive) accent. */
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile {
+    cursor: pointer;
+    border-color: rgba(56, 132, 255, .8);
+}
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile:hover {
+    border-color: #4d9dff;
+    outline: 2px solid #4d9dff;
+    outline-offset: 1px;
+    transform: none;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile::after {
+    content: "\f4ff"; /* fa-user-pen */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    color: #fff;
+    opacity: 0;
+    transition: opacity .12s, background .12s;
+    pointer-events: none;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile:hover::after {
+    opacity: 1;
+    background: rgba(31, 96, 196, .45);
+}
+/* Videos can't be avatars — dim them and show a "no" cursor in this mode. */
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile:has(video) {
+    cursor: not-allowed;
+    opacity: .5;
+    border-color: transparent;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile:has(video):hover {
+    outline: none;
+}
+.wl-xd-gallery-grid.wl-xd-gallery-picking-avatar .wl-xd-gallery-tile:has(video)::after {
+    content: none;
+}
+
+/* Play badge overlaid on video thumbnails. */
+.wl-xd-gallery-playbadge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    color: #fff;
+    background: rgba(0, 0, 0, .28);
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+}
+
+/* ── Full-screen viewer ──────────────────────────────────────
+   Lives INSIDE #wl-xd-root (position:absolute over the 3-col grid). Shown only
+   while .wl-xd-gv-open is present; otherwise display:none keeps it inert. */
+.wl-xd-gallery-viewer {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, .9);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 64px;
+}
+.wl-xd-gallery-viewer.wl-xd-gv-open { display: flex; }
+
+/* Media stage: centers the image/video, caps it to the viewport. The stage
+   itself is the click-out target (backdrop clicks close the viewer). */
+.wl-xd-gv-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
+}
+.wl-xd-gv-media {
+    max-width: 100%;
+    max-height: calc(100vh - 96px);
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, .6);
+}
+
+/* Close + nav controls. */
+.wl-xd-gv-close,
+.wl-xd-gv-nav {
+    position: absolute;
+    background: rgba(0, 0, 0, .4);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background .15s;
+}
+.wl-xd-gv-close:hover,
+.wl-xd-gv-nav:hover { background: var(--SmartThemeQuoteColor, #9b8cff); }
+
+.wl-xd-gv-close {
+    top: 14px;
+    right: 18px;
+    width: 38px;
+    height: 38px;
+    font-size: 1.1em;
+}
+.wl-xd-gv-nav {
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    font-size: 1.2em;
+}
+.wl-xd-gv-prev { left: 14px; }
+.wl-xd-gv-next { right: 14px; }
+
+/* Caption: index + filename, bottom-centered. */
+.wl-xd-gv-caption {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 80%;
+    text-align: center;
+    font-size: .85em;
+    color: #ddd;
+    background: rgba(0, 0, 0, .4);
+    padding: 4px 12px;
+    border-radius: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Gallery toolbar (folder override + Add Image) ───────────
+   Sits above the grid. The folder field is the only growing element, so it
+   absorbs all free space and pushes the buttons (accept, restore, delete-mode,
+   Add Image) compactly to the right. */
+.wl-xd-gallery-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+.wl-xd-gallery-toolbar .menu_button {
+    flex: 0 0 auto;
+    margin: 0;
+}
+.wl-xd-gallery-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+/* Delete-mode toggle: highlighted when active (aria-pressed="true"). */
+.wl-xd-gallery-delete-toggle[aria-pressed="true"] {
+    background: var(--crimson70a, #b3103ccc);
+    color: #fff;
+}
+
+/* Set-avatar-mode toggle: highlighted when active (aria-pressed="true"). */
+.wl-xd-gallery-avatar-toggle[aria-pressed="true"] {
+    background: rgba(56, 132, 255, .8);
+    color: #fff;
+}
+
+/* ── Gallery folder autocomplete dropdown ────────────────────
+   The field wrapper anchors the absolutely-positioned menu directly beneath the
+   input, matching ST's native gallery behavior. */
+.wl-xd-gallery-folder-field {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.wl-xd-gallery-folder-field .wl-xd-gallery-folder-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+    box-sizing: border-box;
+}
+.wl-xd-gallery-folder-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--SmartThemeBlurTintColor, #1c1927);
+    border: 1px solid var(--SmartThemeBorderColor, #2f2b40);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+    padding: 4px;
+}
+.wl-xd-gallery-folder-menu[hidden] { display: none; }
+
+.wl-xd-gallery-folder-option {
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .9em;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wl-xd-gallery-folder-option:hover {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    color: #fff;
+}
+
+
+/* ============================================================
+   Tag autocomplete over the overlay (BUGFIX)
+   The tag field (#tags_div) is a relocated ST control whose "add / create tag"
+   dropdown is a jQuery UI .autocomplete menu appended to <body>. ST styles that
+   menu (it carries .ui-front) at z-index:10000 — the SAME z-index as our
+   overlay (#wl-xd-root). Equal z-index ties break on DOM order, and the menu
+   (added to <body> at page load) loses to #wl-xd-root (appended later), so it
+   renders BEHIND the overlay: invisible, unclickable, and Enter appears dead.
+   Lift the menu above the overlay while the expanded drawer is open. Scoped to
+   body.wl-xd-open so it only applies during our takeover. jQuery UI's Position
+   widget anchors the menu to the live input, so it still lands under the field.
+   ============================================================ */
+body.wl-xd-open .ui-autocomplete.ui-front {
+    z-index: 10010;
+}
+
+
+/* ============================================================
+   CREATE MODE — New Character hosted in the expanded drawer
+   Applied only when the takeover opens with ST's menuType === 'create' (see
+   applyCreateModeChrome in drawerUI.js). Two authored surfaces:
+     1. The editable name input (#name_div, relocated into the name slot in
+        place of the hidden stale h2 display name).
+     2. The full-width "Create Character" button pinned to the bottom of the
+        left column, below the tags area.
+   ============================================================ */
+
+/* Name input in the identity header. ST's #name_div carries popup-oriented
+   spacing; flatten it so the input reads as the header's title line. */
+#wl-xd-name-slot #name_div {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#wl-xd-name-slot #character_name_pole {
+    width: 100%;
+    margin: 0;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+/* Authored Create Character button. margin-top:auto pins it beneath the tags
+   area (the column's last content block) with the leftover space above it —
+   or straight after the tags when the column is full and scrolling. */
+#wl-xd-create-btn {
+    margin-top: auto;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, .12));
+    border-radius: 8px;
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    color: var(--SmartThemeBlurTintColor, #16141f);
+    font-size: .95em;
+    font-weight: 650;
+    cursor: pointer;
+    transition: filter .12s ease;
+}
+#wl-xd-create-btn:hover {
+    filter: brightness(1.1);
+}
+#wl-xd-create-btn i {
+    font-size: .9em;
+}

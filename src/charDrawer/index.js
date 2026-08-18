@@ -29,8 +29,11 @@ export function initCharDrawer() {
 
     if (settings.charDrawerTakeover) {
         setupDrawerWatcher();
-        injectDesignCSS();
     }
+    // Design CSS is shared with the Expanded Character Drawer (both edit the
+    // same per-character design data), so its lifecycle is gated on EITHER
+    // toggle — not just the classic one.
+    syncDesignCSS();
 
     setupChatEvents();
 
@@ -45,12 +48,58 @@ export function onCharDrawerToggleChanged(enabled) {
     if (enabled) {
         setupDrawerWatcher();
         applyIfPopupOpen();
-        injectDesignCSS();
     } else {
         teardownDrawerWatcher();
         if (isTakeoverActive()) {
             restoreDrawer();
         }
+    }
+    syncDesignCSS();
+}
+
+// ============================================================
+// Coexistence API — called by the Expanded Character Drawer
+// ============================================================
+
+/**
+ * Release our hold on #character_popup's fields (restore them to their native
+ * popup positions). Called by the expanded drawer at the START of its takeover
+ * so it captures every field at its true original home — otherwise its restore
+ * would try to return fields into wl-cd- panes that no longer exist.
+ *
+ * The drawer watcher stays armed; the wl-xd-open body-class guard inside
+ * takeoverDrawer() prevents it from re-grabbing while the expanded drawer is
+ * open (including the microtask fired by this very restore removing the
+ * wl-cd-active class).
+ */
+export function releaseCharDrawer() {
+    if (isTakeoverActive()) {
+        restoreDrawer();
+    }
+}
+
+/**
+ * Re-apply the classic takeover if warranted (feature enabled + popup visible
+ * + not already active). Called by the expanded drawer at the END of its
+ * restore. In the common case the popup is hidden and this no-ops — the
+ * drawer watcher re-takes naturally on the popup's next open.
+ */
+export function retakeCharDrawer() {
+    const settings = extension_settings[MODULE_NAME];
+    if (!settings.charDrawerTakeover) return;
+    applyIfPopupOpen();
+}
+
+/**
+ * Reconcile the per-character Design CSS with the CURRENT state of both
+ * character-drawer toggles: injected while either is on, removed when both
+ * are off. Called from both toggle handlers and init.
+ */
+export function syncDesignCSS() {
+    const settings = extension_settings[MODULE_NAME];
+    if (settings.charDrawerTakeover || settings.charDrawerExpanded) {
+        injectDesignCSS();
+    } else {
         removeDesignCSS();
     }
 }
@@ -74,13 +123,16 @@ function setupDrawerWatcher() {
         }
         // Recovery: if container was removed externally
         if (isTakeoverActive() && !document.getElementById('wl-cd-container')) {
-            log('Container lost — will re-takeover on next open');
+            log('Container lost — restoring relocated fields');
+            restoreDrawer();
+            if (isPopupVisible(popup)) queueMicrotask(() => takeoverDrawer());
         }
     });
 
     drawerObserver.observe(popup, {
         attributes: true,
         attributeFilter: ['class', 'style'],
+        childList: true,
     });
 
     log('Drawer watcher active');
@@ -116,12 +168,15 @@ function applyIfPopupOpen() {
 function setupChatEvents() {
     eventSource.on(event_types.CHAT_CHANGED, () => {
         const settings = extension_settings[MODULE_NAME];
-        if (settings.charDrawerTakeover) {
+        // Design CSS rebuild serves BOTH character-drawer modes (the expanded
+        // drawer edits the same design data), so gate on either toggle.
+        if (settings.charDrawerTakeover || settings.charDrawerExpanded) {
             // Batched via cssScheduler so all CSS modules update in one frame
             scheduleCSSRebuild('charDesign', () => {
                 injectDesignCSS();
 
-                // Refresh Design tab if currently visible
+                // Refresh the CLASSIC Design tab if currently visible (the
+                // expanded drawer refreshes its own Design pane in its module)
                 if (isTakeoverActive() && getActiveTab() === 'design') {
                     const pane = document.querySelector('.wl-cd-tab-pane[data-tab="design"]');
                     if (pane) renderDesignTab(pane);

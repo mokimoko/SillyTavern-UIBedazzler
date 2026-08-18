@@ -20,6 +20,77 @@ import {
 const log = () => {};
 
 const STYLE_ELEMENT_ID = 'wl-char-design-styles';
+let liveCssFrame = null;
+let queuedLiveDesign = null;
+let queuedLiveAvatar = null;
+
+function clamp(value, min, max, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+function normalizeHexColor(value) {
+    const raw = String(value || '').trim();
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) {
+        return `#${raw.slice(1).split('').map(char => char + char).join('')}`.toLowerCase();
+    }
+    return null;
+}
+
+function normalizeBoxColor(value) {
+    const hex = normalizeHexColor(value);
+    if (hex) {
+        const rgb = hexToRgb(hex);
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+    }
+    const parsed = parseRgba(String(value || ''));
+    if (!parsed || ![parsed.r, parsed.g, parsed.b, parsed.a].every(Number.isFinite)) return null;
+    const r = Math.round(clamp(parsed.r, 0, 255, 0));
+    const g = Math.round(clamp(parsed.g, 0, 255, 0));
+    const b = Math.round(clamp(parsed.b, 0, 255, 0));
+    const a = clamp(parsed.a, 0, 1, 1);
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function normalizeBannerUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw || /[\u0000-\u001f\u007f'"\\]/.test(raw)) return '';
+    try {
+        const url = new URL(raw, window.location.href);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? raw : '';
+    } catch {
+        return '';
+    }
+}
+
+function normalizeDesign(design) {
+    const bannerMode = design?.bannerMode === 'avatar' || design?.bannerMode === 'custom'
+        ? design.bannerMode
+        : null;
+    return {
+        nameColor: normalizeHexColor(design?.nameColor),
+        dialogueColor: normalizeHexColor(design?.dialogueColor),
+        boxColor: normalizeBoxColor(design?.boxColor),
+        bannerMode,
+        bannerUrl: normalizeBannerUrl(design?.bannerUrl),
+        bannerPosition: Math.round(clamp(design?.bannerPosition, 0, 100, 25)),
+    };
+}
+
+function scheduleLiveCSSRebuild(design, avatar) {
+    queuedLiveDesign = design;
+    queuedLiveAvatar = avatar;
+    if (liveCssFrame != null) return;
+    liveCssFrame = requestAnimationFrame(() => {
+        liveCssFrame = null;
+        const nextDesign = queuedLiveDesign;
+        const nextAvatar = queuedLiveAvatar;
+        queuedLiveDesign = null;
+        queuedLiveAvatar = null;
+        rebuildLiveCSS(nextDesign, nextAvatar);
+    });
+}
 
 // ============================================================
 // Design Data Cache
@@ -101,11 +172,17 @@ export function invalidateDesignCache() {
 export function renderDesignTab(pane) {
     if (!pane) return;
 
-    const design = getDesignData();
-    const avatarFile = $('#avatar_url_pole').val();
-
+    const design = normalizeDesign(getDesignData());
+    const liveDesign = { ...design };
+    const renderContext = getContext();
+    const editAvatar = renderContext.characters?.[renderContext.characterId]?.avatar || null;
+    const isStillCurrent = () => {
+        const context = getContext();
+        return pane.isConnected && context.characters?.[context.characterId]?.avatar === editAvatar;
+    };
+    const schedulePreview = () => scheduleLiveCSSRebuild(liveDesign, editAvatar);
     // Box color is stored as rgba; extract hex + alpha for the two controls
-    const boxParsed = parseRgba(design.boxColor) || (design.boxColor?.startsWith('#') ? { ...hexToRgb(design.boxColor), a: 0.5 } : null);
+    const boxParsed = parseRgba(design.boxColor);
     const boxHex = boxParsed ? rgbToHex(boxParsed.r, boxParsed.g, boxParsed.b) : '#4a4441';
     const boxOpacity = boxParsed ? boxParsed.a : 0.5;
     const bannerPos = design.bannerPosition ?? 25;
@@ -121,26 +198,26 @@ export function renderDesignTab(pane) {
                     <div class="wl-cd-color-row">
                         <label>Name</label>
                         <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-name-color" value="${design.nameColor || '#cccccc'}" />
-                            <span class="wl-cd-color-hex">${design.nameColor || 'default'}</span>
+                            <input type="color" id="wl-cd-name-color" value="#cccccc" />
+                            <span class="wl-cd-color-hex">default</span>
                         </div>
                     </div>
 
                     <div class="wl-cd-color-row">
                         <label>Dialogue</label>
                         <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-dialogue-color" value="${design.dialogueColor || '#cccccc'}" />
-                            <span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>
+                            <input type="color" id="wl-cd-dialogue-color" value="#cccccc" />
+                            <span class="wl-cd-color-hex">default</span>
                         </div>
                     </div>
 
                     <div class="wl-cd-color-row">
                         <label>Box</label>
                         <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-box-color" value="${boxHex}" />
+                            <input type="color" id="wl-cd-box-color" value="#4a4441" />
                             <div class="wl-cd-opacity-wrap">
-                                <input type="range" id="wl-cd-box-opacity" min="0" max="1" step="0.05" value="${boxOpacity}" />
-                                <span class="wl-cd-opacity-label">${Math.round(boxOpacity * 100)}%</span>
+                                <input type="range" id="wl-cd-box-opacity" min="0" max="1" step="0.05" value="0.5" />
+                                <span class="wl-cd-opacity-label">50%</span>
                             </div>
                             <span class="wl-cd-color-hint">(all chat styles)</span>
                         </div>
@@ -160,38 +237,38 @@ export function renderDesignTab(pane) {
                 </div>
 
                 <div class="wl-cd-banner-mode">
-                    <label class="${!design.bannerMode ? 'wl-cd-radio-active' : ''}">
-                        <input type="radio" name="wl-cd-banner-mode" value="" ${!design.bannerMode ? 'checked' : ''} />
+                    <label>
+                        <input type="radio" name="wl-cd-banner-mode" value="" />
                         None
                     </label>
-                    <label class="${design.bannerMode === 'avatar' ? 'wl-cd-radio-active' : ''}">
-                        <input type="radio" name="wl-cd-banner-mode" value="avatar" ${design.bannerMode === 'avatar' ? 'checked' : ''} />
+                    <label>
+                        <input type="radio" name="wl-cd-banner-mode" value="avatar" />
                         Use Avatar
                     </label>
-                    <label class="${design.bannerMode === 'custom' ? 'wl-cd-radio-active' : ''}">
-                        <input type="radio" name="wl-cd-banner-mode" value="custom" ${design.bannerMode === 'custom' ? 'checked' : ''} />
+                    <label>
+                        <input type="radio" name="wl-cd-banner-mode" value="custom" />
                         Custom Image
                     </label>
                 </div>
 
-                <div id="wl-cd-banner-custom-row" style="display: ${design.bannerMode === 'custom' ? '' : 'none'}">
+                <div id="wl-cd-banner-custom-row" style="display:none">
                     <div class="wl-cd-banner-custom-controls">
                         <button id="wl-cd-banner-upload" class="menu_button">
                             <i class="fa-solid fa-upload"></i> Upload Image
                         </button>
                         <span class="wl-cd-banner-or">or</span>
-                        <input type="text" id="wl-cd-banner-url" class="text_pole" placeholder="Paste image URL" value="${design.bannerUrl || ''}" />
+                        <input type="text" id="wl-cd-banner-url" class="text_pole" placeholder="Paste image URL" />
                     </div>
                     <input type="file" id="wl-cd-banner-file-input" accept="image/*" style="display:none" />
                 </div>
 
-                <div id="wl-cd-banner-position-row" style="display: ${design.bannerMode ? '' : 'none'}">
+                <div id="wl-cd-banner-position-row" style="display:none">
                     <label>Vertical Position</label>
                     <div class="wl-cd-position-wrap">
                         <span class="wl-cd-pos-label-edge">Top</span>
-                        <input type="range" id="wl-cd-banner-position" min="0" max="100" step="1" value="${bannerPos}" />
+                        <input type="range" id="wl-cd-banner-position" min="0" max="100" step="1" value="25" />
                         <span class="wl-cd-pos-label-edge">Bottom</span>
-                        <span class="wl-cd-pos-value">${bannerPos}%</span>
+                        <span class="wl-cd-pos-value">25%</span>
                     </div>
                 </div>
             </div>
@@ -211,20 +288,42 @@ export function renderDesignTab(pane) {
     const boxColorInput = pane.querySelector('#wl-cd-box-color');
     const boxOpacityInput = pane.querySelector('#wl-cd-box-opacity');
 
+    nameColorInput.value = design.nameColor || '#cccccc';
+    pane.querySelector('#wl-cd-name-color + .wl-cd-color-hex').textContent = design.nameColor || 'default';
+    dialogueColorInput.value = design.dialogueColor || '#cccccc';
+    pane.querySelector('#wl-cd-dialogue-color + .wl-cd-color-hex').textContent = design.dialogueColor || 'default';
+    boxColorInput.value = boxHex;
+    boxOpacityInput.value = String(boxOpacity);
+    pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round(boxOpacity * 100)}%`;
+
+    const selectedMode = design.bannerMode || '';
+    const selectedRadio = pane.querySelector(`input[name="wl-cd-banner-mode"][value="${selectedMode}"]`);
+    if (selectedRadio) {
+        selectedRadio.checked = true;
+        selectedRadio.closest('label')?.classList.add('wl-cd-radio-active');
+    }
+    pane.querySelector('#wl-cd-banner-custom-row').style.display = selectedMode === 'custom' ? '' : 'none';
+    pane.querySelector('#wl-cd-banner-position-row').style.display = selectedMode ? '' : 'none';
+    pane.querySelector('#wl-cd-banner-url').value = design.bannerUrl;
+    pane.querySelector('#wl-cd-banner-position').value = String(bannerPos);
+    pane.querySelector('.wl-cd-pos-value').textContent = `${bannerPos}%`;
+
     // Name color
     nameColorInput?.addEventListener('input', () => {
         const val = nameColorInput.value;
         pane.querySelector('#wl-cd-name-color + .wl-cd-color-hex').textContent = val;
+        liveDesign.nameColor = val;
         updateCharExtensions({ nameColor: val });
-        rebuildLiveCSS();
+        schedulePreview();
     });
 
     // Dialogue color
     dialogueColorInput?.addEventListener('input', () => {
         const val = dialogueColorInput.value;
         pane.querySelector('#wl-cd-dialogue-color + .wl-cd-color-hex').textContent = val;
+        liveDesign.dialogueColor = val;
         updateCharExtensions({ dialogueColor: val });
-        rebuildLiveCSS();
+        schedulePreview();
     });
 
     // Box color + opacity
@@ -233,8 +332,9 @@ export function renderDesignTab(pane) {
         const opacity = parseFloat(boxOpacityInput.value);
         const rgb = hexToRgb(hex);
         pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round(opacity * 100)}%`;
-        updateCharExtensions({ boxColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})` });
-        rebuildLiveCSS();
+        liveDesign.boxColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+        updateCharExtensions({ boxColor: liveDesign.boxColor });
+        schedulePreview();
     };
     boxColorInput?.addEventListener('input', syncBoxColor);
     boxOpacityInput?.addEventListener('input', syncBoxColor);
@@ -254,8 +354,10 @@ export function renderDesignTab(pane) {
         try {
             const imgSrc = `/characters/${encodeURIComponent(avatar)}`;
             const [nameColor, dialogueColor, boxColor] = await extractColorsFromImage(imgSrc);
+            if (!isStillCurrent()) return;
 
             updateCharExtensions({ nameColor, dialogueColor, boxColor });
+            Object.assign(liveDesign, normalizeDesign({ ...liveDesign, nameColor, dialogueColor, boxColor }));
 
             // Update UI
             nameColorInput.value = nameColor;
@@ -269,7 +371,7 @@ export function renderDesignTab(pane) {
                 pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round((bparsed?.a ?? 0.5) * 100)}%`;
             }
 
-            rebuildLiveCSS();
+            schedulePreview();
             toastr.success('Colors extracted from avatar.', 'Design');
         } catch (err) {
             log('Color extraction failed:', err);
@@ -284,6 +386,7 @@ export function renderDesignTab(pane) {
     pane.querySelectorAll('input[name="wl-cd-banner-mode"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const mode = radio.value || null;
+            liveDesign.bannerMode = mode;
             pane.querySelector('#wl-cd-banner-custom-row').style.display = mode === 'custom' ? '' : 'none';
             pane.querySelector('#wl-cd-banner-position-row').style.display = mode ? '' : 'none';
 
@@ -291,14 +394,21 @@ export function renderDesignTab(pane) {
             radio.closest('label')?.classList.add('wl-cd-radio-active');
 
             updateCharExtensions({ 'wl_design.bannerMode': mode });
-            rebuildLiveCSS();
+            schedulePreview();
         });
     });
 
     // Banner custom URL
     pane.querySelector('#wl-cd-banner-url')?.addEventListener('change', function () {
-        updateCharExtensions({ 'wl_design.bannerUrl': this.value || null });
-        rebuildLiveCSS();
+        const raw = this.value.trim();
+        const safeUrl = normalizeBannerUrl(raw);
+        if (raw && !safeUrl) {
+            toastr.warning('Use an http(s) or relative image URL.', 'Design');
+        }
+        this.value = safeUrl;
+        liveDesign.bannerUrl = safeUrl;
+        updateCharExtensions({ 'wl_design.bannerUrl': safeUrl || null });
+        schedulePreview();
     });
 
     // Banner file upload
@@ -316,13 +426,15 @@ export function renderDesignTab(pane) {
             const charName = $('#character_popup-button-h3').text() || 'character';
             const uploadedFilename = await uploadBannerImage(file, charName);
             const displayUrl = `user/images/banners/${uploadedFilename}`;
+            if (!isStillCurrent()) return;
 
             updateCharExtensions({ 'wl_design.bannerUrl': displayUrl });
+            liveDesign.bannerUrl = displayUrl;
 
             const urlInput = pane.querySelector('#wl-cd-banner-url');
             if (urlInput) urlInput.value = displayUrl;
 
-            rebuildLiveCSS();
+            schedulePreview();
             toastr.success('Banner image uploaded.', 'Design');
         } catch (err) {
             log('Banner upload failed:', err);
@@ -337,10 +449,11 @@ export function renderDesignTab(pane) {
     // Banner position slider
     const posSlider = pane.querySelector('#wl-cd-banner-position');
     posSlider?.addEventListener('input', () => {
-        const val = parseInt(posSlider.value);
+        const val = Math.round(clamp(posSlider.value, 0, 100, 25));
         pane.querySelector('.wl-cd-pos-value').textContent = `${val}%`;
+        liveDesign.bannerPosition = val;
         updateCharExtensions({ 'wl_design.bannerPosition': val });
-        rebuildLiveCSS();
+        schedulePreview();
     });
 
     // Reset
@@ -353,7 +466,8 @@ export function renderDesignTab(pane) {
             'wl_design.bannerUrl': null,
             'wl_design.bannerPosition': null,
         });
-        removeDesignCSS();
+        Object.assign(liveDesign, normalizeDesign({}));
+        schedulePreview();
         renderDesignTab(pane);
         toastr.info('Design reset to theme defaults.', 'Design');
     });
@@ -368,15 +482,17 @@ export function renderDesignTab(pane) {
  * Updates only the currently-edited character in the cache —
  * avoids re-parsing all characters' JSON on every slider tick.
  */
-function rebuildLiveCSS() {
+function rebuildLiveCSS(designOverride = null, avatarOverride = null) {
     // Update cache for the currently-edited character only.
     // getDesignData() reads from the hidden form field which
     // updateCharExtensions() has already updated.
     const context = getContext();
     const chid = context.characterId;
-    if (chid != null && context.characters?.[chid]) {
-        const char = context.characters[chid];
-        const design = getDesignData();
+    const char = avatarOverride
+        ? context.characters?.find(candidate => candidate?.avatar === avatarOverride)
+        : context.characters?.[chid];
+    if (char) {
+        const design = normalizeDesign(designOverride || getDesignData());
         if (!designCache) designCache = new Map();
 
         const hasDesign = design.nameColor || design.dialogueColor ||
@@ -406,8 +522,9 @@ function rebuildLiveCSS() {
 function buildCharacterCSS(charName, design, avatarFile) {
     if (!charName) return '';
 
-    const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = design;
-    const boxRgba = boxColor && (boxColor.startsWith('rgba') || boxColor.startsWith('rgb')) ? boxColor : null;
+    const safeDesign = normalizeDesign(design);
+    const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = safeDesign;
+    const boxRgba = boxColor;
     const hasAnyColor = nameColor || dialogueColor || boxRgba;
     const hasBanner = bannerMode != null;
 
@@ -415,7 +532,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
 
     const escapedName = escapeCSSName(charName);
     const selector = `.mes[ch_name="${escapedName}"]`;
-    const pos = bannerPosition ?? 25;
+    const pos = bannerPosition;
     const rules = [];
 
     if (dialogueColor) {
@@ -431,7 +548,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
     if (hasBanner) {
         let bannerImageUrl = '';
         if (bannerMode === 'avatar' && avatarFile) {
-            bannerImageUrl = `/characters/${encodeURIComponent(avatarFile)}`;
+            bannerImageUrl = `/characters/${encodeURIComponent(String(avatarFile))}`;
         } else if (bannerMode === 'custom' && bannerUrl) {
             bannerImageUrl = bannerUrl;
         }
@@ -448,7 +565,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 140px;
-    background: url('${bannerImageUrl}') center ${pos}% / cover no-repeat;
+    background: url(${JSON.stringify(bannerImageUrl)}) center ${pos}% / cover no-repeat;
     z-index: 1;
     pointer-events: none;
     -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 30%, transparent 100%);
@@ -506,5 +623,9 @@ export function injectDesignCSS() {
  * Remove all injected design CSS.
  */
 export function removeDesignCSS() {
+    if (liveCssFrame != null) cancelAnimationFrame(liveCssFrame);
+    liveCssFrame = null;
+    queuedLiveDesign = null;
+    queuedLiveAvatar = null;
     clearStyleElement(STYLE_ELEMENT_ID);
 }

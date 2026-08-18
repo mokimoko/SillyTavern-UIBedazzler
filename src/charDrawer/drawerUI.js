@@ -24,11 +24,21 @@ let relocatedElements = [];
  *   Character Info | Design | Prompts | Metadata
  */
 export function takeoverDrawer() {
+    // COEXISTENCE GUARD: while the Expanded Character Drawer overlay is open,
+    // it owns #character_popup's fields (it relocates them into its own
+    // panes). Do not take over — this is the single choke point guarding
+    // every entry path (MutationObserver, applyIfPopupOpen, future callers).
+    // The body class is set synchronously by the expanded takeover, so even
+    // the observer microtask fired by restoreDrawer() removing wl-cd-active
+    // during an expanded open sees it and no-ops.
+    if (document.body.classList.contains('wl-xd-open')) return;
+
     const popup = document.getElementById('character_popup');
     if (!popup || isActive) return;
     if (document.getElementById('wl-cd-container')) return;
 
     // --- Curtain down: hide popup content before DOM manipulation ---
+    const originalVisibility = popup.style.visibility;
     popup.style.visibility = 'hidden';
 
     // --- Identify all sections to relocate ---
@@ -48,6 +58,10 @@ export function takeoverDrawer() {
 
     if (!personalityDiv || !scenarioDiv) {
         log('Could not find required character popup elements — aborting takeover');
+        // Lift the curtain on abort — the popup was hidden above and would
+        // otherwise stay invisible (latent bug: more abort paths are reachable
+        // now that the expanded drawer can be holding these fields).
+        popup.style.visibility = originalVisibility;
         return;
     }
 
@@ -100,12 +114,9 @@ export function takeoverDrawer() {
     const promptsPane = container.querySelector('.wl-cd-tab-pane[data-tab="prompts"]');
     if (promptOverridesDrawer) {
         const drawerContent = promptOverridesDrawer.querySelector('.inline-drawer-content');
-        if (drawerContent) drawerContent.style.display = '';
+        setStyle(drawerContent, 'display', '');
         const drawerHeader = promptOverridesDrawer.querySelector('.inline-drawer-header');
-        if (drawerHeader) {
-            drawerHeader.style.display = 'none';
-            relocatedElements.push({ element: drawerHeader, style: 'display', original: '' });
-        }
+        setStyle(drawerHeader, 'display', 'none');
         relocate(promptOverridesDrawer, promptsPane);
     }
     relocate(depthPromptDiv, promptsPane);
@@ -114,20 +125,16 @@ export function takeoverDrawer() {
     const metadataPane = container.querySelector('.wl-cd-tab-pane[data-tab="metadata"]');
     if (creatorMetadataDrawer) {
         const drawerContent = creatorMetadataDrawer.querySelector('.inline-drawer-content');
-        if (drawerContent) drawerContent.style.display = '';
+        setStyle(drawerContent, 'display', '');
         const drawerHeader = creatorMetadataDrawer.querySelector('.inline-drawer-header');
-        if (drawerHeader) {
-            drawerHeader.style.display = 'none';
-            relocatedElements.push({ element: drawerHeader, style: 'display', original: '' });
-        }
+        setStyle(drawerHeader, 'display', 'none');
         relocate(creatorMetadataDrawer, metadataPane);
     }
     relocate(talkativenessDiv, metadataPane);
 
     // --- Hide orphaned HR separators ---
     hrElements.forEach(hr => {
-        hr.style.display = 'none';
-        relocatedElements.push({ element: hr, style: 'display', original: '' });
+        setStyle(hr, 'display', 'none');
     });
 
     // --- Wire up tab switching ---
@@ -142,7 +149,7 @@ export function takeoverDrawer() {
 
     // --- Curtain up: reveal after DOM work is complete ---
     requestAnimationFrame(() => {
-        popup.style.visibility = '';
+        popup.style.visibility = originalVisibility;
     });
 
     log('Drawer takeover applied');
@@ -152,11 +159,18 @@ export function takeoverDrawer() {
  * Relocate a DOM element into a new parent, tracking for restore.
  */
 function relocate(element, newParent) {
-    if (!element) return;
+    if (!element || !newParent) return;
     const originalParent = element.parentElement;
     const originalNext = element.nextElementSibling;
     relocatedElements.push({ element, originalParent, originalNext });
     newParent.appendChild(element);
+}
+
+/** Change one inline style while preserving its exact original value. */
+function setStyle(element, style, value) {
+    if (!element) return;
+    relocatedElements.push({ element, style, original: element.style[style] });
+    element.style[style] = value;
 }
 
 // ============================================================
@@ -206,10 +220,12 @@ export function restoreDrawer() {
 
     const popup = document.getElementById('character_popup');
     const container = document.getElementById('wl-cd-container');
-    if (!container) return;
 
-    // Move all relocated elements back
-    for (const record of relocatedElements) {
+    // Restore in reverse order so sibling anchors and nested style changes are
+    // resolved after their containing drawers return home. This also recovers
+    // correctly when authored chrome was removed by another extension.
+    for (let i = relocatedElements.length - 1; i >= 0; i--) {
+        const record = relocatedElements[i];
         if (record.originalParent) {
             if (record.originalNext && record.originalNext.parentElement === record.originalParent) {
                 record.originalParent.insertBefore(record.element, record.originalNext);
@@ -221,16 +237,8 @@ export function restoreDrawer() {
         }
     }
 
-    // Restore inline-drawer headers
-    popup?.querySelectorAll('.inline-drawer').forEach(drawer => {
-        const header = drawer.querySelector('.inline-drawer-header');
-        if (header) header.style.display = '';
-        const content = drawer.querySelector('.inline-drawer-content');
-        if (content) content.style.display = '';
-    });
-
     popup?.classList.remove('wl-cd-active');
-    container.remove();
+    container?.remove();
 
     relocatedElements = [];
     isActive = false;

@@ -1,17 +1,30 @@
-// src/worldInfoDrawer/presets.js
+// src/worldInfoDrawerV2/presets.js
 // World Info Preset Management — saves/restores active books + global settings.
 // Storage: extension_settings.UIBedazzler.wiPresets / wiActivePreset
+//
+// HOST-REGISTRY MODULE (§9.28): the v2 rail registers as a host via
+// registerPresetHost. A host is { root, prefix, onApplied }: the DOM root
+// holding a `.<prefix>-preset-select` + `.<prefix>-preset-actions`, plus a
+// refresh hook run after a preset (de)activation changes ST state. Preset CRUD
+// refreshes every registered host. The snapshot/apply core reads and writes
+// ONLY ST's own controls (#world_info + the hidden global settings) —
+// books/settings state is never mirrored here.
 
 import { getSettings, setSetting } from '../settings.js';
-import { populateActiveBooks, syncGlobalSettings } from './entryList.js';
-import { getSidebarElement } from './drawerUI.js';
-import { WL_PREFIX } from './constants.js';
 import { Popup } from '../../../../../../scripts/popup.js';
 
 const log = () => {};
 
 /** Snapshot of active books before a preset was applied — restored when selecting "None". */
 let prePresetBooks = null;
+
+/**
+ * Registered UI hosts. Pruned of disconnected roots on every register, so a
+ * host whose DOM was torn down (v2 overlay closed, drawer rebuilt) drops out
+ * instead of accumulating.
+ * @type {{root: HTMLElement, prefix: string, onApplied: () => void}[]}
+ */
+let hosts = [];
 
 // Keys that map data-setting attr → ST's hidden control selector
 const SETTINGS_MAP = {
@@ -50,8 +63,10 @@ function savePresets(presets) {
     setSetting('wiPresets', presets);
 }
 
-/** Snapshot current active books from ST's #world_info multi-select. */
-function snapshotBooks() {
+/** Snapshot current active books from ST's #world_info multi-select.
+ *  EXPORTED: this is the one honest read of "which books are global" —
+ *  v2's rail uses it too (globalBooks is a READ, never mirrored state). */
+export function snapshotBooks() {
     const stSelect = document.querySelector('#world_info');
     if (!stSelect) return [];
     return Array.from(stSelect.selectedOptions)
@@ -72,8 +87,10 @@ function snapshotSettings() {
     return snap;
 }
 
-/** Apply a preset's books to ST's #world_info multi-select. */
-function applyBooks(bookNames) {
+/** Apply a book set to ST's #world_info multi-select.
+ *  EXPORTED: the one write-path for the global book list — presets and v2's
+ *  rail toggle both go through here, so ST's change event always fires. */
+export function applyBooks(bookNames) {
     const stSelect = document.querySelector('#world_info');
     if (!stSelect) return;
     Array.from(stSelect.options).forEach(opt => {
@@ -83,10 +100,11 @@ function applyBooks(bookNames) {
     else stSelect.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-/** Apply a preset's settings to both ST's hidden controls and our sidebar fields. */
+/** Apply a preset's settings to ST's hidden controls and every host's fields.
+ *  Hosts without a matching [data-setting] element (e.g. v2 before its
+ *  budget/scan pours) are simply skipped by the query. */
 function applySettings(settings) {
     if (!settings) return;
-    const sidebar = getSidebarElement();
 
     for (const [key, value] of Object.entries(settings)) {
         const mapping = SETTINGS_MAP[key];
@@ -101,15 +119,12 @@ function applySettings(settings) {
             else stEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        // Push to our sidebar field
-        if (sidebar) {
-            const ourEl = mapping.type === 'checkbox'
-                ? sidebar.querySelector(`.${WL_PREFIX}-checkbox[data-setting="${key}"]`)
-                : sidebar.querySelector(`[data-setting="${key}"]`);
-            if (ourEl) {
+        // Push to each host's mirrored field(s)
+        for (const host of hosts) {
+            host.root.querySelectorAll(`[data-setting="${key}"]`).forEach(ourEl => {
                 if (mapping.type === 'checkbox') ourEl.checked = !!value;
                 else ourEl.value = value;
-            }
+            });
         }
     }
 }
@@ -119,18 +134,17 @@ function applySettings(settings) {
 // ============================================================
 
 function populatePresetSelect() {
-    const sidebar = getSidebarElement();
-    if (!sidebar) return;
-    const select = sidebar.querySelector(`.${WL_PREFIX}-preset-select`);
-    if (!select) return;
-
     const presets = getPresets();
     const active = getActivePresetName();
-
-    select.innerHTML = '<option value="">— None —</option>' +
+    const html = '<option value="">— None —</option>' +
         Object.keys(presets).sort((a, b) => a.localeCompare(b))
             .map(n => `<option value="${n}" ${n === active ? 'selected' : ''}>${n}</option>`)
             .join('');
+
+    for (const host of hosts) {
+        const select = host.root.querySelector(`.${host.prefix}-preset-select`);
+        if (select) select.innerHTML = html;
+    }
 }
 
 // ============================================================
@@ -149,8 +163,7 @@ async function activatePreset(name) {
         }
         prePresetBooks = null;
         setActivePresetName('');
-        populateActiveBooks();
-        syncGlobalSettings();
+        notifyHostsApplied();
         return;
     }
     const presets = getPresets();
@@ -167,9 +180,16 @@ async function activatePreset(name) {
     applyBooks(preset.books || []);
     applySettings(preset.settings);
     setActivePresetName(name);
-    populateActiveBooks();
-    syncGlobalSettings();
+    notifyHostsApplied();
     log(`Activated preset: ${name}`);
+}
+
+/** Run every host's post-apply refresh (and keep their selects in sync). */
+function notifyHostsApplied() {
+    for (const host of hosts) {
+        try { host.onApplied(); }
+        catch (err) { console.error('[BD] preset host refresh failed:', err); }
+    }
 }
 
 async function createPreset() {
@@ -201,12 +221,13 @@ async function updatePreset() {
     savePresets(presets);
     log(`Updated preset: ${name}`);
 
-    // Brief visual feedback on the save button
-    const sidebar = getSidebarElement();
-    const btn = sidebar?.querySelector(`[data-preset-action="save"]`);
-    if (btn) {
-        btn.classList.add(`${WL_PREFIX}-preset-flash`);
-        setTimeout(() => btn.classList.remove(`${WL_PREFIX}-preset-flash`), 600);
+    // Brief visual feedback on the save button (every host; harmless if
+    // more than one UI is open — they all just confirm the same save)
+    for (const host of hosts) {
+        const btn = host.root.querySelector(`[data-preset-action="save"]`);
+        if (!btn) continue;
+        btn.classList.add(`${host.prefix}-preset-flash`);
+        setTimeout(() => btn.classList.remove(`${host.prefix}-preset-flash`), 600);
     }
 }
 
@@ -293,12 +314,13 @@ function importPreset() {
 // Overflow Menu (Rename / Import / Export)
 // ============================================================
 
-function toggleOverflowMenu(btn) {
-    const existing = document.querySelector(`.${WL_PREFIX}-preset-overflow`);
+function toggleOverflowMenu(btn, host) {
+    const cls = `${host.prefix}-preset-overflow`;
+    const existing = document.querySelector(`.${cls}`);
     if (existing) { existing.remove(); return; }
 
     const menu = document.createElement('div');
-    menu.className = `${WL_PREFIX}-preset-overflow`;
+    menu.className = cls;
 
     const items = [
         { label: 'Rename', icon: 'fa-pen', action: renamePreset },
@@ -307,24 +329,23 @@ function toggleOverflowMenu(btn) {
     ];
 
     menu.innerHTML = items.map(({ label, icon }) =>
-        `<div class="${WL_PREFIX}-preset-overflow-item" data-action="${label.toLowerCase()}">
+        `<div class="${cls}-item" data-action="${label.toLowerCase()}">
             <i class="fa-solid ${icon}"></i> ${label}
         </div>`
     ).join('');
 
-    // Position below the ⋮ button
+    // Position below the ⋮ button, left-anchored to the host panel
     const rect = btn.getBoundingClientRect();
-    const sidebar = getSidebarElement();
-    const sidebarRect = sidebar?.getBoundingClientRect();
+    const hostRect = host.root.getBoundingClientRect();
     menu.style.position = 'fixed';
     menu.style.top = `${rect.bottom + 2}px`;
-    menu.style.left = `${sidebarRect ? sidebarRect.left + 4 : rect.left}px`;
+    menu.style.left = `${hostRect ? hostRect.left + 4 : rect.left}px`;
 
     document.body.appendChild(menu);
 
     // Wire clicks
     menu.addEventListener('click', (e) => {
-        const item = e.target.closest(`.${WL_PREFIX}-preset-overflow-item`);
+        const item = e.target.closest(`.${cls}-item`);
         if (!item) return;
         menu.remove();
         const action = item.dataset.action;
@@ -343,35 +364,38 @@ function toggleOverflowMenu(btn) {
 }
 
 // ============================================================
-// Public: Init + Wire
+// Public: Host registry
 // ============================================================
 
 /**
- * Initialize preset management — populate select, wire events.
- * Called once after sidebar DOM exists.
+ * Register a UI host for preset management. Populates its select and wires
+ * its controls (once per root — safe to call on every open). Dead hosts
+ * (roots no longer in the DOM) are pruned here, so a torn-down v2 overlay
+ * or rebuilt sidebar can re-register cleanly.
+ *
+ * @param {{root: HTMLElement, prefix: string, onApplied: () => void}} host
  */
-export function initPresets() {
-    const sidebar = getSidebarElement();
-    if (!sidebar) return;
+export function registerPresetHost(host) {
+    if (!host?.root) return;
 
-    // Reset stale pre-preset snapshot so "None" doesn't restore books
-    // from a previous drawer session after the user changed things manually
-    prePresetBooks = null;
+    hosts = hosts.filter(h => h.root.isConnected && h.root !== host.root);
+    hosts.push(host);
 
     populatePresetSelect();
 
-    // Guard against double-binding (sidebar persists across drawer open/close)
-    if (sidebar.dataset.presetsWired) return;
-    sidebar.dataset.presetsWired = 'true';
+    // Guard against double-binding (v1's sidebar persists across open/close;
+    // v2's rail is fresh DOM each takeover, so its guard is always clean)
+    if (host.root.dataset.presetsWired) return;
+    host.root.dataset.presetsWired = 'true';
 
     // Select change → activate
-    const select = sidebar.querySelector(`.${WL_PREFIX}-preset-select`);
+    const select = host.root.querySelector(`.${host.prefix}-preset-select`);
     if (select) {
         select.addEventListener('change', () => activatePreset(select.value));
     }
 
     // Button delegation on the preset actions row
-    const actionsRow = sidebar.querySelector(`.${WL_PREFIX}-preset-actions`);
+    const actionsRow = host.root.querySelector(`.${host.prefix}-preset-actions`);
     if (actionsRow) {
         actionsRow.addEventListener('click', (e) => {
             const btn = e.target.closest(`[data-preset-action]`);
@@ -381,9 +405,18 @@ export function initPresets() {
             if (action === 'save') updatePreset();
             else if (action === 'new') createPreset();
             else if (action === 'delete') deletePreset();
-            else if (action === 'more') toggleOverflowMenu(btn);
+            else if (action === 'more') toggleOverflowMenu(btn, host);
         });
     }
 
-    log('Presets initialized');
+    log(`Preset host registered (${host.prefix})`);
+}
+
+/**
+ * Reset the "None restores this" snapshot. Called on each UI open so a stale
+ * snapshot from a previous session can't overwrite books the user has since
+ * changed by hand. Shared ST truth — either UI opening resets it.
+ */
+export function resetPrePresetSnapshot() {
+    prePresetBooks = null;
 }

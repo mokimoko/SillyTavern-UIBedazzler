@@ -1,0 +1,2107 @@
+/* ============================================================
+   Character Browser — full-viewport overlay shell
+   Prefix: wl-cb-  (expanded char EDIT drawer owns wl-xd-; classic char
+   drawer wl-cd-; WI v2 wl-wi2-). This is the !hasCharacterContext() "hub"
+   character BROWSER: a build-fresh takeover for browsing/selecting chars.
+
+   PHASE 1 SCOPE: 3-region shell (left nav / center grid+bar / right detail),
+   body-overlay takeover, relocated top-right ST action buttons. Grid + detail
+   are empty scaffolds filled in later phases.
+   ============================================================ */
+
+#wl-cb-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10000; /* matches #wl-xd-root / #wl-wi2-root: above ST panels, below toasts */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* Opaque, same technique as #wl-wi2-root: a flat theme-tint LAYER over an
+       opaque black background-color, so the tint reads but the page can't
+       bleed through (--SmartThemeBlurTintColor is semi-transparent by design). */
+    background-color: #000;
+    background-image: linear-gradient(var(--SmartThemeBlurTintColor, #111), var(--SmartThemeBlurTintColor, #111));
+    color: var(--SmartThemeBodyColor, #ddd);
+    overflow: hidden;
+}
+
+/* ── Top bar ────────────────────────────────────────────────
+   Search box on the LEFT (freed space from the dropped "SillyTavern"
+   brand), then the sort dropdown and the multi-select toggle beside it. ST
+   action buttons + close are pushed to the RIGHT via .wl-cb-topbar-actions'
+   margin-left:auto. */
+.wl-cb-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.wl-cb-search {
+    flex: 0 1 340px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+}
+.wl-cb-search i { opacity: .55; font-size: .9em; }
+.wl-cb-search input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .92em;
+}
+
+/* Push the action cluster to the far right. */
+.wl-cb-topbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* The relocated ST action buttons (New Character / Import / Import-URL / New
+   Group) are block-level `menu_button` divs; without a flex row here they
+   stack vertically. Lay them out horizontally, matching ST's own #rm_button_bar. */
+#wl-cb-actions-slot {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Close — X on the far right, matching .wl-xd-close / .wl-wi2-close. */
+.wl-cb-close {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; aspect-ratio: 1;
+    background: none; border: none; cursor: pointer;
+    font-size: 1.3em; border-radius: 6px;
+    color: var(--SmartThemeBodyColor, #cfccdd);
+    transition: background .15s, color .15s;
+}
+.wl-cb-close:hover { background: rgba(255,255,255,.07); color: #fff; }
+
+/* ── Body: 3 regions (left nav / center / right detail) ──── */
+.wl-cb-body {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0; /* let children scroll instead of overflowing the flex row */
+}
+
+/* Left sidebar — hub nav (filters + views). Scaffold in phase 1. */
+.wl-cb-nav {
+    flex: 0 0 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 10px;
+    border-right: 1px solid var(--SmartThemeBorderColor, #333);
+    overflow-y: auto;
+}
+
+/* Center — chips/bulk-bar (scaffold) + grid + pagination. */
+.wl-cb-center {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+.wl-cb-center-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px;
+}
+#wl-cb-grid {
+    display: grid;
+    /* Fixed 4-up: every tile identical width. Fills the available center width
+       and stays centered (max-width + auto margins) so cards don't stretch
+       absurdly wide on very large screens. Collapses to 3/2 when narrow. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+@media (max-width: 1100px) {
+    #wl-cb-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+    #wl-cb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* ── Pagination (mockup layout) ──────────────────────────────
+   The footer bar under the grid (and, with .wl-cb-th-pagination, under the Tag
+   Hub cards). It holds ONE .wl-cb-pager which lays out two clusters:
+     left  → prev arrow · numbered pages (+ "…") · next arrow   (centred)
+     right → "X–Y of N" info · the "N / page" <select>          (end-aligned)
+   The numbered pages are the mockup's headline change from the old
+   "Page X / Y" label. */
+.wl-cb-pagination {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+    font-size: .85em;
+}
+/* Hub pager sits inside the scrolling hub, not the fixed footer — give it a
+   little breathing room above so it doesn't hug the last card row. */
+.wl-cb-th-pagination {
+    margin-top: 4px;
+}
+
+.wl-cb-pager {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 30px;
+}
+
+/* Numbered nav cluster — centred in the bar. */
+.wl-cb-pager-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Right cluster (info + per-page). Absolutely positioned to the end so the
+   numbered nav stays optically centred regardless of the info text width;
+   falls back to inline flow on narrow widths (see the media query below). */
+.wl-cb-pager-right {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wl-cb-page-info {
+    opacity: .6;
+    white-space: nowrap;
+}
+
+/* All pager buttons share this base; arrows and numbers tweak from here. */
+.wl-cb-page-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 8px;
+    font-size: 1em;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.wl-cb-page-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 18%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, transparent);
+}
+.wl-cb-page-btn:disabled {
+    cursor: default;
+}
+/* End-stop arrows read as inert when there's nowhere to go. */
+.wl-cb-page-arrow:disabled {
+    opacity: .3;
+}
+/* A numbered button that's disabled is the CURRENT page (not an end-stop), so
+   it should read as SELECTED, not greyed out. .is-current makes that explicit. */
+.wl-cb-page-num-btn:disabled {
+    opacity: 1;
+}
+.wl-cb-page-num-btn.is-current {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    color: var(--SmartThemeBlurTintColor, #16131f);
+    font-weight: 600;
+    cursor: default;
+}
+
+/* The collapsed-run ellipsis: a plain, non-interactive glyph. */
+.wl-cb-page-gap {
+    min-width: 20px;
+    text-align: center;
+    opacity: .45;
+    user-select: none;
+}
+
+/* Per-page <select> — matches the top-bar sort control's look. */
+.wl-cb-page-size {
+    height: 30px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 8px;
+    padding: 0 8px;
+    font-size: .92em;
+    outline: none;
+    cursor: pointer;
+}
+
+/* Narrow center column: let the right cluster drop below the numbered nav
+   (static flow) instead of overlapping it. */
+@media (max-width: 720px) {
+    .wl-cb-pager {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .wl-cb-pager-right {
+        position: static;
+        transform: none;
+        justify-content: center;
+    }
+}
+
+/* Right — detail panel. Scaffold in phase 1. */
+.wl-cb-detail {
+    flex: 0 0 340px;
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    border-left: 1px solid var(--SmartThemeBorderColor, #333);
+    /* Clip X explicitly: the hero bleeds edge-to-edge via negative horizontal
+       margins, so the panel has latent horizontal overflow. With only
+       overflow-y set, the spec resolves overflow-x:visible to auto, and
+       Chromium flashes that phantom horizontal scroll area as a wide blank
+       strip on vertical scroll. Pinning X to hidden kills the flicker. */
+    overflow: hidden auto;
+}
+
+/* Empty-state placeholder text used in scaffolded regions this phase. */
+.wl-cb-empty {
+    opacity: .4;
+    font-size: .85em;
+    font-style: italic;
+    padding: 8px;
+}
+
+/* ── Sort dropdown (top bar) ─────────────────────────────── */
+.wl-cb-sort {
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: .85em;
+    outline: none;
+}
+
+/* ── Tag chips (shared: card + detail) ───────────────────── */
+.wl-cb-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: .72em;
+    line-height: 1.5;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 16%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    white-space: nowrap;
+}
+.wl-cb-chip-more {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 10%, transparent);
+    opacity: .75;
+}
+/* A chip carrying a tag's custom ST background colour (set inline as an exact
+   background-color). The inline colour already overrides the translucent theme
+   tint from .wl-cb-chip; this hook just guarantees the swatch reads as solid
+   and gives coloured chips a hair more presence than the tinted default. */
+.wl-cb-chip-colored {
+    font-weight: 500;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+/* The card IS the frame: a fixed 3/4 tile. Media fills it edge-to-edge and the
+   text body is overlaid on the lower portion inside a gradient scrim (mockup),
+   so the footer is always pinned to the card bottom regardless of tag count. */
+.wl-cb-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 14px; /* rounded to match the tag hub cards */
+    overflow: hidden;
+    /* Transparent so the bottom fade blends into the browser's own panel
+       background rather than bottoming out on an opaque tile. */
+    background: transparent;
+    /* Faint hairline outline, matching the tag hub cards. */
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent);
+    cursor: pointer;
+    transition: border-color .14s ease, transform .14s ease, box-shadow .14s ease;
+}
+/* Hover: gentle lift + shadow + accent border (matches the tag hub cards). */
+.wl-cb-card:hover {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, transparent);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px color-mix(in srgb, #000 38%, transparent);
+}
+/* Selected = a quiet accent border + inset ring. */
+.wl-cb-card.selected {
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    box-shadow: 0 0 0 2px var(--SmartThemeQuoteColor, #9b8cff) inset;
+}
+
+.wl-cb-card-media {
+    position: absolute;
+    inset: 0;
+}
+.wl-cb-card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* Image fades toward the bottom so the overlaid text sits on darkness, not on
+   busy pixels. Reuses the detail-avatar mask idea. */
+.wl-cb-card-media img {
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+/* Dark-theme scrim: a subtle darkening layer over the card image so bright
+   portraits sit more calmly in a dark UI (and the overlaid name/tags read
+   better). Only applied when the active theme is dark (root gets wl-cb-dark;
+   see drawerUI applyThemeClass). Sits above the image, below the text overlay
+   (which is a later sibling, so it stacks on top naturally). Follows the same
+   bottom fade as the image so it doesn't reintroduce a hard edge. */
+.wl-cb-dark .wl-cb-card-media:not(.wl-cb-card-noimg)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.28);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+.wl-cb-card-noimg::after {
+    content: '\f007'; /* fa-user */
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    opacity: .2;
+}
+
+/* Star — top-right corner over the media. Filled gold when fav. Sits on a
+   circular, semi-transparent backing so it doesn't blend into busy/light
+   avatars; the soft shadow keeps the glyph itself legible on top of that. */
+.wl-cb-card-star {
+    position: absolute;
+    top: 8px;
+    right: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .38);
+    color: #fff;
+    font-size: 1em;
+    line-height: 1;
+    cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+    transition: transform .12s ease, background-color .12s ease;
+}
+/* Subtle hover feedback: the star nudges up in scale a touch and its backing
+   darkens, so it reads as a live control without shouting. */
+.wl-cb-card-star:hover {
+    transform: scale(1.12);
+    background: rgba(0, 0, 0, .55);
+}
+.wl-cb-card-star.is-fav {
+    color: #f5c542;
+    /* Force the solid weight so a favorited star renders FILLED, not just an
+       outline, regardless of the theme's Font Awesome build. */
+    font-weight: 900;
+}
+
+/* Card body: name, tags, footer — overlaid on the lower portion of the media
+   inside a scrim so it reads on any avatar. Anchored to the card bottom, so
+   the footer pins to the bottom edge no matter how many tag rows exist. */
+.wl-cb-card-body {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 52px 11px 11px;
+    /* Long, soft scrim that bottoms out on the browser's own background color
+       (opaque black under the theme tint) so the card blends into the panel
+       instead of ending on a hard black band. */
+    background: linear-gradient(to top,
+        var(--SmartThemeBlurTintColor, #111) 0%,
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, #111) 88%, transparent) 14%,
+        rgba(0, 0, 0, .55) 42%,
+        rgba(0, 0, 0, .22) 70%,
+        transparent 100%);
+    pointer-events: none; /* clicks fall through to the card */
+}
+.wl-cb-card-name {
+    font-weight: 600;
+    font-size: 1.06em;
+    line-height: 1.2;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Bedazzler "title" (subtitle) under the card name — smaller + dimmer so it
+   reads as a tagline, not a second name. Single line, ellipsised. Sits tight
+   under the name (negative top margin trims the flex gap). */
+.wl-cb-card-title {
+    margin-top: -3px;
+    font-size: .82em;
+    font-style: italic;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, .72);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wl-cb-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    overflow: hidden;
+    max-height: 22px; /* one row; extra tags collapse to +N */
+}
+.wl-cb-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+    font-size: .74em;
+    color: rgba(255, 255, 255, .82);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+.wl-cb-card-msg {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+/* Creator sits in the middle and is the flexible cell — it truncates first. */
+.wl-cb-card-creator {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Last-used pins to the right, never shrinks. */
+.wl-cb-card-used {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* ── Pagination ──────────────────────────────────────────── */
+.wl-cb-page-btn {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    width: 30px;
+    height: 28px;
+    font-size: 1em;
+    cursor: pointer;
+}
+.wl-cb-page-btn:disabled { opacity: .35; cursor: default; }
+.wl-cb-page-num { font-size: .85em; }
+.wl-cb-page-info { opacity: .6; }
+
+/* ── Detail panel ────────────────────────────────────────── */
+/* Hero: avatar fills the top of the panel (bleeding to its edges — it negates
+   the panel's own padding), fades at the bottom, with name + tags overlaid. */
+.wl-cb-detail-hero {
+    position: relative;
+    margin: -18px -18px 14px; /* cancel the panel padding so it's edge-to-edge */
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    /* No solid backdrop: the image is masked to fade out at the bottom, so a
+       transparent hero lets it blend into the panel instead of hitting a dark
+       block. The no-image fallback supplies its own faint tint via ::after. */
+}
+.wl-cb-detail-media {
+    position: absolute;
+    inset: 0;
+}
+.wl-cb-detail-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    /* Soft fade at the bottom, matching the concept's fading portrait. */
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+/* Dark-theme scrim over the detail portrait — same intent and fade as the card
+   scrim above, scoped to dark themes and skipped on the no-image fallback. */
+.wl-cb-dark .wl-cb-detail-media:not(.wl-cb-detail-noimg)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.28);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+.wl-cb-detail-noimg::after {
+    content: '\f007'; /* fa-user */
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+    opacity: .2;
+}
+/* Name + tags overlaid on the lower portion. The scrim fades up from the
+   PANEL's own background (not pure black) so the image dissolves into the
+   panel instead of into a black bar. Kept gentle — the image mask above does
+   most of the fading; this just seats the text. */
+.wl-cb-detail-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 40px 18px 14px;
+    background: linear-gradient(to top,
+        var(--SmartThemeBlurTintColor, #1c1927) 0%,
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 70%, transparent) 45%,
+        transparent 100%);
+}
+.wl-cb-detail-name {
+    font-size: 1.35em;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+    margin-bottom: 8px;
+}
+/* Bedazzler "title" (subtitle) under the detail name — dimmer, italic, allowed
+   to wrap to two lines here (the panel has room, unlike the grid card). Pulled
+   up to sit tight under the name (which carries an 8px bottom margin). */
+.wl-cb-detail-title {
+    margin-top: -6px;
+    margin-bottom: 8px;
+    font-size: .92em;
+    font-style: italic;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, .75);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.wl-cb-detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.wl-cb-detail-blurb {
+    font-size: .86em;
+    line-height: 1.5;
+    opacity: .82;
+    white-space: pre-line;
+    margin-bottom: 14px;
+    /* Clamp the blurb to 4 rendered lines, ellipsised. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+}
+
+/* Detail stats — label/value rows, only real ST-tracked fields. */
+.wl-cb-detail-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-top: 12px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+}
+.wl-cb-stat-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: .84em;
+}
+.wl-cb-stat-label { opacity: .55; flex: 0 0 auto; }
+.wl-cb-stat-value {
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Detail actions (Open Chat + chat-picker + Edit) ─────── */
+/* Bottom of the panel, matching the mockup. Open Chat is the primary accent
+   button; the chat picker sits beneath it (choose which chat); Edit is a
+   secondary button. Dup/Export/Delete are deferred (PLAN) — not rendered. */
+.wl-cb-detail-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+/* Base button — full-width, icon + label. Secondary (Edit) styling. */
+.wl-cb-act {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: .9em;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    transition: background .12s, border-color .12s;
+}
+.wl-cb-act:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, var(--SmartThemeBorderColor, #333));
+}
+.wl-cb-act i { font-size: .92em; opacity: .85; }
+
+/* Primary (Open Chat) — accent-filled to read as the main action. */
+.wl-cb-act-primary {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    color: #fff;
+}
+.wl-cb-act-primary:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 85%, #fff);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 85%, #fff);
+}
+.wl-cb-act-primary i { opacity: 1; }
+
+/* ── Busy / loading feedback (uiFeedback.js) ─────────────────────────────────
+   Shown on action controls while ST's select/chat-load runs so a slow open
+   isn't a dead click. Buttons keep their box (width:100% already) and just swap
+   label→spinner; the state also freezes hover and shows a wait cursor. */
+.wl-cb-act.wl-cb-busy,
+.wl-cb-act.wl-cb-busy:hover {
+    cursor: progress;
+    opacity: .8;
+    /* Hold the resting look while busy (don't flash the hover bg mid-load). */
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+    border-color: var(--SmartThemeBorderColor, #333);
+}
+.wl-cb-act-primary.wl-cb-busy,
+.wl-cb-act-primary.wl-cb-busy:hover {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+}
+/* A clickable Top Character row that's opening: dim it, hold a wait cursor, and
+   show a trailing spinner (appended as the last flex child). */
+.wl-cb-th-top-open.wl-cb-busy,
+.wl-cb-th-top-open.wl-cb-busy:hover {
+    cursor: progress;
+    opacity: .7;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 12%, transparent);
+}
+.wl-cb-busy-spin {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    opacity: .8;
+}
+
+/* Chat picker — sits directly under Open Chat, visually subordinate (smaller,
+   quieter) so the button reads as primary and this as its modifier. */
+.wl-cb-chat-picker {
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: .82em;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 4%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    outline: none;
+    /* Nudge it up a touch so it visually groups with Open Chat above it, set
+       apart from Edit below. */
+    margin-top: -2px;
+    margin-bottom: 4px;
+}
+.wl-cb-chat-picker:hover {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 40%, var(--SmartThemeBorderColor, #333));
+}
+
+/* ============================================================
+   Left-nav filters (phase 4) — Library section: All / Favorites / Recents.
+   Sits inside .wl-cb-nav (the 240px sidebar). Buttons mirror the quiet
+   card/action visual language: transparent by default, faint hover, accent
+   tint when active.
+   ============================================================ */
+
+.wl-cb-nav-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Small uppercase section label ("Library"). Sets the group apart and leaves
+   room for a VIEWS section added in a later slice. */
+.wl-cb-nav-heading {
+    font-size: .68em;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .45;
+    padding: 4px 8px 6px;
+}
+
+/* One filter row: icon · label (grows) · count badge. */
+.wl-cb-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .9em;
+    text-align: left;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+}
+.wl-cb-nav-item:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+}
+.wl-cb-nav-item.is-active {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 16%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, transparent);
+}
+
+/* Leading icon — fixed box so labels align regardless of glyph width. */
+.wl-cb-nav-item i {
+    width: 16px;
+    text-align: center;
+    font-size: .95em;
+    opacity: .8;
+}
+.wl-cb-nav-item.is-active i {
+    opacity: 1;
+    color: var(--SmartThemeQuoteColor, #9b8cff);
+}
+
+.wl-cb-nav-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Right-aligned count badge. Blank until nav.setCounts() fills it, so no stale
+   0 flashes on open. */
+.wl-cb-nav-count {
+    flex: 0 0 auto;
+    font-size: .78em;
+    opacity: .5;
+    font-variant-numeric: tabular-nums;
+    min-width: 1.5em;
+    text-align: right;
+}
+.wl-cb-nav-item.is-active .wl-cb-nav-count {
+    opacity: .75;
+}
+
+
+/* ============================================================
+   VIEWS section (Folders / Tags) — sits below Library in the nav.
+   Each group is a collapsible sub-list: a quiet clickable header (chevron ·
+   icon · label · group-count) over facet rows. Rows reuse .wl-cb-nav-item so
+   active/hover styling matches the base filters; a color dot replaces the
+   leading icon to carry the tag/folder color.
+   ============================================================ */
+
+.wl-cb-nav-views {
+    margin-top: 10px;
+}
+
+/* Group sub-header — smaller and quieter than a real nav item; it's a toggle,
+   not a filter. */
+.wl-cb-facet-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .8em;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 6px;
+    opacity: .8;
+    transition: background .12s ease, opacity .12s ease;
+}
+.wl-cb-facet-head:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 4%, transparent);
+    opacity: 1;
+}
+
+/* Chevron rotates when the group is collapsed (points right instead of down). */
+.wl-cb-facet-chev {
+    width: 12px;
+    font-size: .8em;
+    opacity: .7;
+    transition: transform .15s ease;
+}
+.wl-cb-facet-head.is-collapsed .wl-cb-facet-chev {
+    transform: rotate(-90deg);
+}
+
+/* Group icon (folder/tag glyph). */
+.wl-cb-facet-gicon {
+    width: 14px;
+    text-align: center;
+    font-size: .9em;
+    opacity: .75;
+}
+
+.wl-cb-facet-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+/* How many facets in the group (not member count — that's per-row). */
+.wl-cb-facet-gcount {
+    flex: 0 0 auto;
+    font-size: .9em;
+    opacity: .5;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The row list under a group header. Indented a touch so it reads as nested. */
+.wl-cb-facet-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-left: 4px;
+}
+
+/* A single facet row. Slightly tighter than a base nav item; color dot leads. */
+.wl-cb-facet-row {
+    padding: 6px 10px;
+    font-size: .86em;
+}
+
+/* Color dot standing in for the leading icon — carries the tag/folder color.
+   Empty (uncolored) tags get a faint hollow dot so the column still aligns. */
+.wl-cb-facet-dot {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--SmartThemeBodyColor, #000) 20%, transparent) inset;
+}
+.wl-cb-facet-dot-empty {
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 30%, transparent);
+    box-shadow: none;
+}
+
+
+/* ============================================================
+   TAG HUB — the center region when the nav's "Tags" is selected. Replaces the
+   character grid with a tag-management + browse surface: header (title/count/
+   create), controls (search/sort), and a responsive grid of tag cards. The
+   right detail panel is shared with character detail (namespaced wl-cb-th-* so
+   the two don't collide).
+   ============================================================ */
+
+.wl-cb-taghub {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 4px 2px 8px;
+}
+
+/* Header: title + count on the left, Create Tag on the right. */
+.wl-cb-th-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.wl-cb-th-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.15em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.wl-cb-th-title > i { opacity: .85; }
+.wl-cb-th-count {
+    flex: 0 0 auto;
+    white-space: nowrap;      /* never wrap the "N tags" pill */
+    font-size: .72em;
+    font-weight: 500;
+    opacity: .5;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent);
+}
+/* Compact Create Tag button — override the shared .wl-cb-act full-width base so
+   it hugs its label instead of stretching across the header. */
+.wl-cb-th-create {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 7px 14px;
+    font-size: .86em;
+    white-space: nowrap;
+}
+
+/* Right-side head actions: the settings cog + Create Tag, kept together. */
+.wl-cb-th-head-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* Settings cog — a square, icon-only button sitting left of Create Tag. */
+.wl-cb-th-settings {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 7px 10px;
+    font-size: .9em;
+    line-height: 1;
+}
+.wl-cb-th-settings > i { opacity: .85; }
+
+/* Hide-tags settings popup body. */
+.wl-cb-th-hide-popup { text-align: left; }
+.wl-cb-th-hide-input {
+    width: 100%;
+    min-height: 90px;
+    margin-top: 8px;
+    resize: vertical;
+}
+
+/* Controls row. Search + sort sit at a comfortable width on the left with
+   free space to the right (mockup), rather than the search stretching full. */
+.wl-cb-th-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.wl-cb-th-search {
+    flex: 0 1 320px;
+    min-width: 160px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent);
+}
+.wl-cb-th-search > i { opacity: .5; font-size: .9em; }
+.wl-cb-th-search > input {
+    flex: 1 1 auto;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: inherit;
+    font-size: .9em;
+}
+.wl-cb-th-sort { flex: 0 0 auto; }
+
+/* Card grid — adaptive auto-fill. Used by both the Tag Hub and the Groups Hub
+   (shared .wl-cb-th-* cards). This grid is a child of a FLEX column
+   (.wl-cb-taghub / .wl-cb-grouphub), so it must NOT use `margin: 0 auto` or
+   `align-self` — those cancel the flex stretch and make the grid shrink-wrap to
+   its content (collapsing every card to a pinprick). Letting it stretch to the
+   full center width and auto-filling ~180px tracks keeps the cards a sensible
+   size at any center width: multiple columns when the center is wide, and it
+   still never collapses to one giant full-width card when the center is narrow
+   (the earlier bug, worse in TauriTavern where nav + detail panel squeeze the
+   center). The 180px floor lines the cards up close to the character grid's
+   ~4-up sizing without the fixed column count that broke on narrow widths. */
+.wl-cb-th-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+/* One tag card. Mockup-faithful: a single tall hero image with the tag's
+   name · count · description · mini-avatars overlaid across its bottom on a
+   gradient scrim (not a separate panel below the image). */
+.wl-cb-th-card {
+    position: relative;
+    display: block;
+    aspect-ratio: 3 / 4;
+    border-radius: 14px;
+    overflow: hidden;
+    /* Transparent so the bottom fade blends into the browser's panel bg. */
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent);
+    cursor: pointer;
+    transition: border-color .14s ease, transform .14s ease, box-shadow .14s ease;
+}
+.wl-cb-th-card:hover {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, transparent);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px color-mix(in srgb, #000 38%, transparent);
+}
+.wl-cb-th-card.selected {
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    box-shadow: 0 0 0 2px var(--SmartThemeQuoteColor, #9b8cff) inset;
+}
+
+/* Hero media — top member's avatar, full-bleed behind the overlaid body. */
+.wl-cb-th-card-media {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+.wl-cb-th-card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    /* Fade the image toward the bottom so it dissolves into the panel bg,
+       matching the character cards. */
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+.wl-cb-th-card-noimg::after {
+    content: "\f02b"; /* fa tag */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4em;
+    opacity: .18;
+}
+/* Color accent bar — hidden on the cards now that the bottom edge dissolves
+   into the panel background (a hard bar would fight that fade). The tag color
+   still shows on the detail chip in the right panel. Kept in the DOM; just not
+   painted here. */
+.wl-cb-th-card-bar {
+    display: none;
+}
+/* Scrim under the overlaid text — bottoms out on the browser's own panel
+   background (opaque black under the theme tint) so the card dissolves into
+   the panel rather than ending on a hard band. */
+.wl-cb-th-card-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 34%,
+        rgba(0, 0, 0, .28) 60%,
+        rgba(0, 0, 0, .55) 80%,
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, #111) 88%, transparent) 94%,
+        var(--SmartThemeBlurTintColor, #111) 100%
+    );
+    pointer-events: none;
+}
+
+/* Card body: name · count · description · mini-avatars — overlaid on the
+   bottom of the hero. Light text for contrast against the scrim. */
+.wl-cb-th-card-body {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 14px 14px 15px;
+    color: #fff;
+}
+.wl-cb-th-card-name {
+    font-weight: 700;
+    font-size: 1.12em;
+    letter-spacing: .01em;
+    text-shadow: 0 1px 6px color-mix(in srgb, #000 70%, transparent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wl-cb-th-card-count {
+    font-size: .78em;
+    opacity: .78;
+    text-shadow: 0 1px 4px color-mix(in srgb, #000 60%, transparent);
+}
+.wl-cb-th-card-desc {
+    font-size: .82em;
+    opacity: .82;
+    line-height: 1.35;
+    text-shadow: 0 1px 4px color-mix(in srgb, #000 60%, transparent);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Mini avatar strip. */
+.wl-cb-th-mini {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+}
+.wl-cb-th-mini-av {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid color-mix(in srgb, #000 45%, transparent);
+    margin-right: -9px;
+    background-color: color-mix(in srgb, var(--SmartThemeBodyColor, #000) 30%, transparent);
+    box-shadow: 0 1px 3px color-mix(in srgb, #000 40%, transparent);
+}
+.wl-cb-th-mini-empty {
+    background-color: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 18%, transparent);
+}
+.wl-cb-th-mini-more {
+    margin-left: 16px;
+    font-size: .74em;
+    font-weight: 600;
+    color: #fff;
+    opacity: .92;
+    padding: 3px 9px;
+    border-radius: 999px;
+    /* Slightly more opaque scrim in place of the old backdrop-filter: blur(2px).
+       backdrop-filter re-samples the pixels behind it on every composite (the
+       priciest of the CSS filters); on a tiny "+N" pill it wasn't buying enough
+       legibility to justify that, so we keep contrast with a darker fill only. */
+    background: color-mix(in srgb, #000 62%, transparent);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Tag detail (right panel, shared region) --- */
+.wl-cb-th-detail-hero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 2px 2px;
+}
+.wl-cb-th-detail-chip {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.3em;
+    box-shadow: 0 2px 8px color-mix(in srgb, #000 30%, transparent);
+}
+.wl-cb-th-detail-htext { min-width: 0; }
+.wl-cb-th-detail-name {
+    font-size: 1.3em;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wl-cb-th-detail-count {
+    font-size: .82em;
+    opacity: .6;
+}
+.wl-cb-th-detail-desc {
+    font-size: .9em;
+    line-height: 1.45;
+    opacity: .82;
+    margin: 12px 2px 0;
+}
+.wl-cb-th-detail-actions {
+    display: flex;
+    gap: 8px;
+    margin: 14px 2px 0;
+}
+.wl-cb-th-detail-actions .wl-cb-act { flex: 1 1 auto; }
+.wl-cb-th-detail-viewall {
+    margin: 16px 2px 4px;
+}
+.wl-cb-th-detail-viewall .wl-cb-act { width: 100%; }
+
+/* Section heading shared by Related Tags / Top Characters / editor. */
+.wl-cb-th-section-h {
+    font-size: .72em;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    opacity: .5;
+    margin: 18px 2px 8px;
+}
+
+/* Related tags list. */
+.wl-cb-th-related-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s ease;
+}
+.wl-cb-th-related-row:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+}
+.wl-cb-th-related-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .9em;
+}
+
+/* Top characters list. */
+.wl-cb-th-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+}
+/* Clickable Top Character row → opens that char's recent chat. */
+.wl-cb-th-top-open {
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 0 -4px;
+    padding: 6px 8px;
+    transition: background .1s ease;
+}
+.wl-cb-th-top-open:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 7%, transparent);
+}
+.wl-cb-th-top-open:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 55%, transparent);
+    outline-offset: -1px;
+}
+.wl-cb-th-top-av {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-color: color-mix(in srgb, var(--SmartThemeBodyColor, #000) 20%, transparent);
+}
+.wl-cb-th-top-txt { flex: 1 1 auto; min-width: 0; }
+.wl-cb-th-top-name {
+    font-size: .9em;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wl-cb-th-top-by {
+    font-size: .74em;
+    opacity: .5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wl-cb-th-top-msg {
+    flex: 0 0 auto;
+    font-size: .78em;
+    opacity: .55;
+    font-variant-numeric: tabular-nums;
+}
+.wl-cb-th-top-msg i { opacity: .7; }
+
+/* --- Tag editor (create/edit, right panel) --- */
+.wl-cb-th-editor {
+    display: flex;
+    flex-direction: column;
+    padding: 2px;
+}
+.wl-cb-th-flabel {
+    font-size: .74em;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    opacity: .55;
+    margin: 12px 0 5px;
+}
+.wl-cb-th-input,
+.wl-cb-th-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+    color: inherit;
+    font-size: .9em;
+    outline: 0;
+    box-sizing: border-box;
+}
+.wl-cb-th-input:focus,
+.wl-cb-th-textarea:focus {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 55%, transparent);
+}
+.wl-cb-th-textarea {
+    min-height: 70px;
+    resize: vertical;
+    line-height: 1.4;
+    font-family: inherit;
+}
+
+/* Color row: native swatch + clear button, comfortably spaced. */
+.wl-cb-th-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+/* Wider, taller swatch so it doesn't read as a thin sliver. Trim the native
+   color input's internal padding/border chrome so the color fills the well. */
+.wl-cb-th-color {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 15%, transparent);
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+}
+.wl-cb-th-color::-webkit-color-swatch-wrapper { padding: 3px; }
+.wl-cb-th-color::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.wl-cb-th-color::-moz-color-swatch { border: 0; border-radius: 5px; }
+/* Compact clear/"No color" button — override the shared full-width .wl-cb-act
+   so it hugs its label instead of crowding the swatch. */
+.wl-cb-th-color-clear {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 8px 14px;
+    font-size: .84em;
+    white-space: nowrap;
+}
+/* Leading label on each colour row ("Background" / "Text") — fixed width so the
+   two swatches line up under one another. */
+.wl-cb-th-color-tag {
+    flex: 0 0 84px;
+    font-size: .82em;
+    opacity: .75;
+}
+/* Live preview chip well below the two swatches. Left-aligned, a little inset
+   so it reads as a sample rather than another control. */
+.wl-cb-th-color-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0 2px 84px;
+}
+.wl-cb-th-color-preview .wl-cb-chip {
+    font-size: .8em;
+}
+
+/* Related-tag multi-picker chips. */
+.wl-cb-th-related-pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.wl-cb-th-relchip {
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: .82em;
+    cursor: pointer;
+    color: inherit;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+    transition: background .12s ease, border-color .12s ease;
+}
+.wl-cb-th-relchip:hover {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 40%, transparent);
+}
+/* Selected — noticeably (but subtly) picked: stronger accent fill + solid
+   accent border, accent-tinted label, and a small leading check. */
+.wl-cb-th-relchip.is-on {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 32%, transparent);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 30%, var(--SmartThemeBodyColor, #fff));
+    font-weight: 600;
+}
+.wl-cb-th-relchip.is-on::before {
+    content: "\f00c"; /* fa check */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: .8em;
+    margin-right: 5px;
+    opacity: .85;
+}
+.wl-cb-th-hint {
+    font-size: .82em;
+    opacity: .5;
+}
+
+/* --- Assign-to-characters picker (create mode) --- */
+.wl-cb-th-pick-search {
+    margin-bottom: 8px;
+}
+.wl-cb-th-pick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 210px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 10%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 3%, transparent);
+    padding: 4px;
+}
+.wl-cb-th-pick-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .88em;
+    transition: background .1s ease;
+}
+.wl-cb-th-pick-row:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 7%, transparent);
+}
+.wl-cb-th-pick-row > input {
+    flex: 0 0 auto;
+    accent-color: var(--SmartThemeQuoteColor, #9b8cff);
+    cursor: pointer;
+}
+.wl-cb-th-pick-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Avatar-filename qualifier shown only for duplicate names. */
+.wl-cb-th-pick-hint {
+    opacity: .5;
+    font-size: .86em;
+}
+
+/* Editor error line + button row. */
+.wl-cb-th-error {
+    margin-top: 12px;
+    font-size: .84em;
+    color: #e06c6c;
+}
+.wl-cb-th-editor-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+.wl-cb-th-editor-btns .wl-cb-act { flex: 1 1 auto; }
+
+
+/* ============================================================
+   MULTI-SELECT (card grid) — a top-bar toggle button (left of the relocated
+   ST action buttons), a bulk-action bar that drops in above the grid, and
+   per-card checkbox + picked styling. The sort <select> now lives on the LEFT
+   of the top bar (just after the search box) — its position is set by markup
+   order; .wl-cb-topbar-actions keeps margin-left:auto so the action cluster
+   stays right while sort sits left.
+   ============================================================ */
+
+/* Toggle button — sized/styled to sit inline with the relocated ST menu_button
+   action controls (New Character / Import / …) that share the actions cluster.
+   Square icon button; lights up (accent) while multi-select is active. */
+#wl-cb-msel-btn.wl-cb-msel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    cursor: pointer;
+}
+#wl-cb-msel-btn.wl-cb-msel-btn.is-active {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    color: #fff;
+}
+#wl-cb-msel-btn.wl-cb-msel-btn:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+/* ── Bulk-action bar ─────────────────────────────────────────
+   Sits at the top of the center scroll (above the grid) so the card rows shift
+   down to make room when multi-select is on. Count label on the left, action
+   buttons on the right. Favorite / Tag / Duplicate / Delete are live (enabled
+   only while at least one card is picked); Persona is deferred (stays disabled);
+   Done exits multi-select. */
+.wl-cb-bulkbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 auto 16px;
+    max-width: 1100px;   /* line up with the grid's max-width */
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    /* Sticky so the actions stay reachable while the grid scrolls under them.
+       Pins to the top of the center scrollport (.wl-cb-center-scroll). The
+       background must be OPAQUE here (not the translucent chip tint) so cards
+       scrolling beneath don't bleed through; we layer the same subtle tint over
+       the overlay's opaque base. z-index sits above cards; a soft shadow gives
+       it a "lifted" edge once it's stuck. The -16px top offset + 16px padding
+       cancel the scrollport's own top padding so it pins flush to the very top
+       rather than leaving a translucent gap above it. */
+    position: sticky;
+    top: -16px;
+    z-index: 5;
+    /* Opaque stack (same technique as #wl-cb-root): subtle chip tint + the
+       theme blur tint (semi-transparent by design), each as a gradient LAYER
+       (a bare color isn't a valid background layer — only the final
+       background-color may be a plain color), over an opaque black base so no
+       card bleeds through when it's stuck. */
+    background-color: #000;
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent),
+                        color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent)),
+        linear-gradient(var(--SmartThemeBlurTintColor, #16161c),
+                        var(--SmartThemeBlurTintColor, #16161c));
+    box-shadow: 0 4px 14px -6px rgba(0, 0, 0, .55);
+    padding-top: 16px;
+}
+.wl-cb-bulk-count {
+    flex: 0 0 auto;
+    font-size: .9em;
+    font-weight: 600;
+    opacity: .8;
+    font-variant-numeric: tabular-nums;
+    padding-left: 4px;
+}
+.wl-cb-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* One bulk-action button — icon + label, quiet chip look. Disabled ones read
+   as clearly inert (nothing selected, or Persona which is deferred). */
+.wl-cb-bulk-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: .84em;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent);
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    transition: background .12s, border-color .12s, opacity .12s;
+}
+.wl-cb-bulk-btn i { font-size: .92em; opacity: .85; }
+.wl-cb-bulk-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 45%, var(--SmartThemeBorderColor, #333));
+}
+.wl-cb-bulk-btn:disabled {
+    opacity: .4;
+    cursor: default;
+}
+/* Delete reads red on hover to signal its destructive intent. */
+.wl-cb-bulk-danger:hover:not(:disabled) {
+    border-color: #e06c6c;
+    color: #e06c6c;
+}
+/* Done is the accent-outlined exit — stands apart from the action row. */
+.wl-cb-bulk-done {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 55%, transparent);
+    color: var(--SmartThemeBodyColor, #fff);
+}
+.wl-cb-bulk-done:hover {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    color: #fff;
+}
+/* Deselect All is a neutral utility (clears the pick, stays in msel) — a muted
+   look that separates it from the actions on its left and the accented Done on
+   its right. On hover it warms toward the danger tone since it discards work. */
+.wl-cb-bulk-deselect:not(:disabled):hover {
+    border-color: color-mix(in srgb, #e06c6c 55%, var(--SmartThemeBorderColor, #444));
+    color: #e0b0b0;
+}
+
+/* ── Per-card checkbox + picked state ────────────────────────
+   The checkbox overlay (top-left of the media) is hidden by default and only
+   revealed when the grid carries .msel-mode. The card itself is the hit target
+   (the box is non-interactive), so in msel mode the star is muted to avoid a
+   competing target. */
+.wl-cb-card-check {
+    position: absolute;
+    top: 8px;
+    left: 9px;
+    width: 22px;
+    height: 22px;
+    display: none;              /* shown only in .msel-mode (below) */
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .45);
+    border: 2px solid rgba(255, 255, 255, .85);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+    color: #fff;
+    pointer-events: none;       /* whole card is the toggle */
+    z-index: 2;
+}
+.wl-cb-card-check i {
+    font-size: .8em;
+    opacity: 0;                 /* checkmark hidden until picked */
+    transition: opacity .1s ease;
+}
+
+/* Reveal the checkbox on every card when the grid is in multi-select mode. */
+#wl-cb-grid.msel-mode .wl-cb-card-check { display: flex; }
+/* In msel mode the star steps back so the checkbox is the clear affordance. */
+#wl-cb-grid.msel-mode .wl-cb-card-star { opacity: .35; pointer-events: none; }
+
+/* Picked card: filled accent checkbox + accent ring. Overrides the plain
+   .selected ring look (a picked card in msel mode is about the SET, not the
+   detail selection). */
+#wl-cb-grid.msel-mode .wl-cb-card.is-picked .wl-cb-card-check {
+    background: var(--SmartThemeQuoteColor, #9b8cff);
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+}
+#wl-cb-grid.msel-mode .wl-cb-card.is-picked .wl-cb-card-check i { opacity: 1; }
+#wl-cb-grid.msel-mode .wl-cb-card.is-picked {
+    border-color: var(--SmartThemeQuoteColor, #9b8cff);
+    box-shadow: 0 0 0 2px var(--SmartThemeQuoteColor, #9b8cff) inset;
+}
+
+
+/* ============================================================
+   Bulk actions — ST popups lifted over the browser overlay
+   The multi-select "Tag" action reuses ST's OWN #bulk_tag_shadow_popup
+   (built by characterGroupOverlay.bulkTagPopupHandler.show). ST's CSS gives
+   that popup z-index:9998 — BELOW our overlay (#wl-cb-root at 10000) — so it
+   would render behind the browser. Lift it (and its jQuery-UI tag-input
+   autocomplete, which ST puts at 10000, an equal-z tie our later-appended
+   overlay would win) above the overlay while the browser is open. Scoped to
+   body.wl-cb-open so it only applies during our takeover. Mirrors the expanded
+   drawer's identical fix for its relocated tag field (charDrawerExpanded.css).
+   The modern generic popup (.popup, delete confirm) is already at 29999 and
+   needs no lift. ============================================================ */
+body.wl-cb-open #bulk_tag_shadow_popup {
+    z-index: 10010;
+}
+body.wl-cb-open .ui-autocomplete.ui-front {
+    z-index: 10020;
+}
+
+/* Delete-confirm warning line (inside the generic popup body we build for the
+   bulk delete). Small, centered, red — echoes ST's own bulk_delete_note. */
+.wl-cb-bulk-delnote {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+    color: #e06c6c;
+    font-size: .95em;
+}
+.wl-cb-bulk-delnote i { color: #e0a94c; }
+
+
+/* ============================================================
+   Per-character right-click context menu (#wl-cb-cardmenu)
+   Opened from a card's contextmenu event by cardMenu.js. Lives on <body>
+   (positioned at the cursor), so it must clear our overlay (10000) and the
+   lifted tag popup (10010/10020) — though the menu always closes before the tag
+   popup opens. Opaque so it reads over any card beneath it.
+   ============================================================ */
+.wl-cb-cardmenu {
+    position: fixed;
+    z-index: 10030;
+    min-width: 172px;
+    max-width: 240px;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    /* Opaque stack (same technique as the sticky bulk-bar): tint LAYERS over an
+       opaque black base. Bare colors aren't valid background layers, so each
+       tint is a gradient; only background-color may be a plain color. */
+    background-color: #000;
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent),
+                        color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 6%, transparent)),
+        linear-gradient(var(--SmartThemeBlurTintColor, #16161c),
+                        var(--SmartThemeBlurTintColor, #16161c));
+    box-shadow: 0 10px 30px -6px rgba(0, 0, 0, .6);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    user-select: none;
+}
+
+/* Header — which character the actions apply to. */
+.wl-cb-cardmenu-head {
+    padding: 5px 9px 6px;
+    margin-bottom: 2px;
+    font-size: .82em;
+    font-weight: 700;
+    opacity: .7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+/* One menu row — icon + label, full-width click target. */
+.wl-cb-cardmenu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .88em;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background .1s;
+}
+.wl-cb-cardmenu-item i {
+    width: 16px;
+    text-align: center;
+    opacity: .85;
+    font-size: .95em;
+}
+.wl-cb-cardmenu-item:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 28%, transparent);
+}
+.wl-cb-cardmenu-item:disabled {
+    opacity: .4;
+    cursor: default;
+}
+/* Delete row reads red (and turns solid-red on hover) to flag destructiveness. */
+.wl-cb-cardmenu-danger { color: #e88; }
+.wl-cb-cardmenu-danger i { color: #e88; }
+.wl-cb-cardmenu-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, #e06c6c 30%, transparent);
+    color: #fff;
+}
+.wl-cb-cardmenu-danger:hover:not(:disabled) i { color: #fff; }
+
+
+/* ============================================================
+   GROUP-CREATE MODE — native #rm_group_chats_block hosted in the
+   detail column (see enterGroupCreateMode in drawerUI.js).
+   Authored chrome is just the header (title + cancel X); everything
+   below it is ST's own panel, lightly coerced to the column width.
+   ============================================================ */
+
+#wl-cb-groupcreate {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    height: 100%;
+}
+
+.wl-cb-gc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, .1));
+}
+.wl-cb-gc-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 650;
+    font-size: .95em;
+}
+.wl-cb-gc-cancel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: .7;
+    transition: opacity .12s ease, background-color .12s ease;
+}
+.wl-cb-gc-cancel:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, .08);
+}
+
+/* The relocated native panel: fill + scroll the column. ST's .right_menu
+   styling targets the narrow right-nav; width coercion keeps its rows from
+   overflowing our column, and the buttons row is allowed to wrap. */
+#wl-cb-gc-slot {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+#wl-cb-gc-slot #rm_group_chats_block {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+#wl-cb-gc-slot #rm_group_buttons {
+    flex-wrap: wrap;
+}
+#wl-cb-gc-slot #GroupFavDelOkBack {
+    flex-wrap: wrap;
+}
+
+
+/* ============================================================
+   GROUPS HUB — the center region when the nav's "Groups" (above "Tags") is
+   selected. Parallel to the Tag Hub: it reuses the wl-cb-th-* card, header,
+   controls, mini-avatar, section, stat-row, and detail-action vocabulary, and
+   adds only the group-specific bits below — the avatar COLLAGE (1–4 member
+   tiles, ST's own group-avatar convention), the card fav star, and the member
+   list. The right detail panel is the shared region (namespaced wl-cb-gh-*).
+   ============================================================ */
+
+/* Container — same layout as .wl-cb-taghub. */
+.wl-cb-grouphub {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 4px 2px 8px;
+}
+
+/* --- Avatar collage (cards + detail) --- */
+/* Fills its parent (.wl-cb-th-card-media on cards, .wl-cb-gh-detail-av in the
+   panel). Tiles are background-image so a slow/broken thumb never breaks the
+   grid. On cards the same bottom fade as the tag hero applies so text overlays
+   read cleanly. */
+.wl-cb-gh-collage {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+}
+.wl-cb-gh-tile {
+    background-size: cover;
+    background-position: center;
+    background-color: color-mix(in srgb, var(--SmartThemeBodyColor, #000) 28%, transparent);
+    min-width: 0;
+    min-height: 0;
+}
+/* 1 tile: full bleed. 2: side-by-side. 3: one wide on top, two below. 4: 2×2. */
+.wl-cb-gh-collage.collage-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.wl-cb-gh-collage.collage-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.wl-cb-gh-collage.collage-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.wl-cb-gh-collage.collage-3 .wl-cb-gh-tile:first-child { grid-column: 1 / span 2; }
+.wl-cb-gh-collage.collage-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+/* On the card hero, fade the collage toward the bottom like the tag/char hero
+   so the overlaid name/count/tags sit on a clean gradient. */
+.wl-cb-th-card-media .wl-cb-gh-collage {
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+/* No-members placeholder (a "users" glyph), same treatment as the tag no-image. */
+.wl-cb-gh-noimg::after {
+    content: "\f0c0"; /* fa users */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4em;
+    opacity: .18;
+}
+
+/* --- Card fav star --- */
+/* Top-right over the media, above the scrim. Outline by default, gold when fav.
+   Must be an <i> so Font Awesome's weight rules distinguish solid/regular. */
+.wl-cb-gh-star {
+    position: absolute;
+    top: 10px;
+    right: 11px;
+    z-index: 3;
+    font-size: 1.05em;
+    cursor: pointer;
+    color: #fff;
+    opacity: .85;
+    text-shadow: 0 1px 4px color-mix(in srgb, #000 70%, transparent);
+    transition: transform .1s ease, opacity .12s ease, color .12s ease;
+}
+.wl-cb-gh-star:hover { transform: scale(1.15); opacity: 1; }
+.wl-cb-gh-star.is-fav { color: #ffcf4d; opacity: 1; }
+
+/* --- Card tag chips (over the scrim, one clipped row) --- */
+.wl-cb-gh-card-tags {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow: hidden;
+    max-height: 1.7em;
+    margin-top: 2px;
+}
+.wl-cb-gh-card-tags .wl-cb-chip {
+    flex: 0 0 auto;
+    font-size: .72em;
+}
+
+/* --- Detail: avatar box --- */
+.wl-cb-gh-detail-av {
+    position: relative;
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #000) 22%, transparent);
+    box-shadow: 0 2px 8px color-mix(in srgb, #000 30%, transparent);
+}
+.wl-cb-gh-detail-av img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* The collage inside the detail box shouldn't carry the card's bottom fade. */
+.wl-cb-gh-detail-av .wl-cb-gh-collage {
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+/* --- Detail: tag chips row --- */
+.wl-cb-gh-detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 2px 0;
+}
+
+/* --- Detail: members list --- */
+.wl-cb-gh-members {
+    margin-top: 4px;
+}
+.wl-cb-gh-member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    margin: 0 -4px;
+}
+.wl-cb-gh-member-row:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
+}
+.wl-cb-gh-member-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .9em;
+}
+.wl-cb-gh-member-missing { opacity: .5; }
+.wl-cb-gh-member-missing .wl-cb-gh-member-name { font-style: italic; }
+/* Per-member edit pencil → the character's own edit drawer. */
+.wl-cb-gh-member-edit {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    opacity: .55;
+    cursor: pointer;
+    transition: background .12s ease, opacity .12s ease;
+}
+.wl-cb-gh-member-edit:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 28%, transparent);
+}
+
+/* --- Detail: delete button (danger) --- */
+.wl-cb-gh-delete {
+    color: #e88;
+    border-color: color-mix(in srgb, #e06c6c 40%, transparent);
+}
+.wl-cb-gh-delete:hover {
+    background: color-mix(in srgb, #e06c6c 26%, transparent);
+    color: #fff;
+    border-color: #e06c6c;
+}

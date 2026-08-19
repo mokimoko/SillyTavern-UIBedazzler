@@ -36,6 +36,21 @@ Full-screen workspaces that replace SillyTavern's cramped native drawers. Each o
 
 Lighter touch — just tab navigation added to the native panels. 
 
+*World Info Drawer*
+![World Info Drawer](https://files.catbox.moe/d219u1.png)
+
+*Character Browser*
+![Character Browser](https://files.catbox.moe/5cl4vo.png)
+
+*Character Drawer*
+![Character Drawer](https://files.catbox.moe/qdyoa1.png)
+
+*Expanded Preset Drawer*
+![Expanded Preset Drawer](https://files.catbox.moe/bjjfsk.png)
+
+## Alternate Icons and Loading Screen
+UIBedazzler can change the default icon set for SillyTavern in general and/or the top bar (these are separate in case you want to use different ones for each!), and can also use a custom loading screen if you have my Nebula Loader Plugin installed. You can find that [here](https://github.com/mokimoko/SillyTavern-NebulaLoader).
+
 ## Installation
 
 Use SillyTavern's built-in extension installer:

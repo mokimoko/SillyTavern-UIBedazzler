@@ -14,6 +14,7 @@ const log = () => {};
 
 const EXPAND_BTN_ID = 'wl-pe-expand-btn';
 let panelObserver = null;
+let panelRefreshFrame = null;
 
 function isEnabled() {
     return !!extension_settings[MODULE_NAME]?.presetDrawerExpanded;
@@ -78,16 +79,26 @@ function setupExpandButton() {
 
     const panel = document.getElementById('left-nav-panel');
     if (!panel) return;
-    // ST re-renders the preset controls on API/preset changes, which can wipe
-    // our button. Re-inject (and re-sync visibility) on panel mutations.
+    // ST re-renders the preset controls on API/preset/profile changes, which can
+    // wipe our button. Ignore mutations while it still exists and coalesce a
+    // replacement burst so we do not repeatedly inject into transient rows.
     panelObserver = new MutationObserver(() => {
-        if (!isExpandedActive()) injectExpandButton();
+        if (isExpandedActive() || document.getElementById(EXPAND_BTN_ID)) return;
+        if (panelRefreshFrame !== null) return;
+        panelRefreshFrame = requestAnimationFrame(() => {
+            panelRefreshFrame = null;
+            if (!isExpandedActive()) injectExpandButton();
+        });
     });
     panelObserver.observe(panel, { childList: true, subtree: true });
 }
 
 function teardownExpandButton() {
     if (panelObserver) { panelObserver.disconnect(); panelObserver = null; }
+    if (panelRefreshFrame !== null) {
+        cancelAnimationFrame(panelRefreshFrame);
+        panelRefreshFrame = null;
+    }
     removeExpandButton();
 }
 

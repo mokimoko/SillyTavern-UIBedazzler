@@ -17,6 +17,7 @@
 
 import { getSetting, setSetting } from './settings.js';
 import { getAdapter } from './hostAdapter.js';
+import { createAddedNodeBatcher } from './addedNodeBatcher.js';
 
 // The resolved host adapter (server / tauri / plain). Set once in
 // initCuteLoader before anything else runs; all URL building and backend calls
@@ -51,28 +52,28 @@ const logoUrl = () => adapter.assetUrl('logo2.png');
 // pseudo-element, with no ::after stacking to collide with ST.
 const ICON_SETS = {
     general: {
-        default: null,
-        'phosphor': { css: 'phosphor-icons.css', bodyClass: 'phosphor-on' },
-        'phosphor-duotone': { css: 'phosphor-duotone-icons.css', bodyClass: 'bd-icons-duotone' },
-        'tabler': { css: 'tabler-icons.css', bodyClass: 'bd-icons-tabler' },
-        'lucide': { css: 'lucide-icons.css', bodyClass: 'bd-icons-lucide' },
-        'remix-line': { css: 'remix-line-icons.css', bodyClass: 'bd-icons-remix-line' },
-        'remix-fill': { css: 'remix-fill-icons.css', bodyClass: 'bd-icons-remix-fill' },
+        default: { label: 'Font Awesome (default)' },
+        'phosphor': { label: 'Phosphor', css: 'phosphor-icons.css', bodyClass: 'phosphor-on' },
+        'phosphor-duotone': { label: 'Phosphor Duotone', css: 'phosphor-duotone-icons.css', bodyClass: 'bd-icons-duotone' },
+        'tabler': { label: 'Tabler', css: 'tabler-icons.css', bodyClass: 'bd-icons-tabler' },
+        'lucide': { label: 'Lucide', css: 'lucide-icons.css', bodyClass: 'bd-icons-lucide' },
+        'remix-line': { label: 'Remix Line', css: 'remix-line-icons.css', bodyClass: 'bd-icons-remix-line' },
+        'remix-fill': { label: 'Remix Fill', css: 'remix-fill-icons.css', bodyClass: 'bd-icons-remix-fill' },
     },
     topbar: {
-        default: null,
-        'pepicons': { css: 'topbar-pepicons.css', bodyClass: 'bd-topbar-pepicons' },
-        'freehand': { css: 'topbar-freehand.css', bodyClass: 'bd-topbar-freehand' },
-        'tabler': { css: 'topbar-tabler.css', bodyClass: 'bd-topbar-tabler' },
-        'lucide': { css: 'topbar-lucide.css', bodyClass: 'bd-topbar-lucide' },
-        'remix-line': { css: 'topbar-remix-line.css', bodyClass: 'bd-topbar-remix-line' },
-        'remix-fill': { css: 'topbar-remix-fill.css', bodyClass: 'bd-topbar-remix-fill' },
-        'pixel': { css: 'topbar-pixel.css', bodyClass: 'bd-topbar-pixel' },
-        'cyber': { css: 'topbar-cyber.css', bodyClass: 'bd-topbar-cyber' },
-        'sl-pixel': { css: 'topbar-sl-pixel.css', bodyClass: 'bd-topbar-sl-pixel' },
+        default: { label: 'Match general set' },
+        'pepicons': { label: 'Pepicons', css: 'topbar-pepicons.css', bodyClass: 'bd-topbar-pepicons' },
+        'freehand': { label: 'Streamline Freehand', css: 'topbar-freehand.css', bodyClass: 'bd-topbar-freehand' },
+        'tabler': { label: 'Tabler', css: 'topbar-tabler.css', bodyClass: 'bd-topbar-tabler' },
+        'lucide': { label: 'Lucide', css: 'topbar-lucide.css', bodyClass: 'bd-topbar-lucide' },
+        'remix-line': { label: 'Remix Line', css: 'topbar-remix-line.css', bodyClass: 'bd-topbar-remix-line' },
+        'remix-fill': { label: 'Remix Fill', css: 'topbar-remix-fill.css', bodyClass: 'bd-topbar-remix-fill' },
+        'pixel': { label: 'Pixelarticons', css: 'topbar-pixel.css', bodyClass: 'bd-topbar-pixel' },
+        'cyber': { label: 'Streamline Cyber', css: 'topbar-cyber.css', bodyClass: 'bd-topbar-cyber' },
+        'sl-pixel': { label: 'Streamline Pixel', css: 'topbar-sl-pixel.css', bodyClass: 'bd-topbar-sl-pixel' },
         // Colored sets — full-color artwork, no currentColor tint.
-        'glyphs-poly': { css: 'topbar-glyphs-poly.css', bodyClass: 'bd-topbar-glyphs-poly' },
-        'stickies': { css: 'topbar-stickies.css', bodyClass: 'bd-topbar-stickies' },
+        'glyphs-poly': { label: 'Glyphs Poly (color)', css: 'topbar-glyphs-poly.css', bodyClass: 'bd-topbar-glyphs-poly' },
+        'stickies': { label: 'Streamline Stickies (color)', css: 'topbar-stickies.css', bodyClass: 'bd-topbar-stickies' },
     },
 };
 
@@ -129,6 +130,7 @@ function revertFavicon() {
 // Original src is stashed on the img dataset so revert is precise.
 
 let logoObserver = null;
+let logoMutationBatcher = null;
 let currentLogoVersionTag = null;
 
 function updateLogoImg(img) {
@@ -172,14 +174,12 @@ function swapLogosWithin(root) {
 }
 
 function startLogoObserver(versionTag) {
+    stopLogoObserver();
     currentLogoVersionTag = versionTag;
     swapLogosWithin(document.body);
 
-    logoObserver = new MutationObserver(mutations => {
-        for (const m of mutations) {
-            for (const node of m.addedNodes) swapLogosWithin(node);
-        }
-    });
+    logoMutationBatcher = createAddedNodeBatcher(swapLogosWithin);
+    logoObserver = new MutationObserver(logoMutationBatcher);
     logoObserver.observe(document.body, { childList: true, subtree: true });
 }
 
@@ -188,6 +188,8 @@ function stopLogoObserver() {
         logoObserver.disconnect();
         logoObserver = null;
     }
+    logoMutationBatcher?.cancel();
+    logoMutationBatcher = null;
     document.querySelectorAll('img.welcomeHeaderLogo').forEach(revertLogoImg);
     currentLogoVersionTag = null;
 }
@@ -222,11 +224,11 @@ function applyIconSet(axis, setId, versionTag) {
     // Clear every body class this axis owns before adding one back, so a
     // switch can never leave two sets fighting each other.
     for (const def of Object.values(sets)) {
-        if (def) document.body.classList.remove(def.bodyClass);
+        if (def?.bodyClass) document.body.classList.remove(def.bodyClass);
     }
 
     const def = sets[setId];
-    if (!def) return; // 'default', or an id we no longer ship
+    if (!def?.css) return; // 'default', or an id we no longer ship
 
     const id = linkIdFor(axis, setId);
     if (!document.getElementById(id)) {
@@ -240,6 +242,28 @@ function applyIconSet(axis, setId, versionTag) {
         document.head.append(link);
     }
     document.body.classList.add(def.bodyClass);
+}
+
+/** Serializable icon choices shared by the settings drawer and Chat Design. */
+export function getIconSetChoices(axis) {
+    const sets = ICON_SETS[axis] || {};
+    return Object.entries(sets).map(([id, def]) => ({ id, label: def.label }));
+}
+
+export function isKnownIconSet(axis, setId) {
+    return Object.hasOwn(ICON_SETS[axis] || {}, setId);
+}
+
+/** Apply one axis without changing the global/default setting. */
+export async function applyIconSetSelection(axis, setId) {
+    if (!isKnownIconSet(axis, setId)) setId = 'default';
+    if (!adapter) {
+        adapter = await getAdapter();
+        assetsVersion = String(adapter.assetsVersion ?? '0');
+    }
+    if (adapter.host === 'plain') return false;
+    applyIconSet(axis, setId, assetsVersion);
+    return true;
 }
 
 // ============================================================
@@ -289,35 +313,20 @@ function buildNebulaSectionHTML(features) {
             ${cardLine}
             <label class="bd-row" title="Re-skin SillyTavern's Font Awesome interface icons. Independent of Nebula Engine.">
                 <span class="bd-row-name">General Icons</span>
-                <select class="text_pole bd-iconset-select" id="bd-iconset-general">
-                    <option value="default">Font Awesome (default)</option>
-                    <option value="phosphor">Phosphor</option>
-                    <option value="phosphor-duotone">Phosphor Duotone</option>
-                    <option value="tabler">Tabler</option>
-                    <option value="lucide">Lucide</option>
-                    <option value="remix-line">Remix Line</option>
-                    <option value="remix-fill">Remix Fill</option>
-                </select>
+                <select class="text_pole bd-iconset-select" id="bd-iconset-general">${renderIconOptions('general')}</select>
             </label>
             <label class="bd-row" title="Re-skin only the top navigation bar and chat-input buttons. Overrides the general set on those icons.">
                 <span class="bd-row-name">Top Bar Icons</span>
-                <select class="text_pole bd-iconset-select" id="bd-iconset-topbar">
-                    <option value="default">Match general set</option>
-                    <option value="pepicons">Pepicons</option>
-                    <option value="freehand">Streamline Freehand</option>
-                    <option value="tabler">Tabler</option>
-                    <option value="lucide">Lucide</option>
-                    <option value="remix-line">Remix Line</option>
-                    <option value="remix-fill">Remix Fill</option>
-                    <option value="pixel">Pixelarticons</option>
-                    <option value="cyber">Streamline Cyber</option>
-                    <option value="sl-pixel">Streamline Pixel</option>
-                    <option value="glyphs-poly">Glyphs Poly (color)</option>
-                    <option value="stickies">Streamline Stickies (color)</option>
-                </select>
+                <select class="text_pole bd-iconset-select" id="bd-iconset-topbar">${renderIconOptions('topbar')}</select>
             </label>
         </div>
     `;
+}
+
+function renderIconOptions(axis) {
+    return getIconSetChoices(axis)
+        .map(({ id, label }) => `<option value="${id}">${label}</option>`)
+        .join('');
 }
 
 function injectNebulaSection(features) {
@@ -420,6 +429,11 @@ export async function initCuteLoader() {
         select.addEventListener('change', () => {
             setSetting(key, select.value);
             applyIconSet(axis, select.value, assetsVersion);
+            window.dispatchEvent(new CustomEvent('UIBEDAZZLER_ICON_DEFAULTS_CHANGED'));
         });
     }
+
+    // Chat Design listens for this so a character override wins after the
+    // asynchronous host probe applies the global defaults during startup.
+    window.dispatchEvent(new CustomEvent('UIBEDAZZLER_ICON_DEFAULTS_CHANGED'));
 }

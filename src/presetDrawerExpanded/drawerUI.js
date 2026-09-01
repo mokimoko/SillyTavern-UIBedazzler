@@ -57,27 +57,27 @@ export function takeoverExpanded() {
     const openaiSettings = document.getElementById('openai_settings');
     const promptManager = document.getElementById('completion_prompt_manager');
     const promptManagerWrapper = promptManager?.closest('.range-block') || promptManager;
-    // The preset control block (dropdown + update/rename/save-as/import/export/
-    // delete). Prefer the enclosing .range-block so the buttons come along even
-    // when they're a sibling of the <select> rather than in its parent. Guard
-    // against a too-broad ancestor: if it would swallow the sampler / settings /
-    // manager blocks, fall back to the tight parent row. Optional overall — if
-    // ST's markup differs and nothing is found, the left column just omits it.
+    // Move ST's whole Chat Completion preset block. The dropdown row only owns
+    // update / rename / save-as; import / export / delete and connection binding
+    // live in the sibling title row. Keeping the native block intact also means
+    // newly added ST preset actions automatically ride into the expanded drawer.
     const presetSelect = document.getElementById('settings_preset_openai');
-    let presetRow = presetSelect?.closest('.range-block') || presetSelect?.parentElement || null;
-    if (presetRow && (presetRow.contains(rangeBlock) || presetRow.contains(openaiSettings) || presetRow.contains(promptManager))) {
-        presetRow = presetSelect?.parentElement || null;
+    let presetBlock = document.getElementById('openai_api-presets') || presetSelect?.parentElement || null;
+    if (presetBlock && (presetBlock.contains(rangeBlock) || presetBlock.contains(openaiSettings) || presetBlock.contains(promptManager))) {
+        presetBlock = presetSelect?.parentElement || null;
     }
 
     if (!rangeBlock || !openaiSettings || !promptManager) {
         log('Native CC elements missing — aborting takeover');
+        setWhiteLotusSuspended(false);
+        resumeAfterExpanded();
         return;
     }
 
-    // Snapshot home positions for an exact restore (skip a missing preset row).
+    // Snapshot home positions for an exact restore (skip a missing preset block).
     const snap = (el) => ({ element: el, parent: el.parentNode, nextSibling: el.nextSibling });
     originalPositions = [
-        rangeBlock, openaiSettings, promptManagerWrapper, presetRow,
+        rangeBlock, openaiSettings, promptManagerWrapper, presetBlock,
     ].filter(Boolean).map(snap);
 
     // Build the overlay and mark the body so presetDrawer.js stands down.
@@ -91,7 +91,7 @@ export function takeoverExpanded() {
 
     // Relocate. Order matters if the manager wrapper is nested in openai_settings:
     // move the settings first, then extract the manager into the center column.
-    if (presetRow) presetSlot.appendChild(presetRow);
+    if (presetBlock) presetSlot.appendChild(presetBlock);
     overviewSlot.appendChild(rangeBlock);
     overviewSlot.appendChild(openaiSettings);
     center.appendChild(promptManagerWrapper);

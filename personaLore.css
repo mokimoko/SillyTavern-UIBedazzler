@@ -32,6 +32,19 @@
     min-height: 0;
 }
 
+/* Keep sparse list-view results at their natural row height. Without an
+   explicit cross-axis alignment, one or two flex rows stretch vertically. */
+#persona-management-block.wl-pl-active #user_avatar_block:not(.gridView) {
+    align-content: flex-start;
+    justify-content: flex-start;
+}
+
+#persona-management-block.wl-pl-active #user_avatar_block:not(.gridView) > .avatar-container {
+    flex: 0 0 100%;
+    align-self: flex-start;
+    height: auto;
+}
+
 /* Right column fills height, scrolls independently */
 #persona-management-block.wl-pl-active .persona_management_right_column {
     overflow-y: auto;
@@ -97,17 +110,18 @@
 .wl-pl-tab {
     background: none;
     border: none;
-    padding: 6px 14px;
+    padding: 6px 12px;
     cursor: pointer;
     color: var(--SmartThemeBodyColor, #ccc);
-    font-size: 0.9em;
+    font-size: 0.85em;
     font-weight: 500;
     position: relative;
-    opacity: 0.65;
+    opacity: 0.6;
     transition: opacity 0.15s, color 0.15s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    white-space: nowrap;
 }
 
 .wl-pl-tab:hover {

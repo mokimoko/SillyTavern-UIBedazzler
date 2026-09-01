@@ -461,13 +461,13 @@
    container from painting behind it (belt-and-braces with the JS handshake). */
 body.wl-pe-open #wl-pd-container { visibility: hidden; }
 
-/* The expand button lives in the preset row, so it rides into the left column
-   when that row is relocated. It has no purpose inside the open overlay — hide
+/* The expand button lives in the preset block, so it rides into the left column
+   when that block is relocated. It has no purpose inside the open overlay — hide
    it there (it returns to the native drawer, visible again, on close). */
 #wl-pe-root #wl-pe-expand-btn { display: none !important; }
 
 /* Relocated native blocks: give the slots a little breathing room and let the
-   preset row's controls wrap comfortably in the narrower left column. */
+   preset block's controls wrap comfortably in the narrower left column. */
 #wl-pe-preset-slot, #wl-pe-overview-slot { margin-bottom: 6px; }
 #wl-pe-preset-slot .flex-container { flex-wrap: wrap; }
 

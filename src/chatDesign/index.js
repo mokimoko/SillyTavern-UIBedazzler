@@ -13,6 +13,7 @@ import { refreshCursorDiscovery } from './cursors.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 import { startAvatarStamping, stopAvatarStamping, stampAllMessages } from './avatarStamp.js';
 import { applyThemeForActiveChar } from './themeSwitch.js';
+import { applyIconSetsForActiveChar } from './iconSwitch.js';
 
 const log = () => {};
 
@@ -54,6 +55,13 @@ export function initChatDesign() {
         // once UIBedazzler is loaded, which is what fixes the old quick-reply's
         // boot-time "/split unknown command" race.
         applyThemeForActiveChar();
+        void applyIconSetsForActiveChar();
+    });
+
+    // cuteLoader resolves its host asynchronously. Once its icon assets and
+    // global defaults are ready, re-apply the active character's overrides.
+    window.addEventListener('UIBEDAZZLER_ICON_DEFAULTS_CHANGED', () => {
+        void applyIconSetsForActiveChar();
     });
 
     // Re-inject on verse change (verse styles may target different characters)

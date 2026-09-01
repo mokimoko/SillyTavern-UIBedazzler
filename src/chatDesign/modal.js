@@ -28,6 +28,10 @@ import {
     getSavedThemes, getDefaultTheme, setDefaultTheme,
     getThemeForCharacter, setThemeForCharacter, applyThemeForActiveChar,
 } from './themeSwitch.js';
+import {
+    ICON_AXES, getIconChoices, getDefaultIconSet, setDefaultIconSet,
+    getIconSetForCharacter, setIconSetForCharacter, applyIconSetsForActiveChar,
+} from './iconSwitch.js';
 
 const log = () => {};
 
@@ -49,7 +53,7 @@ function esc(s) {
 // ============================================================
 
 let isOpen = false;
-let activeTab = 'core';         // 'core' | 'name' | 'dialogue' | 'banner' | 'container' | 'avatar'
+let activeTab = 'core';         // Overview, a style element, Themes, or Icons
 let editingStyleId = null;      // Currently editing style ID, or null for list view
 let editingSnapshot = null;     // Deep clone before editing (for cancel/restore)
 let fontsLoaded = false;
@@ -169,6 +173,7 @@ function renderSidebar() {
         { id: 'background', icon: 'fa-image', label: 'Background' },
         { id: 'cursor', icon: 'fa-arrow-pointer', label: 'Cursor' },
         { id: 'themes', icon: 'fa-palette', label: 'Themes' },
+        { id: 'icons', icon: 'fa-icons', label: 'Icons' },
     ];
 
     sidebar.innerHTML = items.map(item => `
@@ -197,6 +202,7 @@ function renderSidebar() {
 
 function renderContent() {
     renderSidebar();
+    document.getElementById(MODAL_ID)?.classList.toggle('wl-cdm-overview-mode', activeTab === 'core');
     const content = document.getElementById('wl-cdm-content');
     if (!content) return;
 
@@ -204,6 +210,8 @@ function renderContent() {
         renderCoreView(content);
     } else if (activeTab === 'themes') {
         renderThemesView(content);
+    } else if (activeTab === 'icons') {
+        renderIconsView(content);
     } else if (editingStyleId) {
         renderEditor(content);
     } else {
@@ -357,6 +365,142 @@ function wireThemesView(container) {
     });
 }
 
+// ============================================================
+// Icons Tab — per-character interface icon assignment
+// ============================================================
+
+function renderIconsView(container) {
+    const characters = getAvailableCharacters().sort((a, b) => a.name.localeCompare(b.name));
+    const charTags = getCharacterTags();
+    const choices = Object.fromEntries(ICON_AXES.map(axis => [axis, getIconChoices(axis)]));
+    const defaults = Object.fromEntries(ICON_AXES.map(axis => [axis, getDefaultIconSet(axis)]));
+
+    const options = (axis, selected, allowInherit = false) => {
+        const fallback = choices[axis].find(choice => choice.id === defaults[axis])?.label || 'Default';
+        const inherit = allowInherit
+            ? `<option value="">— Use default (${esc(fallback)}) —</option>`
+            : '';
+        return inherit + choices[axis].map(choice => `
+            <option value="${esc(choice.id)}" ${choice.id === selected ? 'selected' : ''}>${esc(choice.label)}</option>
+        `).join('');
+    };
+
+    const tagChips = charTags.length === 0 ? '' : `
+        <div class="wl-cdm-tag-chips" id="wl-cdm-ic-tag-chips">
+            ${charTags.map(t => `<button type="button" class="wl-cdm-tag-chip" data-tagid="${esc(t.id)}">${esc(t.name)}</button>`).join('')}
+        </div>
+    `;
+
+    const charRow = (c) => {
+        const tagIds = (c.tags || []).map(t => t.id).join(' ');
+        const tagNames = (c.tags || []).map(t => t.name).join(' ');
+        const search = `${c.name} ${c.avatar} ${tagNames}`.toLowerCase();
+        return `
+            <div class="wl-cdm-ic-row wl-cdm-pickrow" data-search="${esc(search)}" data-tagids="${esc(tagIds)}">
+                <div class="wl-cdm-ic-charname">${esc(c.name)} <span class="wl-cdm-pick-hint">${esc(c.avatar)}</span></div>
+                ${ICON_AXES.map(axis => `
+                    <label class="wl-cdm-ic-field">
+                        <span>${axis === 'general' ? 'General' : 'Top Bar'}</span>
+                        <select class="wl-cdm-select wl-cdm-ic-charselect" data-avatar="${esc(c.avatar)}" data-axis="${axis}">
+                            ${options(axis, getIconSetForCharacter(c.avatar, axis), true)}
+                        </select>
+                    </label>
+                `).join('')}
+            </div>
+        `;
+    };
+
+    container.innerHTML = `
+        <div class="wl-cdm-core">
+            <div class="wl-cdm-section-title">Default Icons</div>
+            <div class="wl-cdm-field-hint">These are the same global choices shown in UI Bedazzler's extension settings. Groups and unassigned characters use them.</div>
+            <div class="wl-cdm-ic-defaults">
+                ${ICON_AXES.map(axis => `
+                    <label class="wl-cdm-ic-default-field">
+                        <span>${axis === 'general' ? 'General Icons' : 'Top Bar Icons'}</span>
+                        <select class="wl-cdm-select wl-cdm-ic-default" data-axis="${axis}">
+                            ${options(axis, defaults[axis])}
+                        </select>
+                    </label>
+                `).join('')}
+            </div>
+
+            <div class="wl-cdm-divider"></div>
+
+            <div class="wl-cdm-section-title">Per-Character Icons</div>
+            <div class="wl-cdm-field-hint">Override either icon set for a character. Personas aren't listed because they share the character's interface.</div>
+
+            <div class="wl-cdm-pick-filter">
+                <input type="text" class="wl-cdm-input wl-cdm-pick-search" id="wl-cdm-ic-search"
+                       placeholder="Filter by name, tag, or file…">
+                ${tagChips}
+            </div>
+
+            <div class="wl-cdm-ic-list" id="wl-cdm-ic-list">
+                ${characters.length === 0
+                    ? '<div class="wl-cdm-empty-small">No characters loaded</div>'
+                    : characters.map(charRow).join('')
+                }
+                <div class="wl-cdm-empty-small wl-cdm-no-match" id="wl-cdm-ic-nomatch" style="display:none">No matches</div>
+            </div>
+        </div>
+    `;
+
+    wireIconsView(container);
+}
+
+function wireIconsView(container) {
+    container.querySelectorAll('.wl-cdm-ic-default').forEach(select => {
+        select.addEventListener('change', () => {
+            setDefaultIconSet(select.dataset.axis, select.value);
+            void applyIconSetsForActiveChar();
+            renderIconsView(container);
+        });
+    });
+
+    container.querySelectorAll('.wl-cdm-ic-charselect').forEach(select => {
+        select.addEventListener('change', () => {
+            setIconSetForCharacter(select.dataset.avatar, select.dataset.axis, select.value);
+            void applyIconSetsForActiveChar();
+        });
+    });
+
+    const searchInput = container.querySelector('#wl-cdm-ic-search');
+    const chips = [...container.querySelectorAll('#wl-cdm-ic-tag-chips .wl-cdm-tag-chip')];
+    const rows = [...container.querySelectorAll('#wl-cdm-ic-list .wl-cdm-ic-row')];
+    const noMatch = container.querySelector('#wl-cdm-ic-nomatch');
+    const activeTags = new Set();
+
+    const apply = () => {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        let visible = 0;
+        for (const row of rows) {
+            const rowTags = (row.dataset.tagids || '').split(' ').filter(Boolean);
+            const matchesText = !query || (row.dataset.search || '').includes(query);
+            const matchesTags = activeTags.size === 0 || rowTags.some(id => activeTags.has(id));
+            const show = matchesText && matchesTags;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        }
+        if (noMatch) noMatch.style.display = visible === 0 ? '' : 'none';
+    };
+
+    searchInput?.addEventListener('input', apply);
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const id = chip.dataset.tagid;
+            if (activeTags.has(id)) {
+                activeTags.delete(id);
+                chip.classList.remove('wl-cdm-tag-chip-active');
+            } else {
+                activeTags.add(id);
+                chip.classList.add('wl-cdm-tag-chip-active');
+            }
+            apply();
+        });
+    });
+}
+
 // ── Core / Overview ──
 
 function renderCoreView(container) {
@@ -391,6 +535,8 @@ function renderCoreView(container) {
                 ${renderOverviewCard('Avatar', 'fa-circle-user', countByElement.avatar || 0, 'avatar')}
                 ${renderOverviewCard('Background', 'fa-image', countByElement.background || 0, 'background')}
                 ${renderOverviewCard('Cursor', 'fa-arrow-pointer', countByElement.cursor || 0, 'cursor')}
+                ${renderOverviewCard('Themes', 'fa-palette', null, 'themes', 'Settings')}
+                ${renderOverviewCard('Icons', 'fa-icons', null, 'icons', 'Settings')}
             </div>
 
             <div class="wl-cdm-info-block">
@@ -419,13 +565,14 @@ function renderCoreView(container) {
     });
 }
 
-function renderOverviewCard(label, icon, count, tabId) {
+function renderOverviewCard(label, icon, count, tabId, summary = null) {
+    const detail = summary ?? `${count} style${count !== 1 ? 's' : ''}`;
     return `
         <div class="wl-cdm-overview-card" data-tab="${tabId}">
             <i class="fa-solid ${icon}"></i>
             <div class="wl-cdm-overview-card-info">
                 <span class="wl-cdm-overview-label">${label}</span>
-                <span class="wl-cdm-overview-count">${count} style${count !== 1 ? 's' : ''}</span>
+                <span class="wl-cdm-overview-count">${detail}</span>
             </div>
         </div>
     `;

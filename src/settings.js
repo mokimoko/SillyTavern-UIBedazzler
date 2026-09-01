@@ -79,6 +79,9 @@ const DEFAULT_SETTINGS = {
     chatDesign: {
         enabled: false,
         styles: [],
+        themeAssignments: {},
+        themeDefault: '',
+        iconAssignments: {},
     },
 
     // --- Side Buttons ---

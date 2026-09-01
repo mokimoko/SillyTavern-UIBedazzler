@@ -46,6 +46,10 @@
     transform: translate(-50%, -50%) scale(1);
     pointer-events: auto;
 }
+.wl-cdm-modal.wl-cdm-overview-mode {
+    height: auto;
+    max-height: min(680px, 85vh);
+}
 
 /* ── Header ── */
 
@@ -79,6 +83,7 @@
 .wl-cdm-body {
     display: flex;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -602,8 +607,8 @@
 .wl-cdm-checkbox-list::-webkit-scrollbar-track {
     background-color: transparent;
 }
-.wl-cdm-content::-webkit-scrollbar-track:hover,
-.wl-cdm-checkbox-list::-webkit-scrollbar-track:hover {
+.wl-cdm-content:hover::-webkit-scrollbar-track,
+.wl-cdm-checkbox-list:hover::-webkit-scrollbar-track {
     background-color: var(--SmartThemeChatTintColor);
     border-left: 1px solid var(--SmartThemeBorderColor);
 }
@@ -611,8 +616,8 @@
 .wl-cdm-checkbox-list::-webkit-scrollbar-thumb {
     background-color: var(--SmartThemeUnderlineColor);
 }
-.wl-cdm-content::-webkit-scrollbar-thumb:hover,
-.wl-cdm-checkbox-list::-webkit-scrollbar-thumb:hover {
+.wl-cdm-content:hover::-webkit-scrollbar-thumb,
+.wl-cdm-checkbox-list:hover::-webkit-scrollbar-thumb {
     background-color: var(--SmartThemeQuoteColor);
 }
 .wl-cdm-content::-webkit-scrollbar-button,
@@ -794,4 +799,76 @@
 .wl-cdm-th-charselect {
     flex: 0 0 auto;
     max-width: 45%;
+}
+
+/* ============================================================
+   Icons tab — global defaults + per-character overrides
+   ============================================================ */
+
+.wl-cdm-ic-defaults {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.wl-cdm-ic-default-field,
+.wl-cdm-ic-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.wl-cdm-ic-default-field > span,
+.wl-cdm-ic-field > span {
+    color: var(--bd-text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.wl-cdm-ic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.wl-cdm-ic-row {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) repeat(2, minmax(145px, 0.8fr));
+    align-items: end;
+    gap: 10px;
+    padding: 7px 8px;
+    border: 1px solid var(--bd-border);
+    border-radius: 6px;
+    background: var(--bd-surface-2);
+}
+
+.wl-cdm-ic-charname {
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wl-cdm-ic-charselect {
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 760px) {
+    .wl-cdm-ic-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 520px) {
+    .wl-cdm-ic-defaults {
+        grid-template-columns: 1fr;
+    }
 }

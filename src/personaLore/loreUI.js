@@ -6,6 +6,7 @@ import { user_avatar } from '../../../../../personas.js';
 import { getLoreEntries, addLoreEntry, updateLoreEntry, deleteLoreEntry } from './storage.js';
 import { getLoreTabPane, updateLoreBadge } from './drawerUI.js';
 import { cleanAvatar } from '../design/designUtils.js';
+import { getCharacterAvatarUrl } from '../hostAdapter.js';
 
 const log = () => {};
 
@@ -117,7 +118,7 @@ function buildKnownByDisplay(knownBy) {
             thumb.title = char?.name || charAvatar;
 
             const img = document.createElement('img');
-            img.src = `/characters/${charAvatar}`;
+            img.src = getCharacterAvatarUrl(charAvatar, context);
             img.alt = char?.name || charAvatar;
             img.onerror = () => { img.style.display = 'none'; };
             thumb.appendChild(img);
@@ -313,7 +314,7 @@ function buildCharacterSelector(selectedChars) {
 
             const img = document.createElement('img');
             img.className = 'wl-pl-selector-avatar';
-            img.src = `/characters/${char.avatar}`;
+            img.src = getCharacterAvatarUrl(char.avatar, getContext());
             img.alt = char.name;
             img.onerror = () => { img.style.display = 'none'; };
 
@@ -411,7 +412,7 @@ function updateTriggerDisplay(trigger, selectedChars) {
             thumb.className = 'wl-pl-char-thumb';
             thumb.title = char?.name || av;
             const img = document.createElement('img');
-            img.src = `/characters/${av}`;
+            img.src = getCharacterAvatarUrl(av, context);
             img.alt = char?.name || av;
             img.onerror = () => { img.style.display = 'none'; };
             thumb.appendChild(img);

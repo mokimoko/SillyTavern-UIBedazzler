@@ -41,7 +41,7 @@ async function probeInfo() {
     }
 }
 
-function isTauriHost() {
+export function isTauriHost() {
     // Primary: the Tauri webview injects this global before any app JS runs.
     if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) return true;
     // Fallback: TauriTavern ships this stylesheet into the served shell.
@@ -52,6 +52,37 @@ function isTauriHost() {
     } catch {
         return false;
     }
+}
+
+/**
+ * Return a character-avatar URL that is valid for the current host.
+ *
+ * SillyTavern serves original cards from /characters/<avatar>. TauriTavern's
+ * Rust host does not expose that legacy static route consistently, but its
+ * getThumbnailUrl() bridge is stable. Keep full-resolution originals on normal
+ * SillyTavern and use the host-provided thumbnail route on TauriTavern.
+ */
+export function getCharacterAvatarUrl(avatar, context = null, cacheBust = null) {
+    const key = String(avatar || '').trim();
+    if (!key || key === 'none') return '';
+
+    let url = '';
+    if (isTauriHost()) {
+        try {
+            const stContext = context
+                || (typeof SillyTavern !== 'undefined' ? SillyTavern.getContext?.() : null);
+            url = stContext?.getThumbnailUrl?.('avatar', key) || '';
+        } catch { /* fall through to the canonical thumbnail route */ }
+        if (!url) url = `/thumbnail?type=avatar&file=${encodeURIComponent(key)}`;
+    } else {
+        url = `/characters/${encodeURIComponent(key)}`;
+    }
+
+    if (cacheBust != null) {
+        const separator = url.includes('?') ? '&' : '?';
+        url += `${separator}t=${encodeURIComponent(String(cacheBust))}`;
+    }
+    return url;
 }
 
 async function detectHost() {

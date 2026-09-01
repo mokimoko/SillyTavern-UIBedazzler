@@ -16,6 +16,7 @@
 import { getCharacterChats } from './charData.js';
 import { applyChipColor } from './grid.js';
 import { withControlBusy } from './uiFeedback.js';
+import { getCharacterAvatarUrl } from '../hostAdapter.js';
 
 const log = () => {};
 
@@ -90,9 +91,7 @@ function buildHero(m) {
         // Grid + tag-hub cards keep the light thumbnail (many images at once);
         // only this one-at-a-time hero pays the full-res cost. Falls back to the
         // thumbnail if the raw avatar filename is somehow unavailable.
-        img.src = (m.avatar && m.avatar !== 'none')
-            ? `/characters/${encodeURIComponent(m.avatar)}`
-            : m.avatarUrl;
+        img.src = getCharacterAvatarUrl(m.avatar) || m.avatarUrl;
         img.alt = '';
         media.appendChild(img);
     } else {

@@ -70,6 +70,7 @@ import {
     isSidecarLoaded as titlesLoaded,
     onSidecarLoaded as onTitlesLoaded,
 } from '../charTitles.js';
+import { getCharacterAvatarUrl, isTauriHost } from '../hostAdapter.js';
 
 const log = () => {};
 
@@ -442,12 +443,17 @@ export function takeoverExpanded() {
  * on the next pass).
  */
 function fullResPreviewSrc(src) {
+    // TauriTavern has no dependable /characters/<avatar> static route. Its
+    // thumbnail URL is already the host-supported representation, so leave it.
+    if (isTauriHost()) return null;
     if (!src || src.indexOf('/thumbnail?') === -1) return null;
     if (!/[?&]type=avatar(?:&|$)/.test(src)) return null;
     const fileM = src.match(/[?&]file=([^&]*)/);
     if (!fileM || !fileM[1]) return null;
     const tM = src.match(/[?&]t=(\d+)/);
-    return `/characters/${fileM[1]}` + (tM ? `?t=${tM[1]}` : '');
+    let avatar = fileM[1];
+    try { avatar = decodeURIComponent(avatar); } catch { /* keep encoded token */ }
+    return getCharacterAvatarUrl(avatar, null, tM?.[1] ?? null);
 }
 
 /**
@@ -2219,11 +2225,16 @@ export function refreshAvatarEverywhere(avatarKey) {
     try {
         const charname = String(avatarKey).replace(/\.png$/i, '');
         // The full-size url ST will set (no query). We append a unique buster.
-        const bustedFull = `/characters/${encodeURIComponent(avatarKey)}?t=${ts}`;
+        // TauriTavern's native zoom owns its host-specific media URL. Rewriting
+        // it to SillyTavern's legacy /characters route is what broke portraits.
+        if (isTauriHost()) return;
+
+        const cleanFull = getCharacterAvatarUrl(avatarKey, ctx);
+        const bustedFull = getCharacterAvatarUrl(avatarKey, ctx, ts);
 
         // Warm the full-size HTTP-cache entry now so the busted load below is a
         // fast 304-or-cached fetch when the user actually opens the zoom.
-        fetch(`/characters/${encodeURIComponent(avatarKey)}`, { method: 'GET', cache: 'reload' }).catch(() => {});
+        fetch(cleanFull, { method: 'GET', cache: 'reload' }).catch(() => {});
 
         // Tear down any prior hook (rapid repeat set) so we never stack them.
         if (avatarZoomClickHandler) {

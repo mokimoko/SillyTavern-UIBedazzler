@@ -55,12 +55,18 @@ import {
     initChatDesign,
     onChatDesignToggleChanged,
 } from './src/chatDesign/index.js';
-import { openChatDesignModal } from './src/chatDesign/modal.js';
+import { openChatDesignModal } from './src/chatDesign/modalLoader.js';
 import { initAuthorsNote } from './src/authorsNote/index.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
 import { initCuteLoader } from './src/cuteLoader.js';
 import { installTauriCloak } from './src/tauriCloak.js';
 import { initSideButtons, onSideButtonsToggleChanged } from './src/sideButtons.js';
+import {
+    applySideButtonStyleForActiveChar,
+    getDefaultSideButtonStyle,
+    getSideButtonStyleChoices,
+    setDefaultSideButtonStyle,
+} from './src/chatDesign/sideButtonStyleSwitch.js';
 import { initVariableViewer } from './src/variableViewer/index.js';
 // Centered Prompt Viewer — replaces ST's native raw-prompt / diff side-slide
 // (in the message Prompt Itemization popup) with a centered overlay. Always-on
@@ -195,10 +201,18 @@ function buildSettingsHTML() {
                             <span class="bd-sec-count"></span>
                         </div>
                         <div class="bd-sec-body" style="display:none;">
-                            <label class="bd-row" title="Floating quick-access buttons on the right side for installed extensions.">
-                                <span class="bd-row-name">Side Buttons</span>
-                                <input type="checkbox" class="bd-switch" data-bd-key="sideButtons">
-                            </label>
+                            <div class="bd-rowwrap" data-bd-parent="sideButtons">
+                                <label class="bd-row" title="Floating quick-access buttons on the right side for installed extensions.">
+                                    <span class="bd-row-name">Side Buttons</span>
+                                    <input type="checkbox" class="bd-switch" data-bd-key="sideButtons">
+                                </label>
+                                <label class="bd-subrow" title="Default appearance for the Side Button strip. Individual characters can override this in Chat Design.">
+                                    <span class="bd-subrow-name">Button Style</span>
+                                    <select class="text_pole bd-style-select" id="bd-side-button-style">
+                                        ${getSideButtonStyleChoices().map(({ id, label }) => `<option value="${id}">${label}</option>`).join('')}
+                                    </select>
+                                </label>
+                            </div>
                             <label class="bd-row" title="Replaces ST's native 'Show raw prompt' side-slide (in a message's Prompt Itemization popup) with a centered, role-separated prompt viewer — the same one used in the Expanded Preset Drawer's Test chat.">
                                 <span class="bd-row-name">Centered Prompt Viewer</span>
                                 <input type="checkbox" class="bd-switch" data-bd-key="centeredPromptViewer">
@@ -301,6 +315,15 @@ function wireSettingsEvents() {
             refreshSecCounts();
         });
     });
+
+    const sideButtonStyleSelect = container.querySelector('#bd-side-button-style');
+    if (sideButtonStyleSelect) {
+        sideButtonStyleSelect.value = getDefaultSideButtonStyle();
+        sideButtonStyleSelect.addEventListener('change', () => {
+            setDefaultSideButtonStyle(sideButtonStyleSelect.value);
+            applySideButtonStyleForActiveChar();
+        });
+    }
 
     // ── Collapsible section headers ──────────────────────────
     // Click or Enter/Space toggles the section body; chevron rotates.

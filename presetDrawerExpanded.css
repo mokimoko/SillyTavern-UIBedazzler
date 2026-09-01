@@ -5,18 +5,6 @@
    so the drawer follows the active SillyTavern theme.
    ============================================================ */
 
-/* Expand button injected into the CC preset controls row. Light, chrome-free
-   like ST's icon buttons; only affordances (pointer, hover lift) are styled. */
-#wl-pe-expand-btn {
-    cursor: pointer;
-    opacity: 0.75;
-    transition: opacity .15s, color .15s;
-}
-#wl-pe-expand-btn:hover {
-    opacity: 1;
-    color: var(--bd-accent, #97a7c6);
-}
-
 /* ── Root overlay ─────────────────────────────────────────
    Opaque like the char/WI expanded drawers: a flat theme-tint LAYER over an
    opaque black background so the page can't bleed through the semi-transparent

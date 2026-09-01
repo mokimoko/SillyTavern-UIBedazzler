@@ -8,13 +8,39 @@
 
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
-import { takeoverExpanded, restoreExpanded, isExpandedActive } from './drawerUI.js';
+import { ensureFeatureStyle } from '../featureStyles.js';
+import { EXPANDED_STYLE_ID, expandedStyleUrl } from './drawerBridge.js';
 
 const log = () => {};
 
 const EXPAND_BTN_ID = 'wl-pe-expand-btn';
+const ROOT_ID = 'wl-pe-root';
 let panelObserver = null;
 let panelRefreshFrame = null;
+let drawerModulePromise = null;
+
+function loadDrawerModule() {
+    return drawerModulePromise ??= import('./drawerUI.js');
+}
+
+export function isExpandedActive() {
+    return !!document.getElementById(ROOT_ID);
+}
+
+async function takeoverExpanded() {
+    if (!isEnabled() || isExpandedActive()) return;
+    const [, drawer] = await Promise.all([
+        ensureFeatureStyle(EXPANDED_STYLE_ID, expandedStyleUrl()),
+        loadDrawerModule(),
+    ]);
+    if (isEnabled() && !isExpandedActive()) drawer.takeoverExpanded();
+}
+
+async function restoreExpanded() {
+    if (!isExpandedActive() || !drawerModulePromise) return;
+    const drawer = await drawerModulePromise;
+    if (isExpandedActive()) drawer.restoreExpanded();
+}
 
 function isEnabled() {
     return !!extension_settings[MODULE_NAME]?.presetDrawerExpanded;
@@ -258,5 +284,3 @@ function teardownOpenExpandedWatcher() {
     }
     redirecting = false;
 }
-
-export { isExpandedActive };

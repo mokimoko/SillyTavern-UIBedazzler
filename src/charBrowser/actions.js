@@ -19,7 +19,7 @@
 
 // The CDE takeover — same entry the native expand button uses. Importing it here
 // is the browser→edit bridge the PLAN calls for.
-import { takeoverExpanded, isExpandedActive } from '../charDrawerExpanded/drawerUI.js';
+import { takeoverExpanded, isExpandedActive } from '../charDrawerExpanded/index.js';
 // Group open pipeline. openGroupById isn't on getContext() (openGroupChat is),
 // so import it directly — same six-levels-up path drawerUI uses for the group-
 // create flow.

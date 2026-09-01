@@ -5,23 +5,6 @@
    Overlay: fixed, full-viewport, above ST's UI.
    ============================================ */
 
-/* Expand button injected into the right-nav header (left of the display name).
-   Small left margin nudges it to align with the lock/characters icons stacked
-   directly above it in #CharListButtonAndHotSwaps. */
-#wl-xd-expand-btn {
-    flex: 0 0 auto;
-    align-self: center;
-    margin-left: 5px;
-}
-
-/* No character loaded (welcome / create / group): greyed + non-interactive,
-   but still visible so users know the feature exists and what it needs. */
-#wl-xd-expand-btn.wl-xd-disabled {
-    opacity: 0.35;
-    pointer-events: none;
-    cursor: default;
-}
-
 /* ============================================
    Root overlay + 3-column grid
    ============================================ */

@@ -17,6 +17,8 @@ const log = () => {};
 
 const CHAT_SELECTOR = '#chat';
 let observer = null;
+let retryTimer = null;
+let stampingRequested = false;
 
 /**
  * Extract the `file=` param from a thumbnail src and decode it.
@@ -55,7 +57,7 @@ export function stampMessage(mes) {
 export function stampAllMessages() {
     const chat = document.querySelector(CHAT_SELECTOR);
     if (!chat) return;
-    chat.querySelectorAll('.mes').forEach(stampMessage);
+    chat.querySelectorAll('.mes:not([data-wl-avatar])').forEach(stampMessage);
 }
 
 /**
@@ -71,15 +73,25 @@ export function stampAllMessages() {
  * Idempotent: calling start again tears down the previous observer first.
  */
 export function startAvatarStamping() {
+    stampingRequested = true;
     const chat = document.querySelector(CHAT_SELECTOR);
     if (!chat) {
         log('startAvatarStamping: #chat not found, deferring');
-        // #chat may not exist at init; retry shortly.
-        setTimeout(startAvatarStamping, 200);
+        if (retryTimer === null) {
+            retryTimer = setTimeout(() => {
+                retryTimer = null;
+                if (stampingRequested) startAvatarStamping();
+            }, 200);
+        }
         return;
     }
 
-    stopAvatarStamping();
+    if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+    }
+    observer?.disconnect();
+    observer = null;
 
     // Initial pass over anything already rendered.
     stampAllMessages();
@@ -87,13 +99,29 @@ export function startAvatarStamping() {
     observer = new MutationObserver((mutations) => {
         for (const mut of mutations) {
             // Case 1/2: new nodes added to the chat subtree.
-            for (const node of mut.addedNodes) {
-                if (node.nodeType !== 1) continue;
-                if (node.classList?.contains('mes')) {
-                    stampMessage(node);
+            if (mut.type === 'childList') {
+                const owningMessage = mut.target.closest?.('.mes');
+                if (owningMessage) {
+                    // Once a message is stamped, nested Markdown/streaming DOM
+                    // cannot change its identity. An initially-empty message is
+                    // revisited only when its avatar subtree arrives.
+                    if (!owningMessage.dataset.wlAvatar) {
+                        const avatarArrived = [...mut.addedNodes].some(node =>
+                            node?.nodeType === 1 && (
+                                node.matches?.('.avatar, .avatar img')
+                                || node.querySelector?.('.avatar img')
+                            ));
+                        if (avatarArrived) stampMessage(owningMessage);
+                    }
                 } else {
-                    // A wrapper/child was added; stamp any .mes within.
-                    node.querySelectorAll?.('.mes').forEach(stampMessage);
+                    for (const node of mut.addedNodes) {
+                        if (node.nodeType !== 1) continue;
+                        if (node.classList?.contains('mes')) {
+                            stampMessage(node);
+                        } else {
+                            node.querySelectorAll?.('.mes').forEach(stampMessage);
+                        }
+                    }
                 }
             }
 
@@ -123,6 +151,11 @@ export function startAvatarStamping() {
  * Stop observing. Existing data-wl-avatar attributes are left in place.
  */
 export function stopAvatarStamping() {
+    stampingRequested = false;
+    if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+    }
     if (observer) {
         observer.disconnect();
         observer = null;

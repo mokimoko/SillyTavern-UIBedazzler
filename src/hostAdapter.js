@@ -15,6 +15,7 @@
 // The adapter is resolved once (async, cached) at first use.
 
 import { createAddedNodeBatcher } from './addedNodeBatcher.js';
+import { subscribeBodyMutations } from './bodyMutationHub.js';
 
 const PLUGIN_BASE = '/api/plugins/nebula-loader';
 const EXT_BASE = '/scripts/extensions/third-party/SillyTavern-UIBedazzler';
@@ -298,9 +299,18 @@ function tauriBackend() {
             };
             scan(document.body);
             if (!this._assistantObserver) {
-                this._assistantMutationBatcher = createAddedNodeBatcher(scan);
-                this._assistantObserver = new MutationObserver(this._assistantMutationBatcher);
-                this._assistantObserver.observe(document.body, { childList: true, subtree: true });
+                this._assistantMutationBatcher = createAddedNodeBatcher(scan, {
+                    acceptNode: node => {
+                        if (!node.closest?.('#chat')) return true;
+                        if (!node.closest?.('.mes')) return true;
+                        // Inside a rendered message, only avatar-shaped inserts
+                        // can introduce the Assistant image. Ignore Markdown and
+                        // streaming content nodes before they reach the RAF queue.
+                        return node.matches?.('img, .avatar, .mesAvatarWrapper')
+                            || !!node.querySelector?.('img');
+                    },
+                });
+                this._assistantObserver = subscribeBodyMutations(this._assistantMutationBatcher);
             }
             return { ok: true, applied: true };
         },

@@ -17,9 +17,17 @@
 
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
-import { takeoverCharBrowser, restoreCharBrowser, isCharBrowserActive } from './drawerUI.js';
+import { ensureFeatureStyle } from '../featureStyles.js';
 
 const log = () => {};
+const ROOT_ID = 'wl-cb-root';
+const STYLE_ID = 'bd-char-browser-style';
+const styleUrl = () => new URL('../../charBrowser.css', import.meta.url).href;
+let drawerModulePromise = null;
+
+function loadDrawerModule() {
+    return drawerModulePromise ??= import('./drawerUI.js');
+}
 
 // ============================================================
 // Enable gate
@@ -47,6 +55,25 @@ export function initCharBrowser() {
     log('Initialized');
 }
 
+export function isCharBrowserActive() {
+    return !!document.getElementById(ROOT_ID);
+}
+
+export async function takeoverCharBrowser() {
+    if (!isCharBrowserEnabled() || isCharBrowserActive()) return;
+    const [, drawer] = await Promise.all([
+        ensureFeatureStyle(STYLE_ID, styleUrl()),
+        loadDrawerModule(),
+    ]);
+    if (isCharBrowserEnabled() && !isCharBrowserActive()) drawer.takeoverCharBrowser();
+}
+
+export async function restoreCharBrowser() {
+    if (!isCharBrowserActive() || !drawerModulePromise) return;
+    const drawer = await drawerModulePromise;
+    if (isCharBrowserActive()) drawer.restoreCharBrowser();
+}
+
 /**
  * Settings toggle handler for "Character Browser". Enabling wires nothing new
  * (the slash command is always registered and self-gates; the drawer's entry
@@ -60,11 +87,6 @@ export function onCharBrowserToggleChanged(_enabled) {
         restoreCharBrowser();
     }
 }
-
-// Re-export the takeover/restore so the future open-on-click wiring (PLAN
-// phase 7, in charDrawerExpanded/index.js) can route the no-character branch
-// here without reaching into drawerUI.js directly.
-export { takeoverCharBrowser, restoreCharBrowser, isCharBrowserActive };
 
 // ============================================================
 // /charbrowser slash command

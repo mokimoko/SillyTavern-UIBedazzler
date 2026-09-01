@@ -6,6 +6,7 @@
 export function createAddedNodeBatcher(scan, {
     schedule = callback => requestAnimationFrame(callback),
     cancel = handle => cancelAnimationFrame(handle),
+    acceptNode = () => true,
 } = {}) {
     const pendingRoots = new Set();
     let scheduledHandle = null;
@@ -34,7 +35,7 @@ export function createAddedNodeBatcher(scan, {
     const enqueue = mutations => {
         for (const mutation of mutations || []) {
             for (const node of mutation.addedNodes || []) {
-                if (node?.nodeType === 1) pendingRoots.add(node);
+                if (node?.nodeType === 1 && acceptNode(node, mutation)) pendingRoots.add(node);
             }
         }
         if (pendingRoots.size === 0 || scheduledHandle !== null) return;

@@ -62,6 +62,15 @@ const BUTTON_REGISTRY = [
         wandMenuLabel: 'SuperAgents',
     },
     {
+        id: 'dynamic-events',
+        label: 'Dynamic Events',
+        icon: '<i class="fa-solid fa-bolt"></i>',
+        detect: () => window.DynamicEvents?.ui?.openPopup,
+        trigger: () => window.DynamicEvents?.ui?.openPopup(),
+        hideOriginal: null,
+        wandMenuLabel: 'Dynamic Events',
+    },
+    {
         id: 'simple-summarizer',
         label: 'Simple Summarizer',
         icon: '<i class="fa-solid fa-scroll"></i>',
@@ -130,8 +139,10 @@ let observers = [];
 // a cheap DOM observer for extensions that add or replace triggers even later.
 let startupPollTimer = null;
 let detectedSignature = '';
+let lateExtensionScanFrame = null;
 const POLL_MS = 500;        // how often to re-check globals during extension boot
 const MAX_POLL_MS = 60000;  // cover slow sequential extension initialization
+const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #audio_open_modal_btn, #scp-dock-icon, #extensionsMenu';
 
 /** Return a stable key for the registry entries currently available. */
 function getDetectedSignature() {
@@ -142,6 +153,26 @@ function getDetectedSignature() {
         } catch { /* detect() may touch not-yet-ready globals */ }
     }
     return ids.join('|');
+}
+
+function queueLateExtensionScan() {
+    if (lateExtensionScanFrame !== null) return;
+    lateExtensionScanFrame = requestAnimationFrame(() => {
+        lateExtensionScanFrame = null;
+        if (!isActive) return;
+        const nextSignature = getDetectedSignature();
+        if (nextSignature !== detectedSignature) buildButtonStrip();
+    });
+}
+
+function mutationTouchesExtensionTriggers(mutation) {
+    if (mutation.target?.closest?.('#chat')) return false;
+    for (const node of [...(mutation.addedNodes || []), ...(mutation.removedNodes || [])]) {
+        if (node?.nodeType !== 1) continue;
+        if (node.matches?.(EXTENSION_TRIGGER_SELECTOR)
+            || node.querySelector?.(EXTENSION_TRIGGER_SELECTOR)) return true;
+    }
+    return false;
 }
 
 /**
@@ -301,7 +332,9 @@ function observeWandMenu() {
     if (!menu) return;
 
     const obs = new MutationObserver(() => {
-        if (isActive) hideWandMenuItems();
+        if (!isActive) return;
+        hideWandMenuItems();
+        queueLateExtensionScan();
     });
     obs.observe(menu, { childList: true });
     observers.push(obs);
@@ -309,16 +342,15 @@ function observeWandMenu() {
 
 /**
  * Keep the strip in sync with extensions that add or replace DOM triggers
- * after the startup poll. The signature guard prevents unrelated page
- * mutations (new messages, drawer changes, etc.) from causing rebuilds.
+ * after the startup poll. Ignore ordinary chat/profile redraws and coalesce a
+ * relevant burst into one animation-frame scan.
  */
 function observeLateExtensions() {
     if (!document.body) return;
 
-    const obs = new MutationObserver(() => {
-        if (!isActive) return;
-        const nextSignature = getDetectedSignature();
-        if (nextSignature !== detectedSignature) buildButtonStrip();
+    const obs = new MutationObserver((mutations) => {
+        if (!isActive || !mutations.some(mutationTouchesExtensionTriggers)) return;
+        queueLateExtensionScan();
     });
     obs.observe(document.body, { childList: true, subtree: true });
     observers.push(obs);
@@ -344,6 +376,10 @@ function destroy() {
     // Tear down observers
     observers.forEach(obs => obs.disconnect());
     observers = [];
+    if (lateExtensionScanFrame !== null) {
+        cancelAnimationFrame(lateExtensionScanFrame);
+        lateExtensionScanFrame = null;
+    }
 }
 
 // ── Public API ───────────────────────────────────────────

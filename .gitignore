@@ -1,0 +1,45 @@
+# Installed dependencies
+node_modules/
+
+# Local backups and recovered repository metadata
+_backups/
+.git-backup/
+
+# Local development helpers and scratch validation scripts
+_tools/
+/_braces.cjs
+/_check-*.cjs
+
+# Private working notes
+/*_HANDOFF.md
+/*-HANDOFF.md
+/*_TASKLIST.md
+/SPLIT_PLAN.md
+
+# Test output
+coverage/
+.nyc_output/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files (keep examples trackable)
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system clutter
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+Desktop.ini

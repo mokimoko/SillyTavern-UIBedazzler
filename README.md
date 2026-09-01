@@ -18,7 +18,7 @@ Tabs in the persona drawer and in the character drawer's Advanced section let yo
 
 ## Chat Design
 
-Access from the extension's settings or the extension context menu. Create styles for various elements like banners and assign them to characters and personas.
+Access from the extension's settings or the extension context menu. Create styles for various elements like banners and assign them to characters and personas. The Themes and Icons categories can also switch the saved UI theme, General Icons, and Top Bar Icons automatically for each character. Personas are intentionally excluded from those whole-interface assignments.
 
 ## Variable Viewer
 

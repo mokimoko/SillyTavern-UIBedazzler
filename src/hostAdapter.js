@@ -14,6 +14,8 @@
 // hardcoding PLUGIN_BASE / ASSETS / fetch('/api/plugins/nebula-loader/...').
 // The adapter is resolved once (async, cached) at first use.
 
+import { createAddedNodeBatcher } from './addedNodeBatcher.js';
+
 const PLUGIN_BASE = '/api/plugins/nebula-loader';
 const EXT_BASE = '/scripts/extensions/third-party/SillyTavern-UIBedazzler';
 // Where shipped assets live once relocated into the extension. Both hosts serve
@@ -265,9 +267,8 @@ function tauriBackend() {
             };
             scan(document.body);
             if (!this._assistantObserver) {
-                this._assistantObserver = new MutationObserver((muts) => {
-                    for (const m of muts) for (const n of m.addedNodes) scan(n);
-                });
+                this._assistantMutationBatcher = createAddedNodeBatcher(scan);
+                this._assistantObserver = new MutationObserver(this._assistantMutationBatcher);
                 this._assistantObserver.observe(document.body, { childList: true, subtree: true });
             }
             return { ok: true, applied: true };
@@ -277,6 +278,8 @@ function tauriBackend() {
                 this._assistantObserver.disconnect();
                 this._assistantObserver = null;
             }
+            this._assistantMutationBatcher?.cancel();
+            this._assistantMutationBatcher = null;
             document.querySelectorAll(this._assistantSelector)
                 .forEach((i) => this._assistantRevert(i));
             return { ok: true, applied: false };

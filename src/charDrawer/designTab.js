@@ -16,6 +16,7 @@ import {
     extractColorsFromImage, uploadBannerImage,
     escapeCSSName, injectStyleElement, clearStyleElement,
 } from '../design/designUtils.js';
+import { getCharacterAvatarUrl } from '../hostAdapter.js';
 
 const log = () => {};
 
@@ -352,7 +353,7 @@ export function renderDesignTab(pane) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Extracting...';
 
         try {
-            const imgSrc = `/characters/${encodeURIComponent(avatar)}`;
+            const imgSrc = getCharacterAvatarUrl(avatar, getContext());
             const [nameColor, dialogueColor, boxColor] = await extractColorsFromImage(imgSrc);
             if (!isStillCurrent()) return;
 
@@ -548,7 +549,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
     if (hasBanner) {
         let bannerImageUrl = '';
         if (bannerMode === 'avatar' && avatarFile) {
-            bannerImageUrl = `/characters/${encodeURIComponent(String(avatarFile))}`;
+            bannerImageUrl = getCharacterAvatarUrl(avatarFile, getContext());
         } else if (bannerMode === 'custom' && bannerUrl) {
             bannerImageUrl = bannerUrl;
         }

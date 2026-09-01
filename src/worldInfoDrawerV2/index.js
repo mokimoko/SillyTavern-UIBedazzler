@@ -104,7 +104,6 @@ export function initWorldInfoDrawerV2() {
     // (re)started by onWorldInfoDrawerExpandedToggleChanged on enable.
     // startSimCapture() is idempotent, so a redundant call is harmless.
     if (isExpandedEnabled()) {
-        ensureWiV2Style();
         startSimCapture();
     }
 
@@ -157,7 +156,6 @@ function isOpenExpandedEnabled() {
  */
 export function onWorldInfoDrawerExpandedToggleChanged(enabled) {
     if (enabled) {
-        ensureWiV2Style();
         startSimCapture();
         // The native-drawer expand button becomes available now.
         setupNativeExpandButton();

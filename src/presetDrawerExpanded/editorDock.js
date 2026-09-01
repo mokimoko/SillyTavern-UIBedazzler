@@ -13,7 +13,7 @@
 // re-dock on a debounced rAF after user CLICKS (opening / saving / closing the
 // editor are all clicks) — targeted, no mutation storm.
 
-import { activateRightTab } from './drawerUI.js';
+import { activateRightTab } from './drawerBridge.js';
 
 const DOCK_CLASS = 'wl-pe-docked-editor';
 

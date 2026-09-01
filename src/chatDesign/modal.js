@@ -32,6 +32,11 @@ import {
     ICON_AXES, getIconChoices, getDefaultIconSet, setDefaultIconSet,
     getIconSetForCharacter, setIconSetForCharacter, applyIconSetsForActiveChar,
 } from './iconSwitch.js';
+import {
+    getSideButtonStyleChoices, getDefaultSideButtonStyle, setDefaultSideButtonStyle,
+    getSideButtonStyleForCharacter, setSideButtonStyleForCharacter,
+    applySideButtonStyleForActiveChar,
+} from './sideButtonStyleSwitch.js';
 
 const log = () => {};
 
@@ -53,7 +58,7 @@ function esc(s) {
 // ============================================================
 
 let isOpen = false;
-let activeTab = 'core';         // Overview, a style element, Themes, or Icons
+let activeTab = 'core';         // Overview, a style element, or an interface assignment tab
 let editingStyleId = null;      // Currently editing style ID, or null for list view
 let editingSnapshot = null;     // Deep clone before editing (for cancel/restore)
 let fontsLoaded = false;
@@ -174,6 +179,7 @@ function renderSidebar() {
         { id: 'cursor', icon: 'fa-arrow-pointer', label: 'Cursor' },
         { id: 'themes', icon: 'fa-palette', label: 'Themes' },
         { id: 'icons', icon: 'fa-icons', label: 'Icons' },
+        { id: 'side-buttons', icon: 'fa-grip-vertical', label: 'Side Buttons' },
     ];
 
     sidebar.innerHTML = items.map(item => `
@@ -212,6 +218,8 @@ function renderContent() {
         renderThemesView(content);
     } else if (activeTab === 'icons') {
         renderIconsView(content);
+    } else if (activeTab === 'side-buttons') {
+        renderSideButtonStylesView(content);
     } else if (editingStyleId) {
         renderEditor(content);
     } else {
@@ -501,6 +509,134 @@ function wireIconsView(container) {
     });
 }
 
+// ============================================================
+// Side Buttons Tab — global default + per-character override
+// ============================================================
+
+function renderSideButtonStylesView(container) {
+    const characters = getAvailableCharacters().sort((a, b) => a.name.localeCompare(b.name));
+    const charTags = getCharacterTags();
+    const choices = getSideButtonStyleChoices();
+    const defaultStyle = getDefaultSideButtonStyle();
+
+    const options = (selected, allowInherit = false) => {
+        const fallback = choices.find(choice => choice.id === defaultStyle)?.label || 'Default';
+        const inherit = allowInherit
+            ? `<option value="">— Use default (${esc(fallback)}) —</option>`
+            : '';
+        return inherit + choices.map(choice => `
+            <option value="${esc(choice.id)}" ${choice.id === selected ? 'selected' : ''}>${esc(choice.label)}</option>
+        `).join('');
+    };
+
+    const tagChips = charTags.length === 0 ? '' : `
+        <div class="wl-cdm-tag-chips" id="wl-cdm-sb-tag-chips">
+            ${charTags.map(tag => `<button type="button" class="wl-cdm-tag-chip" data-tagid="${esc(tag.id)}">${esc(tag.name)}</button>`).join('')}
+        </div>
+    `;
+
+    const charRow = (character) => {
+        const tagIds = (character.tags || []).map(tag => tag.id).join(' ');
+        const tagNames = (character.tags || []).map(tag => tag.name).join(' ');
+        const search = `${character.name} ${character.avatar} ${tagNames}`.toLowerCase();
+        return `
+            <div class="wl-cdm-sb-row wl-cdm-pickrow" data-search="${esc(search)}" data-tagids="${esc(tagIds)}">
+                <div class="wl-cdm-sb-charname">${esc(character.name)} <span class="wl-cdm-pick-hint">${esc(character.avatar)}</span></div>
+                <label class="wl-cdm-sb-field">
+                    <span>Style</span>
+                    <select class="wl-cdm-select wl-cdm-sb-charselect" data-avatar="${esc(character.avatar)}">
+                        ${options(getSideButtonStyleForCharacter(character.avatar), true)}
+                    </select>
+                </label>
+            </div>
+        `;
+    };
+
+    container.innerHTML = `
+        <div class="wl-cdm-core">
+            <div class="wl-cdm-section-title">Default Side Button Style</div>
+            <div class="wl-cdm-field-hint">This is the same global choice shown in UI Bedazzler's extension settings. Groups and unassigned characters use it.</div>
+            <label class="wl-cdm-sb-default-field">
+                <span>Button Style</span>
+                <select class="wl-cdm-select" id="wl-cdm-sb-default">
+                    ${options(defaultStyle)}
+                </select>
+            </label>
+
+            <div class="wl-cdm-divider"></div>
+
+            <div class="wl-cdm-section-title">Per-Character Side Buttons</div>
+            <div class="wl-cdm-field-hint">Choose a character-specific style or inherit the global default. Personas share the character's interface.</div>
+
+            <div class="wl-cdm-pick-filter">
+                <input type="text" class="wl-cdm-input wl-cdm-pick-search" id="wl-cdm-sb-search"
+                       placeholder="Filter by name, tag, or file…">
+                ${tagChips}
+            </div>
+
+            <div class="wl-cdm-sb-list" id="wl-cdm-sb-list">
+                ${characters.length === 0
+                    ? '<div class="wl-cdm-empty-small">No characters loaded</div>'
+                    : characters.map(charRow).join('')
+                }
+                <div class="wl-cdm-empty-small wl-cdm-no-match" id="wl-cdm-sb-nomatch" style="display:none">No matches</div>
+            </div>
+        </div>
+    `;
+
+    wireSideButtonStylesView(container);
+}
+
+function wireSideButtonStylesView(container) {
+    container.querySelector('#wl-cdm-sb-default')?.addEventListener('change', (event) => {
+        setDefaultSideButtonStyle(event.target.value);
+        applySideButtonStyleForActiveChar();
+        renderSideButtonStylesView(container);
+    });
+
+    container.querySelectorAll('.wl-cdm-sb-charselect').forEach(select => {
+        select.addEventListener('change', () => {
+            setSideButtonStyleForCharacter(select.dataset.avatar, select.value);
+            applySideButtonStyleForActiveChar();
+        });
+    });
+
+    const searchInput = container.querySelector('#wl-cdm-sb-search');
+    const chips = [...container.querySelectorAll('#wl-cdm-sb-tag-chips .wl-cdm-tag-chip')];
+    const rows = [...container.querySelectorAll('#wl-cdm-sb-list .wl-cdm-sb-row')];
+    const noMatch = container.querySelector('#wl-cdm-sb-nomatch');
+    const activeTags = new Set();
+
+    const apply = () => {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        let visible = 0;
+        for (const row of rows) {
+            const rowTags = (row.dataset.tagids || '').split(' ').filter(Boolean);
+            const matchesText = !query || (row.dataset.search || '').includes(query);
+            const matchesTags = activeTags.size === 0 || rowTags.some(id => activeTags.has(id));
+            const show = matchesText && matchesTags;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        }
+        if (noMatch) noMatch.style.display = visible === 0 ? '' : 'none';
+    };
+
+    searchInput?.addEventListener('input', apply);
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const id = chip.dataset.tagid;
+            if (activeTags.has(id)) {
+                activeTags.delete(id);
+                chip.classList.remove('wl-cdm-tag-chip-active');
+            } else {
+                activeTags.add(id);
+                chip.classList.add('wl-cdm-tag-chip-active');
+            }
+            apply();
+        });
+    });
+}
+
 // ── Core / Overview ──
 
 function renderCoreView(container) {
@@ -537,6 +673,7 @@ function renderCoreView(container) {
                 ${renderOverviewCard('Cursor', 'fa-arrow-pointer', countByElement.cursor || 0, 'cursor')}
                 ${renderOverviewCard('Themes', 'fa-palette', null, 'themes', 'Settings')}
                 ${renderOverviewCard('Icons', 'fa-icons', null, 'icons', 'Settings')}
+                ${renderOverviewCard('Side Buttons', 'fa-grip-vertical', null, 'side-buttons', 'Settings')}
             </div>
 
             <div class="wl-cdm-info-block">

@@ -872,3 +872,67 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================================
+   Side Buttons tab — global default + per-character overrides
+   ============================================================ */
+
+.wl-cdm-sb-default-field,
+.wl-cdm-sb-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.wl-cdm-sb-default-field {
+    max-width: 360px;
+    margin-top: 10px;
+}
+
+.wl-cdm-sb-default-field > span,
+.wl-cdm-sb-field > span {
+    color: var(--bd-text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.wl-cdm-sb-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.wl-cdm-sb-row {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) minmax(180px, 0.8fr);
+    align-items: end;
+    gap: 10px;
+    padding: 7px 8px;
+    border: 1px solid var(--bd-border);
+    border-radius: 6px;
+    background: var(--bd-surface-2);
+}
+
+.wl-cdm-sb-charname {
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wl-cdm-sb-charselect {
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 760px) {
+    .wl-cdm-sb-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+}

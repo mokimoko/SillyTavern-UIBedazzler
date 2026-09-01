@@ -13,7 +13,7 @@
 // No ST imports here: everything is resolved off the DOM rows the group layer
 // already relies on, which keeps this decoupled from openai.js versioning.
 
-import { activateRightTab } from './drawerUI.js';
+import { activateRightTab } from './drawerBridge.js';
 
 /** The relocated prompt-manager list inside the expanded drawer's center column. */
 function centerList() {

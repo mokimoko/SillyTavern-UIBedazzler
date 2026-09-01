@@ -13,6 +13,7 @@
 import { suspendForExpanded, resumeAfterExpanded } from '../presetDrawer.js';
 import { startGroupRender, stopGroupRender } from './groupRender.js';
 import { startEditorDock, stopEditorDock } from './editorDock.js';
+import { registerRightTabActivator } from './drawerBridge.js';
 import { startTestChat, stopTestChat } from './testChat.js';
 import { startRegexDock, stopRegexDock } from './regexDock.js';
 
@@ -246,6 +247,8 @@ export function activateRightTab(which) {
     const root = document.getElementById(ROOT_ID);
     if (root) switchRightTab(root, which);
 }
+
+registerRightTabActivator(activateRightTab);
 
 // Toggle the right column between the Edit and Test views. Just flips `hidden`
 // on the two view containers and the active class on the tabs; nothing is torn

@@ -82,10 +82,12 @@ const DEFAULT_SETTINGS = {
         themeAssignments: {},
         themeDefault: '',
         iconAssignments: {},
+        sideButtonStyleAssignments: {},
     },
 
     // --- Side Buttons ---
     sideButtons: true,
+    sideButtonStyle: 'default',
 
     // Centered Prompt Viewer — replaces ST's native "Show raw prompt" /
     // "Diff with previous" side-slide (in the message Prompt Itemization popup)

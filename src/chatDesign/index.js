@@ -14,6 +14,7 @@ import { scheduleCSSRebuild } from '../cssScheduler.js';
 import { startAvatarStamping, stopAvatarStamping, stampAllMessages } from './avatarStamp.js';
 import { applyThemeForActiveChar } from './themeSwitch.js';
 import { applyIconSetsForActiveChar } from './iconSwitch.js';
+import { applySideButtonStyleForActiveChar } from './sideButtonStyleSwitch.js';
 
 const log = () => {};
 
@@ -22,6 +23,8 @@ const log = () => {};
  * Called once from root index.js during extension startup.
  */
 export function initChatDesign() {
+    applySideButtonStyleForActiveChar();
+
     // Inject CSS if enabled on startup
     if (isChatDesignEnabled()) {
         injectChatDesignCSS();
@@ -56,6 +59,7 @@ export function initChatDesign() {
         // boot-time "/split unknown command" race.
         applyThemeForActiveChar();
         void applyIconSetsForActiveChar();
+        applySideButtonStyleForActiveChar();
     });
 
     // cuteLoader resolves its host asynchronously. Once its icon assets and

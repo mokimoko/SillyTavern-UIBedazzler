@@ -6,15 +6,49 @@
    ============================================================ */
 
 @import url('./presetDrawer.css');
-@import url('./presetDrawerExpanded.css');
 @import url('./userSettingsDrawer.css');
 @import url('./personaLore.css');
 @import url('./charDrawer.css');
-@import url('./charDrawerExpanded.css');
-@import url('./charBrowser.css');
-@import url('./chatDesign.css');
-@import url('./variableViewer.css');
 @import url('./nativePromptViewer.css');
+
+/* Lightweight launch controls stay resident; large overlay styles load only
+   when their corresponding expanded surface is opened. */
+#wl-xd-expand-btn {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: 5px;
+}
+
+#wl-xd-expand-btn.wl-xd-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+}
+
+#wl-pe-expand-btn {
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity .15s, color .15s;
+}
+
+#wl-pe-expand-btn:hover {
+    opacity: 1;
+    color: var(--bd-accent, #97a7c6);
+}
+
+#wl-wi2-native-expand-btn {
+    cursor: pointer;
+    opacity: 0.7;
+    line-height: 1;
+    transition: opacity .15s, color .15s;
+}
+
+#wl-wi2-native-expand-btn:hover,
+#wl-wi2-native-expand-btn:focus-visible {
+    opacity: 1;
+    color: var(--SmartThemeQuoteColor, #9b8cff);
+    outline: none;
+}
 
 /* ── Shared CSS Variables ─────────────────────────────────
    Theme-adaptive layer. Everything derives from SillyTavern's
@@ -177,10 +211,11 @@
     cursor: pointer;
 }
 
-/* Icon-set pickers. The row is flex with .bd-row-name on flex:1, so the
+/* Compact settings pickers. The row is flex with its name on flex:1, so the
    select only needs a cap — without one it stretches and shoves the label.
    Sits where a .bd-switch would, hence the matching right-edge alignment. */
-.bd-iconset-select {
+.bd-iconset-select,
+.bd-style-select {
     flex: 0 0 auto;
     max-width: 55%;
     height: auto;
@@ -393,6 +428,160 @@
     background: rgba(124, 109, 250, 0.18);
     border-color: rgba(124, 109, 250, 0.5);
     color: rgba(124, 109, 250, 1);
+}
+
+
+/* === Side Button Style Variants ========================== */
+/* Body-scoped so switching styles never changes the baseline rules above. */
+
+/* Quiet Rail — compact controls on one shared frosted surface. */
+body.bd-side-buttons-quiet-rail #bd-side-buttons {
+    gap: 2px;
+    padding: 5px;
+    border: 1px solid var(--bd-border);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bd-surface) 82%, transparent);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--bd-shadow) 55%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+body.bd-side-buttons-quiet-rail .bd-side-btn {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--bd-text-dim);
+    opacity: 0.76;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+body.bd-side-buttons-quiet-rail .bd-side-btn:is(:hover, .bd-side-btn-active) {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--bd-accent) 10%, transparent);
+    color: var(--bd-accent);
+    opacity: 1;
+    transform: none;
+}
+
+/* Edge Tabs — unboxed controls that visually attach to the viewport edge. */
+body.bd-side-buttons-edge-tabs #bd-side-buttons {
+    right: 0;
+    gap: 2px;
+}
+
+body.bd-side-buttons-edge-tabs .bd-side-btn {
+    width: 40px;
+    height: 34px;
+    border: 0;
+    border-right: 2px solid transparent;
+    border-radius: 9px 0 0 9px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--bd-text-dim);
+    opacity: 0.62;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+body.bd-side-buttons-edge-tabs .bd-side-btn:is(:hover, .bd-side-btn-active) {
+    border-right-color: var(--bd-accent);
+    background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--bd-accent) 11%, transparent)
+    );
+    color: var(--bd-accent);
+    opacity: 1;
+    transform: none;
+}
+
+/* Soft Tiles — compact low-contrast squares without floating depth. */
+body.bd-side-buttons-soft-tiles #bd-side-buttons {
+    gap: 5px;
+}
+
+body.bd-side-buttons-soft-tiles .bd-side-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bd-text) 5.5%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bd-text) 8%, transparent);
+    color: var(--bd-text-dim);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+body.bd-side-buttons-soft-tiles .bd-side-btn:is(:hover, .bd-side-btn-active) {
+    border-color: color-mix(in srgb, var(--bd-accent) 18%, transparent);
+    background: color-mix(in srgb, var(--bd-accent) 11%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bd-text) 11%, transparent);
+    color: var(--bd-accent);
+    transform: none;
+}
+
+/* Halo — airy circles that gain a surface only when emphasized. */
+body.bd-side-buttons-halo #bd-side-buttons {
+    gap: 5px;
+}
+
+body.bd-side-buttons-halo .bd-side-btn {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+    color: var(--bd-text-dim);
+    opacity: 0.64;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+body.bd-side-buttons-halo .bd-side-btn:is(:hover, .bd-side-btn-active) {
+    background: color-mix(in srgb, var(--bd-surface) 82%, transparent);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--bd-border) 55%, transparent),
+        0 5px 16px color-mix(in srgb, var(--bd-shadow) 55%, transparent);
+    color: var(--bd-accent);
+    opacity: 1;
+    transform: scale(1.04);
+}
+
+/* Keep Copilot's semantic purple in the minimalist variants without
+   reintroducing its branded tile background. */
+body:is(
+    .bd-side-buttons-quiet-rail,
+    .bd-side-buttons-edge-tabs,
+    .bd-side-buttons-soft-tiles,
+    .bd-side-buttons-halo
+) .bd-side-btn[data-id="st-copilot"] {
+    color: color-mix(in srgb, rgba(124, 109, 250, 1) 78%, var(--bd-text-dim));
+}
+
+body:is(
+    .bd-side-buttons-quiet-rail,
+    .bd-side-buttons-edge-tabs,
+    .bd-side-buttons-soft-tiles,
+    .bd-side-buttons-halo
+) .bd-side-btn[data-id="st-copilot"]:hover {
+    color: rgba(124, 109, 250, 1);
+}
+
+@media (pointer: coarse) {
+    body:is(
+        .bd-side-buttons-quiet-rail,
+        .bd-side-buttons-edge-tabs,
+        .bd-side-buttons-soft-tiles,
+        .bd-side-buttons-halo
+    ) .bd-side-btn {
+        min-width: 40px;
+        min-height: 40px;
+    }
 }
 
 

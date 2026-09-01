@@ -12,7 +12,7 @@
 import { extension_settings } from '../../../../../extensions.js';
 import { eventSource, event_types } from '../../../../../../script.js';
 import { MODULE_NAME } from '../settings.js';
-import { takeoverExpanded, restoreExpanded, isExpandedActive, refreshGreetings, refreshDesignPane, refreshGallery, refreshAvatarEverywhere } from './drawerUI.js';
+import { ensureFeatureStyle } from '../featureStyles.js';
 // Shared Design CSS lifecycle lives in the classic module (it owns designTab);
 // both toggles call it so the chat styling reflects either feature being on.
 import { syncDesignCSS } from '../charDrawer/index.js';
@@ -24,10 +24,56 @@ import { takeoverCharBrowser, isCharBrowserActive, isCharBrowserEnabled } from '
 const log = () => {};
 
 const EXPAND_BTN_ID = 'wl-xd-expand-btn';
+const ROOT_ID = 'wl-xd-root';
+const STYLE_ID = 'bd-char-expanded-style';
+const styleUrl = () => new URL('../../charDrawerExpanded.css', import.meta.url).href;
 
 let nameObserver = null;
 let pendingNativeAvatarRefresh = null;
 let avatarInputHintInstalled = false;
+let drawerModulePromise = null;
+
+function loadDrawerModule() {
+    return drawerModulePromise ??= import('./drawerUI.js');
+}
+
+export function isExpandedActive() {
+    return !!document.getElementById(ROOT_ID);
+}
+
+export async function takeoverExpanded() {
+    if (!extension_settings[MODULE_NAME]?.charDrawerExpanded || isExpandedActive()) return;
+    const [, drawer] = await Promise.all([
+        ensureFeatureStyle(STYLE_ID, styleUrl()),
+        loadDrawerModule(),
+    ]);
+    if (extension_settings[MODULE_NAME]?.charDrawerExpanded && !isExpandedActive()) {
+        drawer.takeoverExpanded();
+    }
+}
+
+export async function restoreExpanded() {
+    if (!isExpandedActive() || !drawerModulePromise) return;
+    const drawer = await drawerModulePromise;
+    if (isExpandedActive()) drawer.restoreExpanded();
+}
+
+function refreshOpenDrawer(method, ...args) {
+    if (!isExpandedActive() || !drawerModulePromise) return;
+    drawerModulePromise.then(drawer => {
+        if (isExpandedActive()) drawer[method](...args);
+    }).catch(err => console.error(`[BD] Char Drawer: ${method} failed:`, err));
+}
+
+const refreshGreetings = (...args) => refreshOpenDrawer('refreshGreetings', ...args);
+const refreshDesignPane = (...args) => refreshOpenDrawer('refreshDesignPane', ...args);
+const refreshGallery = (...args) => refreshOpenDrawer('refreshGallery', ...args);
+
+function refreshAvatarEverywhere(avatarKey) {
+    loadDrawerModule()
+        .then(drawer => drawer.refreshAvatarEverywhere(avatarKey))
+        .catch(err => console.error('[BD] Char Drawer: avatar refresh failed:', err));
+}
 
 // ============================================================
 // Character-context gating

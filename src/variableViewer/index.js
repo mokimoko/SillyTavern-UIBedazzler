@@ -1,8 +1,22 @@
 import { eventSource, event_types } from '../../../../../../script.js';
-import { VariableViewerPanel } from './variablePanel.js';
+import { ensureFeatureStyle } from '../featureStyles.js';
 
-const panel = new VariableViewerPanel();
+const STYLE_ID = 'bd-variable-viewer-style';
+const styleUrl = () => new URL('../../variableViewer.css', import.meta.url).href;
+let panel = null;
+let panelPromise = null;
 let initialized = false;
+
+async function getPanel() {
+    if (panel) return panel;
+    if (!panelPromise) {
+        panelPromise = Promise.all([
+            ensureFeatureStyle(STYLE_ID, styleUrl()),
+            import('./variablePanel.js'),
+        ]).then(([, module]) => panel ??= new module.VariableViewerPanel());
+    }
+    return panelPromise;
+}
 
 function commandExists(parser, name) {
     const commands = parser?.commands;
@@ -22,8 +36,8 @@ function registerToggleCommand() {
         const commandName = commandExists(SlashCommandParser, preferredName) ? 'bdz-variables' : preferredName;
         SlashCommandParser.addCommandObject(SlashCommand.fromProps({
             name: commandName,
-            callback: () => {
-                panel.toggle();
+            callback: async () => {
+                (await getPanel()).toggle();
                 return '';
             },
             helpString: 'Toggle UI Bedazzler’s local and global Variable Viewer.',
@@ -42,9 +56,9 @@ export function initVariableViewer() {
     if (initialized) return;
     initialized = true;
     registerToggleCommand();
-    eventSource.on(event_types.CHAT_CHANGED, () => panel.onChatChanged());
+    eventSource.on(event_types.CHAT_CHANGED, () => panel?.onChatChanged());
 }
 
-export function toggleVariableViewer() {
-    panel.toggle();
+export async function toggleVariableViewer() {
+    (await getPanel()).toggle();
 }

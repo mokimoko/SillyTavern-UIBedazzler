@@ -61,7 +61,7 @@ import { bulkFavorite, bulkTag, bulkDuplicate, bulkPersona, bulkDelete, teardown
 import { openCardMenu, closeCardMenu } from './cardMenu.js';
 // New Character → expanded drawer in CREATE mode. Same import direction
 // actions.js already uses (browser → CDE), so no new cycle risk.
-import { takeoverExpanded, isExpandedActive } from '../charDrawerExpanded/drawerUI.js';
+import { takeoverExpanded, isExpandedActive } from '../charDrawerExpanded/index.js';
 // Group creation ends by OPENING the new group's chat. openGroupById isn't on
 // the public context, so import it directly — same pattern as the CDE's
 // script.js import (the extension lives six levels under public/).

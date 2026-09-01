@@ -5,25 +5,6 @@
    The mock's real styling gets ported pour-by-pour.
    ============================================================ */
 
-/* Expand button injected into ST's NATIVE World Info drawer header (right of
-   the lock #WI_panel_pin_div). Opens the v2 overlay. No explicit font-size:
-   like the lock glyph it inherits the header row's base size, so the two icons
-   read at the same scale. Only affordances (pointer, muted default, hover/focus
-   lift) are styled, to match the lock's light, chrome-free look. Formerly lived
-   here with the rest of the expanded drawer styles. */
-#wl-wi2-native-expand-btn {
-    cursor: pointer;
-    opacity: 0.7;
-    line-height: 1;
-    transition: opacity .15s, color .15s;
-}
-#wl-wi2-native-expand-btn:hover,
-#wl-wi2-native-expand-btn:focus-visible {
-    opacity: 1;
-    color: var(--SmartThemeQuoteColor, #9b8cff);
-    outline: none;
-}
-
 #wl-wi2-root {
     position: fixed;
     inset: 0;

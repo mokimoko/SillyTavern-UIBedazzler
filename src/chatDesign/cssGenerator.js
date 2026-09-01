@@ -617,8 +617,7 @@ function buildActiveBackgroundCSS() {
  *   - Verse-resolved styles (medium specificity)
  *   - Direct character/persona styles (highest specificity with #chat prefix)
  */
-export function buildAllCSS() {
-    const styles = getAllStyles();
+export function buildAllCSS(styles = getAllStyles()) {
     if (styles.length === 0) return '';
 
     const sections = ['/* WL Chat Design */'];
@@ -723,7 +722,7 @@ export function injectChatDesignCSS() {
     const styles = getAllStyles();
     loadUsedFonts(styles);
 
-    const css = buildAllCSS();
+    const css = buildAllCSS(styles);
     if (css) {
         let el = document.getElementById(STYLE_ELEMENT_ID);
         if (!el) {
@@ -731,7 +730,7 @@ export function injectChatDesignCSS() {
             el.id = STYLE_ELEMENT_ID;
             document.head.appendChild(el);
         }
-        el.textContent = css;
+        if (el.textContent !== css) el.textContent = css;
         log('CSS injected,', styles.length, 'style(s)');
     } else {
         removeChatDesignCSS();

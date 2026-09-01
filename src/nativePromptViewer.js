@@ -13,7 +13,7 @@
 // private popup state. The overlay is styled exactly like the Expanded Preset
 // Drawer's Test-chat prompt viewer
 // (.wl-pe-prompt-overlay .wl-pe-pv-*, defined in presetDrawerExpanded.css and
-// always loaded via style.css's @import). For Chat Completion presets the raw
+// loaded when this viewer opens). For Chat Completion presets the raw
 // prompt is an array of { role, content } and is passed to the same shared
 // renderer used by Test chat. Text completion prompts render as one block.
 //
@@ -32,7 +32,9 @@
 import { DOMPurify, localforage } from '../../../../../lib.js';
 import { extension_settings, getContext } from '../../../../extensions.js';
 import { MODULE_NAME } from './settings.js';
+import { ensureFeatureStyle } from './featureStyles.js';
 import { renderPromptMessages } from './presetDrawerExpanded/promptViewer.js';
+import { EXPANDED_STYLE_ID, expandedStyleUrl } from './presetDrawerExpanded/drawerBridge.js';
 
 const OVERLAY_ID = 'wl-bd-npv-overlay';
 export const NPV_SETTING_KEY = 'centeredPromptViewer';
@@ -111,7 +113,7 @@ export function initNativePromptViewer() {
             return;
         }
         if (target.closest('#diffPrevPrompt')) {
-            queueMicrotask(openDiff);
+            queueMicrotask(() => void openDiff());
         }
     });
 }
@@ -208,6 +210,7 @@ async function openRaw() {
         : [{ role: 'prompt', content: String(rawPrompt ?? '') }];
 
     const count = Array.isArray(rawPrompt) ? messages.length : 1;
+    await ensureFeatureStyle(EXPANDED_STYLE_ID, expandedStyleUrl());
     openOverlay({
         title: 'Compiled prompt',
         sub: rawPrompt == null
@@ -226,13 +229,14 @@ async function openRaw() {
     });
 }
 
-function openDiff() {
+async function openDiff() {
     // ST already calculated and sanitized the correct diff using its private
     // current/prior indices. Mirror that exact output instead of recalculating
     // it from a second lookup.
     const nativeHtml = takeNativeResult(true);
     if (!nativeHtml) return;
 
+    await ensureFeatureStyle(EXPANDED_STYLE_ID, expandedStyleUrl());
     openOverlay({
         title: 'Prompt diff',
         sub: 'changes from the previous generation',

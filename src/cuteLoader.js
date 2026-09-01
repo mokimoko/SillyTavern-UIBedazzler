@@ -18,6 +18,7 @@
 import { getSetting, setSetting } from './settings.js';
 import { getAdapter } from './hostAdapter.js';
 import { createAddedNodeBatcher } from './addedNodeBatcher.js';
+import { subscribeBodyMutations } from './bodyMutationHub.js';
 
 // The resolved host adapter (server / tauri / plain). Set once in
 // initCuteLoader before anything else runs; all URL building and backend calls
@@ -71,11 +72,13 @@ const ICON_SETS = {
         'pixel': { label: 'Pixelarticons', css: 'topbar-pixel.css', bodyClass: 'bd-topbar-pixel' },
         'cyber': { label: 'Streamline Cyber', css: 'topbar-cyber.css', bodyClass: 'bd-topbar-cyber' },
         'sl-pixel': { label: 'Streamline Pixel', css: 'topbar-sl-pixel.css', bodyClass: 'bd-topbar-sl-pixel' },
+        'historical': { label: 'Historical', css: 'topbar-historical.css', bodyClass: 'bd-topbar-historical' },
         // Colored sets — full-color artwork, no currentColor tint.
         'glyphs-poly': { label: 'Glyphs Poly (color)', css: 'topbar-glyphs-poly.css', bodyClass: 'bd-topbar-glyphs-poly' },
         'stickies': { label: 'Streamline Stickies (color)', css: 'topbar-stickies.css', bodyClass: 'bd-topbar-stickies' },
     },
 };
+const activeIconSets = { general: null, topbar: null };
 
 const ICON_SETTING_KEY = { general: 'generalIconSet', topbar: 'topbarIconSet' };
 
@@ -178,9 +181,12 @@ function startLogoObserver(versionTag) {
     currentLogoVersionTag = versionTag;
     swapLogosWithin(document.body);
 
-    logoMutationBatcher = createAddedNodeBatcher(swapLogosWithin);
-    logoObserver = new MutationObserver(logoMutationBatcher);
-    logoObserver.observe(document.body, { childList: true, subtree: true });
+    // The welcome logo can never appear inside chat. Reject those roots before
+    // they enter the animation-frame queue so streaming/render churn is free.
+    logoMutationBatcher = createAddedNodeBatcher(swapLogosWithin, {
+        acceptNode: node => !node.closest?.('#chat'),
+    });
+    logoObserver = subscribeBodyMutations(logoMutationBatcher);
 }
 
 function stopLogoObserver() {
@@ -221,16 +227,22 @@ function applyIconSet(axis, setId, versionTag) {
     const sets = ICON_SETS[axis];
     if (!sets) return;
 
-    // Clear every body class this axis owns before adding one back, so a
-    // switch can never leave two sets fighting each other.
+    const normalized = sets[setId]?.css ? setId : 'default';
+    const desiredClass = sets[normalized]?.bodyClass || '';
+    if (activeIconSets[axis] === normalized
+        && (!desiredClass || document.body.classList.contains(desiredClass))) return;
+
+    // Force each class directly to its final state. classList.toggle is a no-op
+    // when the state already matches, avoiding remove/add invalidation churn.
     for (const def of Object.values(sets)) {
-        if (def?.bodyClass) document.body.classList.remove(def.bodyClass);
+        if (def?.bodyClass) document.body.classList.toggle(def.bodyClass, def.bodyClass === desiredClass);
     }
 
-    const def = sets[setId];
-    if (!def?.css) return; // 'default', or an id we no longer ship
+    activeIconSets[axis] = normalized;
+    const def = sets[normalized];
+    if (!def?.css) return;
 
-    const id = linkIdFor(axis, setId);
+    const id = linkIdFor(axis, normalized);
     if (!document.getElementById(id)) {
         const link = document.createElement('link');
         link.id = id;

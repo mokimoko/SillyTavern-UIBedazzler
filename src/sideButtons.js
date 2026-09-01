@@ -5,10 +5,11 @@
 
 import { eventSource, event_types } from '../../../../../script.js';
 import { getSetting } from './settings.js';
-import { openChatDesignModal } from './chatDesign/modal.js';
+import { openChatDesignModal } from './chatDesign/modalLoader.js';
 import { openAuthorsNoteModal } from './authorsNote/index.js';
 import { attachSAFlyout, destroySAFlyout } from './saFlyout.js';
 import { makeDebug } from './debug.js';
+import { subscribeBodyMutations } from './bodyMutationHub.js';
 
 const log = makeDebug('[UIBedazzler:SideButtons]');
 
@@ -348,11 +349,10 @@ function observeWandMenu() {
 function observeLateExtensions() {
     if (!document.body) return;
 
-    const obs = new MutationObserver((mutations) => {
+    const obs = subscribeBodyMutations((mutations) => {
         if (!isActive || !mutations.some(mutationTouchesExtensionTriggers)) return;
         queueLateExtensionScan();
     });
-    obs.observe(document.body, { childList: true, subtree: true });
     observers.push(obs);
 }
 

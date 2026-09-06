@@ -19,6 +19,16 @@ import { getSetting, setSetting } from './settings.js';
 import { getAdapter } from './hostAdapter.js';
 import { createAddedNodeBatcher } from './addedNodeBatcher.js';
 import { subscribeBodyMutations } from './bodyMutationHub.js';
+import {
+    CUSTOM_TOPBAR_SET_ID,
+    getCustomTopbarSet,
+    getCustomTopbarSets,
+    getFirstCustomTopbarSetId,
+    initCustomTopbarIcons,
+    isCustomTopbarSetId,
+    setActiveCustomTopbarSet,
+} from './customTopbarIcons.js';
+import { openCustomTopbarIconEditor } from './customTopbarIconEditor.js';
 
 // The resolved host adapter (server / tauri / plain). Set once in
 // initCuteLoader before anything else runs; all URL building and backend calls
@@ -76,6 +86,7 @@ const ICON_SETS = {
         // Colored sets — full-color artwork, no currentColor tint.
         'glyphs-poly': { label: 'Glyphs Poly (color)', css: 'topbar-glyphs-poly.css', bodyClass: 'bd-topbar-glyphs-poly' },
         'stickies': { label: 'Streamline Stickies (color)', css: 'topbar-stickies.css', bodyClass: 'bd-topbar-stickies' },
+        'custom': { label: 'Custom…', bodyClass: 'bd-topbar-custom', custom: true },
     },
 };
 const activeIconSets = { general: null, topbar: null };
@@ -223,37 +234,49 @@ function linkIdFor(axis, setId) {
  * stale persisted value from a removed set should degrade to stock icons,
  * not break the settings panel on load.
  */
-function applyIconSet(axis, setId, versionTag) {
+function applyIconSet(axis, setId, versionTag, customSetId = '') {
     const sets = ICON_SETS[axis];
     if (!sets) return;
 
-    const normalized = sets[setId]?.css ? setId : 'default';
-    const desiredClass = sets[normalized]?.bodyClass || '';
-    if (activeIconSets[axis] === normalized
-        && (!desiredClass || document.body.classList.contains(desiredClass))) return;
+    const normalized = sets[setId] ? setId : 'default';
+    const desiredIds = new Set([normalized]);
+    let activeKey = normalized;
+    if (axis === 'topbar' && normalized === CUSTOM_TOPBAR_SET_ID) {
+        const selected = getCustomTopbarSet(customSetId);
+        const baseSet = selected?.baseSet || 'default';
+        desiredIds.add(sets[baseSet] && baseSet !== CUSTOM_TOPBAR_SET_ID ? baseSet : 'default');
+        activeKey = `${normalized}:${selected?.id || ''}:${baseSet}`;
+        setActiveCustomTopbarSet(selected?.id || '');
+    } else if (axis === 'topbar') {
+        setActiveCustomTopbarSet('');
+    }
+    const desiredClasses = new Set([...desiredIds].map(id => sets[id]?.bodyClass).filter(Boolean));
+    const classesMatch = Object.values(sets).every(def => !def?.bodyClass
+        || document.body.classList.contains(def.bodyClass) === desiredClasses.has(def.bodyClass));
+    if (activeIconSets[axis] === activeKey && classesMatch) return;
 
-    // Force each class directly to its final state. classList.toggle is a no-op
-    // when the state already matches, avoiding remove/add invalidation churn.
+    // Custom is a partial overlay, so it keeps both its own class and the
+    // selected base-set class active. Unassigned slots fall through naturally.
     for (const def of Object.values(sets)) {
-        if (def?.bodyClass) document.body.classList.toggle(def.bodyClass, def.bodyClass === desiredClass);
+        if (def?.bodyClass) document.body.classList.toggle(def.bodyClass, desiredClasses.has(def.bodyClass));
     }
 
-    activeIconSets[axis] = normalized;
-    const def = sets[normalized];
-    if (!def?.css) return;
-
-    const id = linkIdFor(axis, normalized);
-    if (!document.getElementById(id)) {
-        const link = document.createElement('link');
-        link.id = id;
-        link.rel = 'stylesheet';
-        // Adapter builds the URL: plugin route on server, extension path on
-        // tauri. versionTag is appended for cache-busting where meaningful.
-        const base = adapter.iconSetCssUrl(def.css);
-        link.href = versionTag ? `${base}?v=${versionTag}` : base;
-        document.head.append(link);
+    activeIconSets[axis] = activeKey;
+    for (const desiredId of desiredIds) {
+        const def = sets[desiredId];
+        if (!def?.css) continue;
+        const id = linkIdFor(axis, desiredId);
+        if (!document.getElementById(id)) {
+            const link = document.createElement('link');
+            link.id = id;
+            link.rel = 'stylesheet';
+            // Adapter builds the URL: plugin route on server, extension path on
+            // tauri. versionTag is appended for cache-busting where meaningful.
+            const base = adapter.iconSetCssUrl(def.css);
+            link.href = versionTag ? `${base}?v=${versionTag}` : base;
+            document.head.append(link);
+        }
     }
-    document.body.classList.add(def.bodyClass);
 }
 
 /** Serializable icon choices shared by the settings drawer and Chat Design. */
@@ -267,14 +290,14 @@ export function isKnownIconSet(axis, setId) {
 }
 
 /** Apply one axis without changing the global/default setting. */
-export async function applyIconSetSelection(axis, setId) {
+export async function applyIconSetSelection(axis, setId, customSetId = '') {
     if (!isKnownIconSet(axis, setId)) setId = 'default';
     if (!adapter) {
         adapter = await getAdapter();
         assetsVersion = String(adapter.assetsVersion ?? '0');
     }
     if (adapter.host === 'plain') return false;
-    applyIconSet(axis, setId, assetsVersion);
+    applyIconSet(axis, setId, assetsVersion, customSetId);
     return true;
 }
 
@@ -331,6 +354,12 @@ function buildNebulaSectionHTML(features) {
                 <span class="bd-row-name">Top Bar Icons</span>
                 <select class="text_pole bd-iconset-select" id="bd-iconset-topbar">${renderIconOptions('topbar')}</select>
             </label>
+            <div class="bd-custom-icons-launch-row" id="bd-custom-icons-launch-row" hidden>
+                <select class="text_pole bd-custom-icon-set-select" id="bd-custom-icon-set" aria-label="Custom top bar set"></select>
+                <button type="button" class="menu_button menu_button_icon" id="bd-edit-custom-icons">
+                    <i class="fa-solid fa-icons"></i><span>Manage custom sets…</span>
+                </button>
+            </div>
         </div>
     `;
 }
@@ -393,6 +422,8 @@ export async function initCuteLoader() {
     adapter = await getAdapter();
     if (adapter.host === 'plain') return; // preserve legacy no-op behavior.
 
+    await initCustomTopbarIcons();
+
     // Stable, content-based cache-bust tag for every asset URL this module
     // builds. Server reports it via /info; tauri has none, so '0'.
     assetsVersion = String(adapter.assetsVersion ?? '0');
@@ -436,16 +467,60 @@ export async function initCuteLoader() {
             setSetting(key, 'default');
         }
 
-        if (select.value !== 'default') applyIconSet(axis, select.value, assetsVersion);
+        if (select.value !== 'default') {
+            const customId = axis === 'topbar' ? resolvedDefaultCustomSetId() : '';
+            applyIconSet(axis, select.value, assetsVersion, customId);
+        }
 
         select.addEventListener('change', () => {
             setSetting(key, select.value);
-            applyIconSet(axis, select.value, assetsVersion);
+            applyIconSet(axis, select.value, assetsVersion, axis === 'topbar' ? resolvedDefaultCustomSetId() : '');
+            if (axis === 'topbar') syncCustomIconLauncher();
             window.dispatchEvent(new CustomEvent('UIBEDAZZLER_ICON_DEFAULTS_CHANGED'));
         });
     }
 
+    const customButton = document.querySelector('#bd-edit-custom-icons');
+    customButton?.addEventListener('click', async () => {
+        await openCustomTopbarIconEditor(getIconSetChoices('topbar'), resolvedDefaultCustomSetId());
+        syncCustomIconLauncher();
+    });
+    document.querySelector('#bd-custom-icon-set')?.addEventListener('change', event => {
+        setSetting('topbarCustomSetId', event.currentTarget.value);
+        applyIconSet('topbar', CUSTOM_TOPBAR_SET_ID, assetsVersion, event.currentTarget.value);
+        window.dispatchEvent(new CustomEvent('UIBEDAZZLER_ICON_DEFAULTS_CHANGED'));
+    });
+    window.addEventListener('UIBEDAZZLER_CUSTOM_ICON_LIBRARY_CHANGED', syncCustomIconLauncher);
+    syncCustomIconLauncher();
+
     // Chat Design listens for this so a character override wins after the
     // asynchronous host probe applies the global defaults during startup.
     window.dispatchEvent(new CustomEvent('UIBEDAZZLER_ICON_DEFAULTS_CHANGED'));
+}
+
+function syncCustomIconLauncher() {
+    const select = document.querySelector('#bd-iconset-topbar');
+    const row = document.querySelector('#bd-custom-icons-launch-row');
+    if (!select || !row) return;
+    row.hidden = select.value !== CUSTOM_TOPBAR_SET_ID;
+    const customSelect = row.querySelector('#bd-custom-icon-set');
+    if (!customSelect) return;
+    const selectedId = resolvedDefaultCustomSetId();
+    const choices = getCustomTopbarSets();
+    customSelect.innerHTML = choices.length
+        ? choices.map(set => `<option value="${set.id}">${escapeOption(set.name)}</option>`).join('')
+        : '<option value="">Create a set first</option>';
+    customSelect.disabled = choices.length === 0;
+    customSelect.value = selectedId;
+}
+
+function resolvedDefaultCustomSetId() {
+    const saved = getSetting('topbarCustomSetId') || '';
+    const resolved = isCustomTopbarSetId(saved) ? saved : getFirstCustomTopbarSetId();
+    if (resolved !== saved) setSetting('topbarCustomSetId', resolved);
+    return resolved;
+}
+
+function escapeOption(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

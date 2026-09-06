@@ -19,6 +19,7 @@ const CHAT_SELECTOR = '#chat';
 let observer = null;
 let retryTimer = null;
 let stampingRequested = false;
+let onAvatarStamped = null;
 
 /**
  * Extract the `file=` param from a thumbnail src and decode it.
@@ -48,6 +49,7 @@ export function stampMessage(mes) {
     const avatar = avatarFromSrc(img.getAttribute('src'));
     if (!avatar) return false;
     if (mes.dataset.wlAvatar !== avatar) mes.dataset.wlAvatar = avatar;
+    try { onAvatarStamped?.(avatar, mes); } catch {}
     return true;
 }
 
@@ -72,7 +74,8 @@ export function stampAllMessages() {
  *
  * Idempotent: calling start again tears down the previous observer first.
  */
-export function startAvatarStamping() {
+export function startAvatarStamping(callback = null) {
+    if (typeof callback === 'function') onAvatarStamped = callback;
     stampingRequested = true;
     const chat = document.querySelector(CHAT_SELECTOR);
     if (!chat) {
@@ -152,6 +155,7 @@ export function startAvatarStamping() {
  */
 export function stopAvatarStamping() {
     stampingRequested = false;
+    onAvatarStamped = null;
     if (retryTimer !== null) {
         clearTimeout(retryTimer);
         retryTimer = null;

@@ -1,10 +1,10 @@
 // Global + per-character Side Button style selection.
 
-import { getContext } from '../../../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../../../script.js';
 import { getSetting, setSetting } from '../settings.js';
 import { cleanAvatar } from '../design/designUtils.js';
 import { getChatDesignSettings } from './storage.js';
+import { getAppearanceAvatar } from './chatScope.js';
 
 // Add future styles here and define their body-scoped rules in style.css.
 const SIDE_BUTTON_STYLES = Object.freeze({
@@ -23,12 +23,6 @@ function ensureAssignments() {
         chatDesign.sideButtonStyleAssignments = {};
     }
     return chatDesign.sideButtonStyleAssignments;
-}
-
-function getActiveCharacterAvatar() {
-    const context = getContext();
-    if (context.groupId || context.characterId == null) return '';
-    return cleanAvatar(context.characters?.[context.characterId]?.avatar || '');
 }
 
 export function getSideButtonStyleChoices() {
@@ -70,7 +64,7 @@ export function setSideButtonStyleForCharacter(charAvatar, styleId) {
 }
 
 export function resolveSideButtonStyleForCurrentChat() {
-    const avatar = getActiveCharacterAvatar();
+    const avatar = getAppearanceAvatar();
     const assigned = avatar ? ensureAssignments()[avatar] : '';
     return isKnownSideButtonStyle(assigned) ? assigned : getDefaultSideButtonStyle();
 }

@@ -31,6 +31,7 @@ import { getContext } from '../../../../../extensions.js';
 import { power_user } from '../../../../../power-user.js';
 import { getChatDesignSettings } from './storage.js';
 import { cleanAvatar } from '../design/designUtils.js';
+import { getAppearanceAvatar } from './chatScope.js';
 
 const log = () => {};
 
@@ -137,21 +138,6 @@ export function setThemeForCharacter(charAvatar, themeName) {
 // ============================================================
 
 /**
- * The cleaned avatar of the currently loaded single character, or null.
- * Group chats have no single character, so they resolve to null and fall back
- * to the default theme (mirroring the old QR's group behaviour).
- */
-function getActiveCharacterAvatar() {
-    const ctx = getContext();
-    if (ctx.groupId) return null; // group chat: no single active character
-    const chid = ctx.characterId;
-    if (chid == null) return null;
-    const char = ctx.characters?.[chid];
-    if (!char?.avatar) return null;
-    return cleanAvatar(char.avatar);
-}
-
-/**
  * The theme name that should be active for the current chat:
  *   1. the active character's assigned theme, if any;
  *   2. otherwise the configured default theme;
@@ -159,7 +145,7 @@ function getActiveCharacterAvatar() {
  */
 export function resolveThemeForCurrentChat() {
     const cd = ensureThemeShape();
-    const avatar = getActiveCharacterAvatar();
+    const avatar = getAppearanceAvatar();
     if (avatar && cd.themeAssignments[avatar]) {
         return cd.themeAssignments[avatar];
     }

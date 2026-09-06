@@ -219,7 +219,7 @@ function tauriBackend() {
         host: 'tauri',
         capabilities: {
             assets: true, cursors: true, frames: false,
-            audio: true, bgm: true, assistant: true, // DOM-swap fallback (below)
+            audio: false, bgm: false, assistant: true, // DOM-swap fallback (below)
         },
         features: { assistantSwap: true }, // DOM-swap, so the settings row shows
         serverSkinsLoader: false, // UIBedazzler must inject the loader skin itself

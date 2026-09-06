@@ -71,6 +71,11 @@ import {
     onSidecarLoaded as onTitlesLoaded,
 } from '../charTitles.js';
 import { getCharacterAvatarUrl, isTauriHost } from '../hostAdapter.js';
+import {
+    isAspectEvolutiaAvailable,
+    mountAspectEvolutiaIntegration,
+    restoreAspectEvolutiaIntegration,
+} from './aspectEvolutia.js';
 
 const log = () => {};
 
@@ -125,6 +130,8 @@ let createModeActive = false;
 //   { element, style, original }               — an inline-style change to undo.
 let relocatedElements = [];
 let container = null;
+let tabBarResizeHandler = null;
+let tabScrollHoldCleanup = null;
 
 // Greetings tab state. The alt-greetings sub-tab strip is authored chrome (not
 // relocated ST nodes), rebuilt from ST's data array on every mutation. We track
@@ -240,6 +247,16 @@ function markForClassCleanup(element, classes) {
  * every actual field/control is a relocated ST element.
  */
 function buildShell() {
+    // A:E stores against an existing character id, so its workspace is useful
+    // in edit mode only. The tab is omitted entirely when unavailable.
+    const showIntegrations = !createModeActive && isAspectEvolutiaAvailable();
+    const integrationsTab = showIntegrations
+        ? '<button class="wl-xd-tab" data-tab="integrations"><i class="fa-solid fa-plug"></i><span>Integrations</span></button>'
+        : '';
+    const integrationsPane = showIntegrations
+        ? '<div class="wl-xd-pane" data-tab="integrations"></div>'
+        : '';
+
     const root = document.createElement('div');
     root.id = 'wl-xd-root';
     root.innerHTML = `
@@ -281,14 +298,23 @@ function buildShell() {
         </aside>
 
         <main id="wl-xd-center">
-            <div id="wl-xd-tab-bar">
-                <button class="wl-xd-tab active" data-tab="basics"><i class="fa-solid fa-user"></i><span>Basics</span></button>
-                <button class="wl-xd-tab" data-tab="addinfo"><i class="fa-solid fa-circle-plus"></i><span>Additional Info</span></button>
-                <button class="wl-xd-tab" data-tab="greetings"><i class="fa-solid fa-hand"></i><span>Greetings</span></button>
-                <button class="wl-xd-tab" data-tab="design"><i class="fa-solid fa-palette"></i><span>Design</span></button>
-                <button class="wl-xd-tab" data-tab="gallery"><i class="fa-solid fa-images"></i><span>Gallery</span></button>
-                <button class="wl-xd-tab" data-tab="prompts"><i class="fa-solid fa-terminal"></i><span>Prompts</span></button>
-                <button class="wl-xd-tab" data-tab="metadata"><i class="fa-solid fa-circle-info"></i><span>Metadata</span></button>
+            <div id="wl-xd-tab-strip">
+                <button type="button" class="wl-xd-tab-scroll wl-xd-tab-scroll-left" title="Scroll tabs left" aria-label="Scroll tabs left">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <div id="wl-xd-tab-bar">
+                    <button class="wl-xd-tab active" data-tab="basics"><i class="fa-solid fa-user"></i><span>Basics</span></button>
+                    <button class="wl-xd-tab" data-tab="addinfo"><i class="fa-solid fa-circle-plus"></i><span>Additional Info</span></button>
+                    <button class="wl-xd-tab" data-tab="greetings"><i class="fa-solid fa-hand"></i><span>Greetings</span></button>
+                    <button class="wl-xd-tab" data-tab="design"><i class="fa-solid fa-palette"></i><span>Design</span></button>
+                    <button class="wl-xd-tab" data-tab="gallery"><i class="fa-solid fa-images"></i><span>Gallery</span></button>
+                    <button class="wl-xd-tab" data-tab="prompts"><i class="fa-solid fa-terminal"></i><span>Prompts</span></button>
+                    <button class="wl-xd-tab" data-tab="metadata"><i class="fa-solid fa-circle-info"></i><span>Metadata</span></button>
+                    ${integrationsTab}
+                </div>
+                <button type="button" class="wl-xd-tab-scroll wl-xd-tab-scroll-right" title="Scroll tabs right" aria-label="Scroll tabs right">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
             </div>
             <div id="wl-xd-tab-content">
                 <div class="wl-xd-pane active" data-tab="basics"></div>
@@ -298,6 +324,7 @@ function buildShell() {
                 <div class="wl-xd-pane" data-tab="gallery"></div>
                 <div class="wl-xd-pane" data-tab="prompts"></div>
                 <div class="wl-xd-pane" data-tab="metadata"></div>
+                ${integrationsPane}
             </div>
         </main>
 
@@ -384,6 +411,10 @@ export function takeoverExpanded() {
     // moving anything, so any save (even one fired mid-takeover) still scrapes
     // Description / First Message instead of writing them blank.
     ensureFormAssociation();
+
+    // Capture A:E while its controls still sit beside the native Description.
+    // Its bridge owns their restore because A:E may mount after takeover.
+    mountAspectEvolutiaIntegration(container, formCreate.querySelector('#descriptionWrapper'));
 
     relocateLeftColumn(formCreate);
     relocateBasics(formCreate);
@@ -2621,9 +2652,128 @@ function waitForNewCharacter(beforeSet, timeoutMs) {
 // ============================================================
 
 function wireChrome() {
-    // Tab switching
-    container.querySelectorAll('.wl-xd-tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    const tabStrip = container.querySelector('#wl-xd-tab-strip');
+    const tabBar = container.querySelector('#wl-xd-tab-bar');
+    const tabScrollLeft = container.querySelector('.wl-xd-tab-scroll-left');
+    const tabScrollRight = container.querySelector('.wl-xd-tab-scroll-right');
+    const tabs = [...container.querySelectorAll('.wl-xd-tab')];
+    if (tabBar) {
+        tabBar.setAttribute('role', 'tablist');
+        tabBar.addEventListener('wheel', event => {
+            if (tabBar.scrollWidth <= tabBar.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+            event.preventDefault();
+            tabBar.scrollLeft += event.deltaY;
+        }, { passive: false });
+
+        const updateScrollControls = () => {
+            const overflowing = tabBar.scrollWidth > tabBar.clientWidth + 1;
+            const atStart = tabBar.scrollLeft <= 1;
+            const atEnd = tabBar.scrollLeft + tabBar.clientWidth >= tabBar.scrollWidth - 1;
+            tabStrip?.classList.toggle('wl-xd-tab-overflow', overflowing);
+            if (tabScrollLeft) tabScrollLeft.disabled = !overflowing || atStart;
+            if (tabScrollRight) tabScrollRight.disabled = !overflowing || atEnd;
+        };
+
+        const scrollByPage = direction => {
+            tabBar.scrollBy({
+                left: direction * Math.max(120, tabBar.clientWidth * .55),
+                behavior: 'smooth',
+            });
+        };
+
+        let holdDelay = null;
+        let holdInterval = null;
+        const stopHeldScroll = () => {
+            clearTimeout(holdDelay);
+            clearInterval(holdInterval);
+            holdDelay = null;
+            holdInterval = null;
+        };
+        const startHeldScroll = (button, direction, event) => {
+            if (button.disabled) return;
+            event.preventDefault();
+            stopHeldScroll();
+            scrollByPage(direction);
+            button.setPointerCapture?.(event.pointerId);
+            holdDelay = setTimeout(() => {
+                holdInterval = setInterval(() => {
+                    if (button.disabled) {
+                        stopHeldScroll();
+                        return;
+                    }
+                    tabBar.scrollBy({ left: direction * 34, behavior: 'auto' });
+                }, 45);
+            }, 260);
+        };
+        const wireScrollButton = (button, direction) => {
+            if (!button) return;
+            button.addEventListener('pointerdown', event => startHeldScroll(button, direction, event));
+            button.addEventListener('pointerup', stopHeldScroll);
+            button.addEventListener('pointercancel', stopHeldScroll);
+            button.addEventListener('lostpointercapture', stopHeldScroll);
+            button.addEventListener('click', event => {
+                // Pointer presses already scroll on pointerdown; detail === 0
+                // preserves Enter/Space activation without double-stepping.
+                if (event.detail === 0) scrollByPage(direction);
+            });
+        };
+
+        wireScrollButton(tabScrollLeft, -1);
+        wireScrollButton(tabScrollRight, 1);
+        tabScrollHoldCleanup = stopHeldScroll;
+        tabBar.addEventListener('scroll', updateScrollControls, { passive: true });
+        tabBarResizeHandler = updateScrollControls;
+        window.addEventListener('resize', tabBarResizeHandler, { passive: true });
+        requestAnimationFrame(updateScrollControls);
+    }
+
+    const revealTab = tab => {
+        if (!tabBar || !tab) return;
+        const barRect = tabBar.getBoundingClientRect();
+        const tabRect = tab.getBoundingClientRect();
+        const edgePadding = 8;
+
+        if (tabRect.left < barRect.left + edgePadding) {
+            tabBar.scrollBy({ left: tabRect.left - barRect.left - edgePadding, behavior: 'smooth' });
+        } else if (tabRect.right > barRect.right - edgePadding) {
+            tabBar.scrollBy({ left: tabRect.right - barRect.right + edgePadding, behavior: 'smooth' });
+        }
+    };
+
+    // Tabs mirror Chat Design: wheel pans the strip, Left/Right changes tabs,
+    // and the newly active edge tab is brought into view automatically.
+    tabs.forEach((tab, index) => {
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', String(tab.classList.contains('active')));
+        tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+
+        tab.addEventListener('click', () => {
+            switchTab(tab.dataset.tab);
+            revealTab(tab);
+        });
+        tab.addEventListener('focus', () => revealTab(tab));
+        tab.addEventListener('keydown', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const nextIndex = event.key === 'Home' ? 0
+                : event.key === 'End' ? tabs.length - 1
+                    : (index + (event.key === 'ArrowLeft' ? -1 : 1) + tabs.length) % tabs.length;
+            const next = tabs[nextIndex];
+            switchTab(next.dataset.tab);
+            next.focus();
+            revealTab(next);
+        });
+        // Some host shortcuts listen on keyup instead of keydown. Consume the
+        // matching release too so ECD navigation can never become a chat swipe.
+        tab.addEventListener('keyup', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+        });
     });
 
     // Close button → restore to normal ST view
@@ -2656,7 +2806,10 @@ function wireChrome() {
 function switchTab(tabName) {
     if (!container) return;
     container.querySelectorAll('.wl-xd-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.tab === tabName);
+        const active = t.dataset.tab === tabName;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', String(active));
+        t.tabIndex = active ? 0 : -1;
     });
     container.querySelectorAll('.wl-xd-pane').forEach(p => {
         p.classList.toggle('active', p.dataset.tab === tabName);
@@ -2720,6 +2873,12 @@ export function restoreExpanded() {
     // Detach the Greetings strip's window-level resize listener (the only
     // listener that outlives the container; everything else dies with it).
     window.removeEventListener('resize', greetResizeHandler);
+    if (tabBarResizeHandler) {
+        window.removeEventListener('resize', tabBarResizeHandler);
+        tabBarResizeHandler = null;
+    }
+    tabScrollHoldCleanup?.();
+    tabScrollHoldCleanup = null;
 
     // Detach the Gallery viewer's document-level key handler (the other listener
     // that outlives the container). The overlay itself dies with the container.
@@ -2774,6 +2933,10 @@ export function restoreExpanded() {
             }
         }
     }
+
+    // Description is home again now, so A:E's controls can be restored directly
+    // ahead of it in the same order its own mountUi uses.
+    restoreAspectEvolutiaIntegration();
 
     relocatedElements = [];
     container?.remove();

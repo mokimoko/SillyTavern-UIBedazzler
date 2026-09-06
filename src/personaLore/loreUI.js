@@ -22,6 +22,36 @@ function onLoreDataChanged() {
 
 let isAddFormOpen = false;
 let editingEntryId = null;
+const activeCharacterSelectors = new Set();
+let selectorCloseHandlerInstalled = false;
+
+function closeCharacterSelectorsOnOutsideClick(event) {
+    for (const entry of [...activeCharacterSelectors]) {
+        if (!entry.wrapper.isConnected) {
+            activeCharacterSelectors.delete(entry);
+        } else if (!entry.wrapper.contains(event.target)) {
+            entry.dropdown.style.display = 'none';
+        }
+    }
+    if (activeCharacterSelectors.size === 0) {
+        document.removeEventListener('click', closeCharacterSelectorsOnOutsideClick, true);
+        selectorCloseHandlerInstalled = false;
+    }
+}
+
+function registerCharacterSelector(wrapper, dropdown) {
+    activeCharacterSelectors.add({ wrapper, dropdown });
+    if (selectorCloseHandlerInstalled) return;
+    document.addEventListener('click', closeCharacterSelectorsOnOutsideClick, true);
+    selectorCloseHandlerInstalled = true;
+}
+
+function clearCharacterSelectors() {
+    activeCharacterSelectors.clear();
+    if (!selectorCloseHandlerInstalled) return;
+    document.removeEventListener('click', closeCharacterSelectorsOnOutsideClick, true);
+    selectorCloseHandlerInstalled = false;
+}
 
 /**
  * Render the full Narrator Lore tab content
@@ -29,6 +59,7 @@ let editingEntryId = null;
 export function renderLoreTab() {
     const pane = getLoreTabPane();
     if (!pane) return;
+    clearCharacterSelectors();
 
     const avatarId = user_avatar;
     if (!avatarId) {
@@ -371,22 +402,7 @@ function buildCharacterSelector(selectedChars) {
         }
     });
 
-    // Close on outside click
-    const closeHandler = (e) => {
-        if (!wrapper.contains(e.target)) {
-            dropdown.style.display = 'none';
-        }
-    };
-    document.addEventListener('click', closeHandler, true);
-
-    // Cleanup listener when removed from DOM
-    const observer = new MutationObserver(() => {
-        if (!document.contains(wrapper)) {
-            document.removeEventListener('click', closeHandler, true);
-            observer.disconnect();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    registerCharacterSelector(wrapper, dropdown);
 
     wrapper.appendChild(trigger);
     wrapper.appendChild(dropdown);

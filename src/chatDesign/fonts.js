@@ -6,8 +6,21 @@ const log = () => {};
 
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2';
 const FONTSHARE_BASE = 'https://api.fontshare.com/v2/css';
+export const LOCAL_FONT_PREFIX = 'local:';
 
 const loadedFontLinks = new Map(); // fontKey → <link> element
+
+function cleanFontName(value) {
+    return String(value ?? '')
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
+}
+
+function escapeCSSString(value) {
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 
 // ============================================================
 // Font Catalog
@@ -211,6 +224,64 @@ export const FONT_CATEGORIES = [
 ];
 
 // ============================================================
+// Font Values
+// ============================================================
+
+/**
+ * Local choices carry a prefix so a local font named "Inter", for example,
+ * never triggers the catalog's Google Fonts loader.
+ */
+export function createLocalFontValue(fontName) {
+    const name = cleanFontName(fontName);
+    return name ? `${LOCAL_FONT_PREFIX}${name}` : 'Default (Theme)';
+}
+
+/**
+ * Older saved values are plain catalog names. Unknown plain values are treated
+ * as local fonts, which also keeps hand-edited settings backward compatible.
+ */
+export function parseFontValue(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw || raw === 'inherit' || raw === 'Default (Theme)') {
+        return { kind: 'default', name: 'Default (Theme)', value: 'Default (Theme)', font: null };
+    }
+
+    if (raw.startsWith(LOCAL_FONT_PREFIX)) {
+        const name = cleanFontName(raw.slice(LOCAL_FONT_PREFIX.length));
+        return name
+            ? { kind: 'local', name, value: `${LOCAL_FONT_PREFIX}${name}`, font: null }
+            : { kind: 'default', name: 'Default (Theme)', value: 'Default (Theme)', font: null };
+    }
+
+    const font = FONT_CATALOG.find(entry => entry.name === raw) || null;
+    if (font) {
+        return {
+            kind: font.source === 'system' ? 'system' : 'catalog',
+            name: font.name,
+            value: font.name,
+            font,
+        };
+    }
+
+    const name = cleanFontName(raw);
+    return name
+        ? { kind: 'local', name, value: `${LOCAL_FONT_PREFIX}${name}`, font: null }
+        : { kind: 'default', name: 'Default (Theme)', value: 'Default (Theme)', font: null };
+}
+
+export function getFontDisplayName(value) {
+    return parseFontValue(value).name;
+}
+
+export function getFontSourceLabel(value) {
+    const parsed = parseFontValue(value);
+    if (parsed.kind === 'default') return 'Uses the active SillyTavern theme';
+    if (parsed.kind === 'local') return 'Local font · Must be installed on this device';
+    if (parsed.kind === 'system') return 'System font';
+    return parsed.font?.source === 'fontshare' ? 'Fontshare font' : 'Google Font';
+}
+
+// ============================================================
 // Font Loading
 // ============================================================
 
@@ -238,10 +309,11 @@ function buildFontshareUrl(font) {
  * No-ops if already loaded.
  */
 export function loadFont(fontName) {
-    if (loadedFontLinks.has(fontName)) return;
+    const parsed = parseFontValue(fontName);
+    if (parsed.kind !== 'catalog' || loadedFontLinks.has(parsed.value)) return;
 
-    const font = FONT_CATALOG.find(f => f.name === fontName);
-    if (!font || font.source === 'system') return;
+    const font = parsed.font;
+    if (!font) return;
 
     let url;
     if (font.source === 'google') {
@@ -254,42 +326,10 @@ export function loadFont(fontName) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = url;
-    link.id = `wl-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+    link.id = `wl-font-${font.name.replace(/\s+/g, '-').toLowerCase()}`;
     document.head.appendChild(link);
-    loadedFontLinks.set(fontName, link);
-    log('Loaded font:', fontName);
-}
-
-/**
- * Load all fonts in a category (for font picker preview).
- * Batches Google Fonts into a single request for efficiency.
- */
-export function loadFontCategory(categoryId) {
-    const fonts = FONT_CATALOG.filter(f => f.category === categoryId && f.source !== 'system');
-    if (fonts.length === 0) return;
-
-    // Batch Google Fonts
-    const googleFonts = fonts.filter(f => f.source === 'google' && !loadedFontLinks.has(f.name));
-    if (googleFonts.length > 0) {
-        const url = buildGoogleFontsUrl(googleFonts);
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = url;
-        link.id = `wl-fonts-cat-${categoryId}`;
-        document.head.appendChild(link);
-        googleFonts.forEach(f => loadedFontLinks.set(f.name, link));
-    }
-
-    // Fontshare — must be loaded individually
-    const fshareFonts = fonts.filter(f => f.source === 'fontshare' && !loadedFontLinks.has(f.name));
-    fshareFonts.forEach(f => loadFont(f.name));
-}
-
-/**
- * Load ALL fonts (called when font picker opens for the first time).
- */
-export function loadAllFonts() {
-    FONT_CATEGORIES.forEach(cat => loadFontCategory(cat.id));
+    loadedFontLinks.set(parsed.value, link);
+    log('Loaded font:', font.name);
 }
 
 /**
@@ -299,8 +339,11 @@ export function loadAllFonts() {
 export function loadUsedFonts(styles) {
     const usedFonts = new Set();
     for (const style of styles) {
-        if (style.properties.fontFamily && style.properties.fontFamily !== 'inherit' && style.properties.fontFamily !== 'Default (Theme)') {
-            usedFonts.add(style.properties.fontFamily);
+        for (const [property, fontName] of Object.entries(style.properties || {})) {
+            if (!/fontFamily$/i.test(property)) continue;
+            if (fontName && fontName !== 'inherit' && fontName !== 'Default (Theme)') {
+                usedFonts.add(fontName);
+            }
         }
     }
     for (const fontName of usedFonts) {
@@ -312,7 +355,8 @@ export function loadUsedFonts(styles) {
  * Get a font catalog entry by display name.
  */
 export function getFontByName(name) {
-    return FONT_CATALOG.find(f => f.name === name) || null;
+    const parsed = parseFontValue(name);
+    return parsed.kind === 'catalog' || parsed.kind === 'system' ? parsed.font : null;
 }
 
 /**
@@ -321,8 +365,49 @@ export function getFontByName(name) {
  * @returns {string} CSS font-family value (e.g. "'Cinzel', serif")
  */
 export function getFontFamilyCSS(fontName) {
-    const font = getFontByName(fontName);
-    if (!font) return fontName;
+    const parsed = parseFontValue(fontName);
+    if (parsed.kind === 'default') return 'inherit';
+    const font = parsed.font;
+    if (!font) return `"${escapeCSSString(parsed.name)}", sans-serif`;
     if (font.family === 'inherit') return 'inherit';
     return font.fallback ? `${font.family}, ${font.fallback}` : font.family;
+}
+
+export function supportsLocalFontAccess() {
+    return typeof window !== 'undefined' && typeof window.queryLocalFonts === 'function';
+}
+
+function collectInstalledFontFamilies(faces, families) {
+    for (const face of faces) {
+        const family = cleanFontName(face?.family);
+        if (!family) continue;
+        const key = family.toLocaleLowerCase();
+        if (!families.has(key)) families.set(key, family);
+    }
+}
+
+/**
+ * Must be called directly from a click/keyboard action because browsers require
+ * transient user activation before showing the local-font permission prompt.
+ */
+export async function queryInstalledFontFamilies() {
+    if (!supportsLocalFontAccess()) {
+        throw new Error('Installed font browsing is not supported in this browser.');
+    }
+
+    const families = new Map();
+    const retryDelays = [0, 250, 750, 1750];
+    for (const delay of retryDelays) {
+        if (delay) await new Promise(resolve => window.setTimeout(resolve, delay));
+        collectInstalledFontFamilies(await window.queryLocalFonts(), families);
+        // Tauri's WebView can briefly return an empty cold-start result even
+        // though permission is granted. Do not present that as a complete list.
+        if (families.size > 0) break;
+    }
+
+    if (families.size === 0) {
+        throw new Error('Windows did not return any installed fonts. Restart the app and try again.');
+    }
+
+    return [...families.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }

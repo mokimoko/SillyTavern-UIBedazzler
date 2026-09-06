@@ -2,9 +2,18 @@
 
 Tired of the default look? UI Bedazzler is a [SillyTavern](https://github.com/SillyTavern/SillyTavern) extension that redesigns some UI elements and adds some new ones.
 
-> **Note:** Probably not compatible with most other UI extensions.
+> **Note:** May conflict with other extensions that restyle the same parts of SillyTavern.
 
-Enjoy :) -moki
+Enjoy! ;) - Moki
+
+## Compatibility
+
+- **TauriTavern** — Recent Chats keeps exact avatar identities for characters that share the same display name.
+- **[Guided Generations](https://github.com/Samueras/GuidedGenerations-Extension)** — Chat Design integration.
+- **[TopInfoBar](https://github.com/SillyTavern/Extension-TopInfoBar)** — Chat Design integration.
+- **[MemoryBooks](https://github.com/aikohanasaki/SillyTavern-MemoryBooks)** — Side button support.
+- **[Weather Cycle](https://github.com/nullara/st-weather-cycle)** — Side button support and a few tweaks.
+- **[Aspect: Evolutia](https://github.com/Vectricity/st-aspect-evolutia)** — Character and persona drawer integration.
 
 ---
 
@@ -18,7 +27,18 @@ Tabs in the persona drawer and in the character drawer's Advanced section let yo
 
 ## Chat Design
 
-Access from the extension's settings or the extension context menu. Create styles for various elements like banners and assign them to characters and personas. The Themes and Icons categories can also switch the saved UI theme, General Icons, and Top Bar Icons automatically for each character. Personas are intentionally excluded from those whole-interface assignments.
+Open Chat Design from the extension settings or context menu. Make reusable styles for banners, names, messages, fonts, avatars, and the top bar, then assign them to characters or personas. It supports gradients, overlays, blend modes, vignettes, local and system fonts, themes, and icon sets. Reload SillyTavern after installing fonts; local fonts must be installed on every device using the design. Whole-interface theme and icon assignments are character-only.
+
+## Light Theme Compatibility
+
+Enable **Light Theme Compatibility** under **Interface** to automatically adapt SillyTavern's native drawer headers, form fields, dropdowns, and text shadows when the active UI tint is light. Dark themes are left unchanged.
+
+## Weather Cycle Compatibility
+
+Enable **Protect Weather Cycle Background** under **Interface** to prevent
+`st-weather-cycle`'s Heat Haze / Background Blur canvas from replacing detailed
+backgrounds with stretched horizontal bands. Rain, snow, fog, lightning, tint,
+controls, and the weather badge continue to work.
 
 ## Variable Viewer
 
@@ -32,9 +52,7 @@ Full-screen workspaces that replace SillyTavern's cramped native drawers. Each o
 - **World Info** — a lorebook workspace with a library rail, grouped note list, inline editor, presets, global scan/budget controls, and a simulator for inspecting activation. Also opens via `/bdz-widrawer`.
 - **Presets** — a 3-column Chat Completion workspace (Overview | Sections | Editor).
 
-## Tabbed Drawers
-
-Lighter touch — just tab navigation added to the native panels. 
+## Screenshots
 
 *World Info Drawer*
 ![World Info Drawer](https://files.catbox.moe/d219u1.png)
@@ -49,7 +67,8 @@ Lighter touch — just tab navigation added to the native panels.
 ![Expanded Preset Drawer](https://files.catbox.moe/bjjfsk.png)
 
 ## Alternate Icons and Loading Screen
-UIBedazzler can change the default icon set for SillyTavern in general and/or the top bar (these are separate in case you want to use different ones for each!), and can also use a custom loading screen if you have my Nebula Loader Plugin installed. You can find that [here](https://github.com/mokimoko/SillyTavern-NebulaLoader).
+
+Change SillyTavern's general and top-bar icon sets independently. Custom loading screens are available with [Nebula Loader](https://github.com/mokimoko/SillyTavern-NebulaLoader).
 
 ## Installation
 

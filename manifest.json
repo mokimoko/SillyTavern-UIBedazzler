@@ -3,10 +3,10 @@
     "loading_order": 0,
     "requires": [],
     "optional": [],
-    "js": "index.js",
+    "js": "bootstrap.js",
     "css": "style.css",
-    "author": "Cee & Claude",
-    "version": "0.1.2",
-    "homePage": "https://github.com/ceebar/SillyTavern-UIBedazzler",
+    "author": "Moki",
+    "version": "0.1.7",
+    "homePage": "https://github.com/mokimoko/SillyTavern-UIBedazzler",
     "description": "ST interface upgrades: drawer reorganization, tabbed layouts, Chat Design styling, and per-character visual customization."
 }

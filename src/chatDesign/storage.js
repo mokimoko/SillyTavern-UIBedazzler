@@ -1,7 +1,7 @@
 // src/chatDesign/storage.js
 // Style CRUD and assignment resolution for Chat Design
 //
-// Styles are stored in extension_settings.WhiteLotus.chatDesign
+// Styles are stored in extension_settings.UIBedazzler.chatDesign
 // Each style targets one element type and can be assigned to characters, personas, or verses (when VM present).
 
 import { saveSettingsDebounced } from '../../../../../../script.js';
@@ -18,39 +18,145 @@ const log = () => {};
 // Schema & Defaults
 // ============================================================
 
+export const MESSAGE_ACTION_DEFAULTS = {
+    actionButtonsEnabled: false,
+    actionOffsetX: 0,
+    actionOffsetY: 0,
+    actionVisibility: 'dim',
+    actionRestingOpacity: 0.45,
+    actionButtonSize: 26,
+    actionIconSize: 14,
+    actionGap: 4,
+    actionRadius: 5,
+    actionReverse: false,
+    actionSurface: 'bare',
+    actionRestingIconColor: '#d8d5df',
+    actionRestingSurfaceColor: '#242129',
+    actionHoverIconColor: '#ffffff',
+    actionHoverSurfaceColor: '#8f72bd',
+    actionHoverMotion: 'color',
+    actionAnimationSpeed: 'normal',
+    actionShadow: 'none',
+};
+
+export const AVATAR_OVERLAY_DEFAULTS = {
+    avatarOverlayEnabled: false,
+    avatarOverlayType: 'solid',
+    avatarOverlayPrimaryColor: '#d49a74',
+    avatarOverlaySecondaryColor: '#71405b',
+    avatarOverlayOpacity: 0.32,
+    avatarOverlayAngle: 135,
+    avatarOverlayBlendMode: 'soft-light',
+    avatarOverlayVignette: 0,
+};
+
+export const THINKING_PRESETS = Object.freeze({
+    native: Object.freeze({
+        label: 'Native',
+        description: 'Theme correction only',
+    }),
+    soft: Object.freeze({
+        label: 'Soft Surface',
+        description: 'Subtle quote-color wash',
+    }),
+    outline: Object.freeze({
+        label: 'Accent Outline',
+        description: 'Clear edge, quiet fill',
+    }),
+    quiet: Object.freeze({
+        label: 'Quiet Line',
+        description: 'Minimal left accent',
+    }),
+});
+
 /**
  * Default property values per element type.
  * These define the full set of editable properties and their neutral/no-op values.
  */
+export const NAME_DEFAULTS = Object.freeze({
+    fontFamily: 'Default (Theme)',
+    fontSize: '1em',
+    fontWeight: '400',
+    fontStyle: 'normal',
+    textTransform: 'none',
+    letterSpacing: '0px',
+    textShadow: 'none',
+    offsetX: 0,
+    offsetY: 0,
+    backgroundColor: '#000000',
+    backgroundOpacity: 0,
+    backgroundWidth: 0,
+    backgroundHeight: 0,
+    backgroundTextOffsetX: 0,
+    backgroundTextOffsetY: 0,
+    backgroundShape: 'rounded',
+});
+
+const prefixedDefaults = (prefix, defaults) => Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [
+        `${prefix}${key[0].toUpperCase()}${key.slice(1)}`,
+        value,
+    ]),
+);
+
 export const ELEMENT_DEFAULTS = {
-    name: {
-        fontFamily: 'Default (Theme)',
-        fontSize: '1em',
-        fontWeight: '400',
-        fontStyle: 'normal',
-        textTransform: 'none',
-        letterSpacing: '0px',
-        textShadow: 'none',
-    },
     dialogue: {
+        ...prefixedDefaults('name', NAME_DEFAULTS),
+        fontFamilyUseCustom: false,
         fontFamily: 'Default (Theme)',
         fontSize: '1em',
         fontWeight: '400',
         fontStyle: 'normal',
         letterSpacing: '0px',
         lineHeight: 'normal',
+        messageFontFamilyUseCustom: false,
+        messageFontFamily: 'Default (Theme)',
+        messageFontSize: '1em',
+        messageFontWeight: '400',
+        messageFontStyle: 'normal',
+        messageLetterSpacing: '0px',
+        messageLineHeight: 'normal',
+        uiFontFamilyUseCustom: false,
+        uiFontFamily: 'Default (Theme)',
+        uiFontSize: '1em',
+        uiFontWeight: '400',
+        uiFontStyle: 'normal',
+        uiLetterSpacing: '0px',
+        uiLineHeight: 'normal',
+        uiTextColorUseCustom: false,
+        uiTextColor: '#142536',
     },
     banner: {
         height: 120,
+        width: 100,
+        offsetX: 0,
+        offsetY: 0,
         paddingTop: 150,
         bannerPosition: 25,
         bottomFadeColor: '#000000',
         bottomFadeOpacity: 0,
+        borderTopWidth: 0,
+        borderTopStyle: 'none',
+        borderTopColor: '#ffffff',
+        borderTopOpacity: 1,
+        borderLeftWidth: 0,
+        borderLeftStyle: 'none',
+        borderLeftColor: '#ffffff',
+        borderLeftOpacity: 1,
+        borderRightWidth: 0,
+        borderRightStyle: 'none',
+        borderRightColor: '#ffffff',
+        borderRightOpacity: 1,
         borderBottomWidth: 0,
         borderBottomStyle: 'none',
         borderBottomColor: '#ffffff',
         borderBottomOpacity: 1,
         overlayColor: '#000000',
+        overlayType: 'solid',
+        overlaySecondaryColor: '#000000',
+        overlayAngle: 135,
+        overlayBlendMode: 'normal',
+        overlayVignette: 0,
         overlayOpacity: 0,
         borderRadius: 0,
         // Diagonal bottom edge. 0 = flat (classic horizontal border). When > 0,
@@ -69,9 +175,33 @@ export const ELEMENT_DEFAULTS = {
         marginTop: 0,
         marginBottom: 0,
         paddingExtra: 0,
+        contentAreaEnabled: false,
+        contentBackgroundColor: '#000000',
+        contentBackgroundOpacity: 0.6,
+        contentBorderWidth: 0,
+        contentBorderStyle: 'solid',
+        contentBorderColor: '#ffffff',
+        contentBorderRadius: 0,
+        contentBoxShadow: 'none',
+        contentWidth: 0,
+        contentMinHeight: 0,
+        contentAreaOffsetX: 0,
+        contentAreaOffsetY: 0,
+        contentOffsetX: 0,
+        contentOffsetY: 0,
+        thinkingPreset: 'native',
+        thinkingRadius: 5,
+        thinkingAccentStrength: 60,
+        thinkingBodyEnabled: true,
     },
     avatar: {
-        size: 0,              // 0 = use theme default
+        size: 0,              // legacy combined size; new styles use width/height
+        width: 0,             // 0 = use theme default
+        height: 0,            // 0 = use theme default
+        objectFitUseCustom: false,
+        objectFit: 'theme',   // 'theme' | 'cover' | 'contain' | 'fill'
+        objectPositionX: 50,
+        objectPositionY: 50,
         offsetX: 0,           // horizontal nudge in px (+ right / - left)
         offsetY: 0,           // vertical nudge in px (- up into banner / + down)
         detachFromLayout: false, // true = pull avatar out of flow so text reclaims its column
@@ -79,9 +209,197 @@ export const ELEMENT_DEFAULTS = {
         borderStyle: 'none',
         borderColor: '#ffffff',
         borderRadius: -1,     // -1 = use theme default
+        shapeUseCustom: false,
         shape: 'theme',       // 'theme' | 'circle' | 'square' | 'rounded' | 'rectangle'
         boxShadow: 'none',
         opacity: 1,
+        edgeFade: 0,          // % of the right and bottom edges that dissolve to transparent
+        detailsFollowAvatar: false,
+        detailsOffsetX: 0,
+        detailsOffsetY: 0,
+        timestampOffsetX: 0,
+        timestampOffsetY: 0,
+        modelIconOffsetX: 0,
+        modelIconOffsetY: 0,
+        // CSS-only color treatment layered above the avatar image. It stays
+        // dormant until enabled so existing styles remain visually unchanged.
+        ...AVATAR_OVERLAY_DEFAULTS,
+        // Message-action rules stay dormant until a preset or control is used,
+        // preserving the active theme for existing and newly-created styles.
+        ...MESSAGE_ACTION_DEFAULTS,
+    },
+    generalUi: {
+        // Geometry is a stored preset because each option is deliberately
+        // coordinated with TT's separate backdrop and icon/drawer host.
+        // "theme" is a true no-op reset.
+        topBarPresetUseCustom: false,
+        topBarPreset: 'theme',
+        topBarWidthMode: 'theme',
+        topBarWidth: 92,
+        topBarHeightMode: 'theme',
+        topBarHeight: 40,
+        topBarTopOffset: 0,
+        chatGapMode: 'theme',
+        chatGap: 0,
+
+        // Surface and frame overrides remain independent of geometry so a
+        // user can recolor the native bar without first choosing a shape.
+        topBarSurfaceMode: 'theme',
+        topBarSurfaceType: 'solid',
+        topBarSurfaceColor: '#171717',
+        topBarSurfaceSecondaryColor: '#39435a',
+        topBarSurfaceAngle: 135,
+        topBarSurfaceOpacity: 0.85,
+        topBarBorderMode: 'theme',
+        topBarBorderWidth: 1,
+        topBarBorderColor: '#ffffff',
+        topBarBorderOpacity: 0.18,
+
+        // The composer stays theme-owned until one of these focused groups is
+        // enabled. Quick Reply buttons are intentionally outside their scope.
+        inputAreaSurfaceMode: 'theme',
+        inputAreaSurfaceType: 'solid',
+        inputAreaSurfaceColor: '#171717',
+        inputAreaSurfaceSecondaryColor: '#39435a',
+        inputAreaSurfaceAngle: 135,
+        inputAreaSurfaceOpacity: 0.85,
+        inputAreaBlur: 8,
+        inputAreaBorderMode: 'theme',
+        inputAreaBorderWidth: 1,
+        inputAreaBorderStyle: 'solid',
+        inputAreaBorderColor: '#ffffff',
+        inputAreaBorderOpacity: 0.18,
+        inputAreaRadius: 10,
+        inputAreaShadow: 'none',
+        inputAreaLayoutMode: 'theme',
+        inputAreaPaddingX: 2,
+        inputAreaPaddingY: 0,
+        inputAreaGap: 5,
+        inputAreaTextMode: 'theme',
+        inputAreaTextColor: '#f5f2f8',
+        inputAreaPlaceholderColor: '#aaa6b3',
+        inputAreaFontSize: 16,
+        inputAreaIconMode: 'theme',
+        inputAreaIconColor: '#d8d5df',
+        inputAreaIconHoverColor: '#ffffff',
+        inputAreaIconOpacity: 0.7,
+
+        // Quick Reply presentation is separate from the composer shell. Main
+        // bar and popout buttons share one character-scoped style.
+        qrButtonMode: 'theme',
+        qrButtonSurfaceType: 'solid',
+        qrButtonSurfaceColor: '#242129',
+        qrButtonSurfaceSecondaryColor: '#514168',
+        qrButtonSurfaceAngle: 135,
+        qrButtonSurfaceOpacity: 0.82,
+        qrButtonTextColor: '#f5f2f8',
+        qrButtonHoverSurfaceColor: '#65517f',
+        qrButtonHoverSurfaceOpacity: 0.96,
+        qrButtonHoverTextColor: '#ffffff',
+        qrButtonBorderWidth: 1,
+        qrButtonBorderStyle: 'solid',
+        qrButtonBorderColor: '#ffffff',
+        qrButtonBorderOpacity: 0.18,
+        qrButtonRadius: 10,
+        qrButtonPaddingX: 8,
+        qrButtonPaddingY: 5,
+        qrButtonGap: 5,
+        qrButtonFontFamilyUseCustom: false,
+        qrButtonFontFamily: 'Default (Theme)',
+        qrButtonFontSize: 13,
+        qrButtonFontWeight: 500,
+        qrButtonFontStyle: 'normal',
+        qrButtonTextTransform: 'none',
+        qrButtonLetterSpacing: '0px',
+        qrButtonTextShadow: 'none',
+        qrButtonBarOpacity: 1,
+        qrButtonShadow: 'none',
+
+        // Explicit modes keep new and untouched styles dormant. Editable values
+        // are retained while Use Custom is off, so users can switch back without
+        // rebuilding them.
+        iconSizeMode: 'theme',
+        iconSize: 30,
+        iconSpacingMode: 'theme',
+        iconSpacing: 8,
+        iconColorMode: 'theme',
+        iconColor: '#d8d5df',
+        iconHoverColor: '#ffffff',
+        iconOpacityMode: 'theme',
+        iconOpacity: 0.65,
+
+        // Native ST controls stay theme-owned until this palette is enabled.
+        controlColorsMode: 'theme',
+        checkboxSurfaceColor: '#20242c',
+        checkboxTickColor: '#8fb5ff',
+        checkboxBorderColor: '#667085',
+        toggleOnColor: '#7aa2f7',
+        toggleOffColor: '#4b5563',
+        toggleKnobColor: '#f4f7fb',
+        radioSurfaceColor: '#20242c',
+        radioDotColor: '#7aa2f7',
+        radioBorderColor: '#667085',
+        sliderTrackColor: '#3f4654',
+        sliderThumbColor: '#7aa2f7',
+        sliderThumbBorderColor: '#dbe6ff',
+
+        // Scrollbars remain entirely theme-owned until explicitly enabled.
+        // These values cover both Chromium/WebKit and Firefox's supported API.
+        scrollbarMode: 'theme',
+        scrollbarWidth: 10,
+        scrollbarRadius: 8,
+        scrollbarInset: 2,
+        scrollbarThumbColor: '#7aa2f7',
+        scrollbarThumbOpacity: 0.78,
+        scrollbarThumbHoverColor: '#a9c1ff',
+        scrollbarThumbBorderColor: '#dbe6ff',
+        scrollbarTrackColor: '#171a21',
+        scrollbarTrackOpacity: 0.28,
+
+        // Weather Cycle owns the badge content and visibility. These fields
+        // only become active after a Bedazzler preset is chosen.
+        weatherBadgeMode: 'extension',
+        weatherBadgePalette: 'theme',
+        weatherBadgeFontUseCustom: false,
+        weatherBadgeFont: 'theme',
+        weatherBadgeFontSize: 13,
+        weatherBadgeFontWeight: 500,
+        weatherBadgeLetterSpacing: 0,
+        weatherBadgePaddingX: 10,
+        weatherBadgePaddingY: 6,
+        weatherBadgeRadius: 10,
+        weatherBadgeBackgroundColor: '#1b1822',
+        weatherBadgeBackgroundOpacity: 0.82,
+        weatherBadgeTextColor: '#f5f2f8',
+        weatherBadgeBorderColor: '#ffffff',
+        weatherBadgeBorderOpacity: 0.18,
+        weatherBadgeBorderWidth: 1,
+        weatherBadgeBlur: 8,
+        weatherBadgeShadow: 'soft',
+
+        // Chat Top Bar remains extension-owned until individual appearance
+        // groups are enabled, so theme changes keep flowing through by default.
+        chatTopBarSurfaceMode: 'extension',
+        chatTopBarBackgroundColor: '#171717',
+        chatTopBarBackgroundOpacity: 0.85,
+        chatTopBarTextMode: 'extension',
+        chatTopBarTextColor: '#f5f2f8',
+        chatTopBarRadiusMode: 'extension',
+        chatTopBarTopRadius: 10,
+        chatTopBarBottomRadius: 0,
+
+        // Guided Generations' own theme remains authoritative until one of
+        // these narrowly-scoped bottom-row button groups is enabled.
+        guidedGenerationsTextMode: 'extension',
+        guidedGenerationsTextColor: '#f5f2f8',
+        guidedGenerationsBackgroundMode: 'extension',
+        guidedGenerationsBackgroundColor: '#171717',
+        guidedGenerationsBorderMode: 'extension',
+        guidedGenerationsBorderWidth: 1,
+        guidedGenerationsBorderStyle: 'solid',
+        guidedGenerationsBorderColor: '#f5f2f8',
+        guidedGenerationsRadiusMode: 'extension',
+        guidedGenerationsRadius: 4,
     },
     background: {
         // ── Background image filters (applied to #bg1 / #bg_custom) ──
@@ -172,11 +490,11 @@ export const ELEMENT_DEFAULTS = {
  * Human-readable labels for element types.
  */
 export const ELEMENT_LABELS = {
-    name: 'Name',
-    dialogue: 'Dialogue',
+    dialogue: 'Fonts',
     banner: 'Banner',
     container: 'Container',
-    avatar: 'Avatar',
+    avatar: 'Message Elements',
+    generalUi: 'General UI',
     background: 'Background',
     cursor: 'Cursor',
 };
@@ -185,6 +503,382 @@ export const ELEMENT_LABELS = {
  * All element type keys.
  */
 export const ELEMENT_TYPES = Object.keys(ELEMENT_DEFAULTS);
+
+// ============================================================
+// Avatar Overlay Presets
+// ============================================================
+
+const avatarOverlay = (overrides) => ({
+    ...AVATAR_OVERLAY_DEFAULTS,
+    avatarOverlayEnabled: true,
+    ...overrides,
+});
+
+export const AVATAR_OVERLAY_PRESETS = {
+    warmFilm: {
+        label: 'Warm film',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#f0a16d',
+            avatarOverlaySecondaryColor: '#71364d',
+            avatarOverlayOpacity: 0.34,
+            avatarOverlayAngle: 145,
+            avatarOverlayBlendMode: 'soft-light',
+            avatarOverlayVignette: 0.22,
+        }),
+    },
+    moonlitBlue: {
+        label: 'Moonlit blue',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#16335f',
+            avatarOverlaySecondaryColor: '#83c4ff',
+            avatarOverlayOpacity: 0.44,
+            avatarOverlayAngle: 155,
+            avatarOverlayBlendMode: 'color',
+            avatarOverlayVignette: 0.16,
+        }),
+    },
+    roseGlass: {
+        label: 'Rose glass',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#762a53',
+            avatarOverlaySecondaryColor: '#f0a1bd',
+            avatarOverlayOpacity: 0.36,
+            avatarOverlayAngle: 130,
+            avatarOverlayBlendMode: 'soft-light',
+            avatarOverlayVignette: 0.1,
+        }),
+    },
+    goldenHour: {
+        label: 'Golden hour',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#ffd071',
+            avatarOverlaySecondaryColor: '#b84e27',
+            avatarOverlayOpacity: 0.3,
+            avatarOverlayAngle: 175,
+            avatarOverlayBlendMode: 'overlay',
+            avatarOverlayVignette: 0.24,
+        }),
+    },
+    cyberSignal: {
+        label: 'Cyber signal',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#16e0c2',
+            avatarOverlaySecondaryColor: '#ad3cff',
+            avatarOverlayOpacity: 0.38,
+            avatarOverlayAngle: 115,
+            avatarOverlayBlendMode: 'color',
+            avatarOverlayVignette: 0.08,
+        }),
+    },
+    noir: {
+        label: 'Noir',
+        properties: avatarOverlay({
+            avatarOverlayType: 'solid',
+            avatarOverlayPrimaryColor: '#777777',
+            avatarOverlaySecondaryColor: '#777777',
+            avatarOverlayOpacity: 0.78,
+            avatarOverlayAngle: 180,
+            avatarOverlayBlendMode: 'color',
+            avatarOverlayVignette: 0.3,
+        }),
+    },
+    emeraldDream: {
+        label: 'Emerald dream',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#0f513f',
+            avatarOverlaySecondaryColor: '#d6b86a',
+            avatarOverlayOpacity: 0.34,
+            avatarOverlayAngle: 150,
+            avatarOverlayBlendMode: 'soft-light',
+            avatarOverlayVignette: 0.16,
+        }),
+    },
+    arcticBloom: {
+        label: 'Arctic bloom',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#58d9e8',
+            avatarOverlaySecondaryColor: '#b88cff',
+            avatarOverlayOpacity: 0.26,
+            avatarOverlayAngle: 120,
+            avatarOverlayBlendMode: 'screen',
+            avatarOverlayVignette: 0.08,
+        }),
+    },
+    sepiaArchive: {
+        label: 'Sepia archive',
+        properties: avatarOverlay({
+            avatarOverlayType: 'solid',
+            avatarOverlayPrimaryColor: '#9a6738',
+            avatarOverlaySecondaryColor: '#9a6738',
+            avatarOverlayOpacity: 0.48,
+            avatarOverlayAngle: 180,
+            avatarOverlayBlendMode: 'color',
+            avatarOverlayVignette: 0.28,
+        }),
+    },
+    bloodMoon: {
+        label: 'Blood moon',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#1a0508',
+            avatarOverlaySecondaryColor: '#c92e42',
+            avatarOverlayOpacity: 0.46,
+            avatarOverlayAngle: 35,
+            avatarOverlayBlendMode: 'multiply',
+            avatarOverlayVignette: 0.4,
+        }),
+    },
+    celestialGold: {
+        label: 'Celestial gold',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#14264f',
+            avatarOverlaySecondaryColor: '#f1cf77',
+            avatarOverlayOpacity: 0.32,
+            avatarOverlayAngle: 160,
+            avatarOverlayBlendMode: 'overlay',
+            avatarOverlayVignette: 0.2,
+        }),
+    },
+    fadedPolaroid: {
+        label: 'Faded polaroid',
+        properties: avatarOverlay({
+            avatarOverlayType: 'gradient',
+            avatarOverlayPrimaryColor: '#f5dcb2',
+            avatarOverlaySecondaryColor: '#6a9b91',
+            avatarOverlayOpacity: 0.22,
+            avatarOverlayAngle: 140,
+            avatarOverlayBlendMode: 'screen',
+            avatarOverlayVignette: 0.18,
+        }),
+    },
+};
+
+// ============================================================
+// Message Action Presets
+// ============================================================
+
+const messageActions = (overrides) => ({
+    ...MESSAGE_ACTION_DEFAULTS,
+    actionButtonsEnabled: true,
+    ...overrides,
+});
+
+export const MESSAGE_ACTION_PRESETS = {
+    quietAccent: {
+        label: 'Quiet accent',
+        properties: messageActions({
+            actionVisibility: 'dim', actionRestingOpacity: 0.42,
+            actionButtonSize: 24, actionIconSize: 15, actionGap: 7, actionRadius: 0,
+            actionSurface: 'bare', actionRestingIconColor: '#e7e2ec',
+            actionHoverIconColor: '#a987d8', actionHoverMotion: 'lift',
+            actionAnimationSpeed: 'normal', actionShadow: 'none',
+        }),
+    },
+    frostedSquares: {
+        label: 'Frosted squares',
+        properties: messageActions({
+            actionVisibility: 'dim', actionRestingOpacity: 0.52,
+            actionButtonSize: 29, actionIconSize: 15, actionGap: 8, actionRadius: 6,
+            actionSurface: 'glass', actionRestingIconColor: '#d0d7e2',
+            actionRestingSurfaceColor: '#ffffff', actionHoverIconColor: '#ffffff',
+            actionHoverSurfaceColor: '#789abc', actionHoverMotion: 'pop',
+            actionAnimationSpeed: 'slow', actionShadow: 'soft',
+        }),
+    },
+    raceControl: {
+        label: 'Race control',
+        properties: messageActions({
+            actionVisibility: 'dim', actionRestingOpacity: 0.3,
+            actionButtonSize: 27, actionIconSize: 14, actionGap: 8, actionRadius: 4,
+            actionReverse: true, actionSurface: 'solid',
+            actionRestingIconColor: '#aaaaaa', actionRestingSurfaceColor: '#282828',
+            actionHoverIconColor: '#ffffff', actionHoverSurfaceColor: '#cf1017',
+            actionHoverMotion: 'snap', actionAnimationSpeed: 'fast', actionShadow: 'none',
+        }),
+    },
+    softCircles: {
+        label: 'Soft circles',
+        properties: messageActions({
+            actionVisibility: 'hidden', actionRestingOpacity: 0.1,
+            actionButtonSize: 30, actionIconSize: 15, actionGap: 9, actionRadius: 30,
+            actionReverse: true, actionSurface: 'solid',
+            actionRestingIconColor: '#f49ab3', actionRestingSurfaceColor: '#422f39',
+            actionHoverIconColor: '#ffffff', actionHoverSurfaceColor: '#cf6682',
+            actionHoverMotion: 'tilt', actionAnimationSpeed: 'slow', actionShadow: 'soft',
+        }),
+    },
+    reversedMinimal: {
+        label: 'Reversed minimal',
+        properties: messageActions({
+            actionVisibility: 'always', actionButtonSize: 25, actionIconSize: 15,
+            actionGap: 4, actionRadius: 0, actionReverse: true, actionSurface: 'bare',
+            actionRestingIconColor: '#b8c1ba', actionHoverIconColor: '#eef1ed',
+            actionHoverMotion: 'lift', actionAnimationSpeed: 'normal', actionShadow: 'none',
+        }),
+    },
+    crispCompact: {
+        label: 'Crisp compact',
+        properties: messageActions({
+            actionVisibility: 'dim', actionRestingOpacity: 0.46,
+            actionButtonSize: 23, actionIconSize: 14, actionGap: 3, actionRadius: 0,
+            actionSurface: 'bare', actionRestingIconColor: '#d9dcec',
+            actionHoverIconColor: '#fff5aa', actionHoverMotion: 'color',
+            actionAnimationSpeed: 'fast', actionShadow: 'none',
+        }),
+    },
+};
+
+// ============================================================
+// Weather Badge Presets
+// ============================================================
+
+const weatherBadge = (overrides) => ({
+    weatherBadgeMode: 'custom',
+    weatherBadgePalette: 'theme',
+    weatherBadgeFontUseCustom: false,
+    weatherBadgeFont: 'theme',
+    weatherBadgeFontSize: 13,
+    weatherBadgeFontWeight: 500,
+    weatherBadgeLetterSpacing: 0,
+    weatherBadgePaddingX: 10,
+    weatherBadgePaddingY: 6,
+    weatherBadgeRadius: 10,
+    weatherBadgeBackgroundColor: '#1b1822',
+    weatherBadgeBackgroundOpacity: 0.82,
+    weatherBadgeTextColor: '#f5f2f8',
+    weatherBadgeBorderColor: '#ffffff',
+    weatherBadgeBorderOpacity: 0.18,
+    weatherBadgeBorderWidth: 1,
+    weatherBadgeBlur: 8,
+    weatherBadgeShadow: 'soft',
+    ...overrides,
+});
+
+export const WEATHER_BADGE_PRESETS = {
+    themeBlend: {
+        label: 'Theme Blend',
+        properties: weatherBadge({}),
+    },
+    glassPill: {
+        label: 'Glass Pill',
+        properties: weatherBadge({
+            weatherBadgeBackgroundOpacity: 0.62,
+            weatherBadgePaddingX: 13,
+            weatherBadgePaddingY: 7,
+            weatherBadgeRadius: 40,
+            weatherBadgeBlur: 14,
+            weatherBadgeShadow: 'float',
+        }),
+    },
+    minimal: {
+        label: 'Minimal',
+        properties: weatherBadge({
+            weatherBadgeBackgroundOpacity: 0,
+            weatherBadgePaddingX: 4,
+            weatherBadgePaddingY: 2,
+            weatherBadgeRadius: 0,
+            weatherBadgeBorderWidth: 0,
+            weatherBadgeBlur: 0,
+            weatherBadgeShadow: 'none',
+            weatherBadgeFontWeight: 600,
+        }),
+    },
+    softCard: {
+        label: 'Soft Card',
+        properties: weatherBadge({
+            weatherBadgeBackgroundOpacity: 0.88,
+            weatherBadgePaddingX: 12,
+            weatherBadgePaddingY: 8,
+            weatherBadgeRadius: 14,
+            weatherBadgeBlur: 10,
+            weatherBadgeShadow: 'float',
+        }),
+    },
+    terminal: {
+        label: 'Terminal',
+        properties: weatherBadge({
+            weatherBadgePalette: 'custom',
+            weatherBadgeFontUseCustom: true,
+            weatherBadgeFont: 'mono',
+            weatherBadgeFontSize: 12,
+            weatherBadgeFontWeight: 600,
+            weatherBadgeLetterSpacing: 0.4,
+            weatherBadgePaddingX: 10,
+            weatherBadgePaddingY: 6,
+            weatherBadgeRadius: 4,
+            weatherBadgeBackgroundColor: '#07110b',
+            weatherBadgeBackgroundOpacity: 0.94,
+            weatherBadgeTextColor: '#7dff9b',
+            weatherBadgeBorderColor: '#3ddd72',
+            weatherBadgeBorderOpacity: 0.55,
+            weatherBadgeBlur: 0,
+            weatherBadgeShadow: 'glow',
+        }),
+    },
+    quietGlass: {
+        label: 'Quiet Glass',
+        properties: weatherBadge({
+            weatherBadgeFontSize: 12,
+            weatherBadgePaddingY: 4,
+            weatherBadgeRadius: 18,
+            weatherBadgeBackgroundOpacity: 0.4,
+            weatherBadgeBorderOpacity: 0.1,
+            weatherBadgeBlur: 16,
+            weatherBadgeShadow: 'none',
+        }),
+    },
+    hairline: {
+        label: 'Hairline',
+        properties: weatherBadge({
+            weatherBadgeFontSize: 11,
+            weatherBadgeLetterSpacing: 0.2,
+            weatherBadgePaddingX: 9,
+            weatherBadgePaddingY: 4,
+            weatherBadgeRadius: 6,
+            weatherBadgeBackgroundOpacity: 0.3,
+            weatherBadgeBorderOpacity: 0.2,
+            weatherBadgeBlur: 10,
+            weatherBadgeShadow: 'none',
+        }),
+    },
+    softSignal: {
+        label: 'Soft Signal',
+        properties: weatherBadge({
+            weatherBadgeFontSize: 12,
+            weatherBadgeLetterSpacing: -0.1,
+            weatherBadgePaddingY: 5,
+            weatherBadgeBackgroundOpacity: 0.5,
+            weatherBadgeBorderWidth: 0,
+            weatherBadgeBorderOpacity: 0,
+            weatherBadgeBlur: 18,
+            weatherBadgeShadow: 'soft',
+        }),
+    },
+    bareDatum: {
+        label: 'Bare Datum',
+        properties: weatherBadge({
+            weatherBadgeFontSize: 11,
+            weatherBadgeFontWeight: 600,
+            weatherBadgeLetterSpacing: 0.3,
+            weatherBadgePaddingX: 4,
+            weatherBadgePaddingY: 2,
+            weatherBadgeRadius: 0,
+            weatherBadgeBackgroundOpacity: 0,
+            weatherBadgeBorderWidth: 0,
+            weatherBadgeBorderOpacity: 0,
+            weatherBadgeBlur: 0,
+            weatherBadgeShadow: 'none',
+        }),
+    },
+};
 
 // ============================================================
 // Background Presets
@@ -396,7 +1090,9 @@ export const BANNER_PRESETS = {
         label: 'Neon Edge (cyber underline)',
         properties: banner({
             height: 130, paddingTop: 162, bannerPosition: 25, borderRadius: 0,
-            overlayColor: '#0a0c1e', overlayOpacity: 0.35,
+            overlayType: 'gradient', overlayColor: '#0a0c1e',
+            overlaySecondaryColor: '#124a52', overlayAngle: 115,
+            overlayBlendMode: 'soft-light', overlayVignette: 0.16, overlayOpacity: 0.35,
             bottomFadeColor: '#000000', bottomFadeOpacity: 0.5,
             borderBottomWidth: 2, borderBottomStyle: 'solid',
             borderBottomColor: '#00dcc8', borderBottomOpacity: 0.9,
@@ -408,7 +1104,9 @@ export const BANNER_PRESETS = {
         label: 'Manuscript (vintage double rule)',
         properties: banner({
             height: 120, paddingTop: 152, bannerPosition: 25, borderRadius: 0,
-            overlayColor: '#4a3418', overlayOpacity: 0.3,
+            overlayType: 'gradient', overlayColor: '#4a3418',
+            overlaySecondaryColor: '#9a6b35', overlayAngle: 165,
+            overlayBlendMode: 'multiply', overlayVignette: 0.18, overlayOpacity: 0.3,
             bottomFadeColor: '#000000', bottomFadeOpacity: 0.5,
             borderBottomWidth: 3, borderBottomStyle: 'double',
             borderBottomColor: '#c8a878', borderBottomOpacity: 0.85,
@@ -420,7 +1118,9 @@ export const BANNER_PRESETS = {
         label: 'Frost Pane (soft rounded)',
         properties: banner({
             height: 110, paddingTop: 140, bannerPosition: 25, borderRadius: 8,
-            overlayColor: '#bcd8f0', overlayOpacity: 0.12,
+            overlayType: 'gradient', overlayColor: '#bcd8f0',
+            overlaySecondaryColor: '#8d86bf', overlayAngle: 135,
+            overlayBlendMode: 'screen', overlayVignette: 0.08, overlayOpacity: 0.12,
             bottomFadeColor: '#000000', bottomFadeOpacity: 0.45,
             borderBottomWidth: 1, borderBottomStyle: 'solid',
             borderBottomColor: '#7fb8e6', borderBottomOpacity: 0.6,
@@ -445,7 +1145,8 @@ export const BANNER_PRESETS = {
         label: 'Spotlight (dramatic dark)',
         properties: banner({
             height: 150, paddingTop: 182, bannerPosition: 25, borderRadius: 0,
-            overlayColor: '#000000', overlayOpacity: 0.42,
+            overlayColor: '#000000', overlayBlendMode: 'multiply',
+            overlayVignette: 0.38, overlayOpacity: 0.42,
             bottomFadeColor: '#000000', bottomFadeOpacity: 0.72,
             borderBottomWidth: 0, borderBottomStyle: 'none',
         }),
@@ -470,7 +1171,9 @@ export const BANNER_PRESETS = {
         label: 'Cyber (deep neon rule)',
         properties: banner({
             height: 128, paddingTop: 160, bannerPosition: 25, borderRadius: 0,
-            overlayColor: '#06101f', overlayOpacity: 0.45,
+            overlayType: 'gradient', overlayColor: '#06101f',
+            overlaySecondaryColor: '#471442', overlayAngle: 110,
+            overlayBlendMode: 'color', overlayVignette: 0.22, overlayOpacity: 0.45,
             bottomFadeColor: '#020814', bottomFadeOpacity: 0.5,
             borderBottomWidth: 3, borderBottomStyle: 'solid',
             borderBottomColor: '#ff2fb9', borderBottomOpacity: 1,
@@ -482,7 +1185,9 @@ export const BANNER_PRESETS = {
         label: 'Kawaii (soft pastel)',
         properties: banner({
             height: 100, paddingTop: 132, bannerPosition: 25, borderRadius: 16,
-            overlayColor: '#ffd1ec', overlayOpacity: 0.22,
+            overlayType: 'gradient', overlayColor: '#ffd1ec',
+            overlaySecondaryColor: '#bfe5ff', overlayAngle: 135,
+            overlayBlendMode: 'soft-light', overlayVignette: 0.1, overlayOpacity: 0.22,
             bottomFadeColor: '#ffffff', bottomFadeOpacity: 0.35,
             borderBottomWidth: 4, borderBottomStyle: 'solid',
             borderBottomColor: '#ff8fce', borderBottomOpacity: 0.9,
@@ -503,7 +1208,115 @@ export function getChatDesignSettings() {
     if (!settings.chatDesign) {
         settings.chatDesign = { enabled: false, styles: [] };
     }
+    migrateNameStylesIntoFonts(settings.chatDesign);
     return settings.chatDesign;
+}
+
+function normalizeStyleName(name) {
+    return String(name || '').trim().toLocaleLowerCase();
+}
+
+function mergeUnique(left, right) {
+    return [...new Set([...(left || []), ...(right || [])])];
+}
+
+function namePropertiesForFonts(properties = {}) {
+    return Object.fromEntries(Object.keys(NAME_DEFAULTS).map(key => {
+        const targetKey = `name${key[0].toUpperCase()}${key.slice(1)}`;
+        return [targetKey, key in properties ? properties[key] : NAME_DEFAULTS[key]];
+    }));
+}
+
+function uniqueImportedStyleName(name, usedNames) {
+    const base = String(name || '').trim() || 'Imported Name';
+    let candidate = `${base} (Name import)`;
+    let suffix = 2;
+    while (usedNames.has(normalizeStyleName(candidate))) {
+        candidate = `${base} (Name import ${suffix++})`;
+    }
+    usedNames.add(normalizeStyleName(candidate));
+    return candidate;
+}
+
+/** Fold the retired standalone Name style type into Fonts styles exactly once. */
+function migrateNameStylesIntoFonts(chatDesign) {
+    const styles = Array.isArray(chatDesign.styles) ? chatDesign.styles : [];
+    const nameStyles = styles.filter(style => style?.element === 'name');
+    if (nameStyles.length === 0) return;
+
+    const fontStyles = styles.filter(style => style?.element === 'dialogue');
+    const nameCounts = new Map();
+    const fontMatches = new Map();
+    const usedNames = new Set(styles.map(style => normalizeStyleName(style?.name)).filter(Boolean));
+
+    for (const style of nameStyles) {
+        const key = normalizeStyleName(style.name);
+        nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+    }
+    for (const style of fontStyles) {
+        const key = normalizeStyleName(style.name);
+        const matches = fontMatches.get(key) || [];
+        matches.push(style);
+        fontMatches.set(key, matches);
+    }
+
+    for (const legacy of nameStyles) {
+        const key = normalizeStyleName(legacy.name);
+        const matches = fontMatches.get(key) || [];
+        const unambiguousMatch = key && nameCounts.get(key) === 1 && matches.length === 1
+            ? matches[0]
+            : null;
+
+        if (unambiguousMatch) {
+            unambiguousMatch.properties = {
+                ...ELEMENT_DEFAULTS.dialogue,
+                ...(unambiguousMatch.properties || {}),
+                ...namePropertiesForFonts(legacy.properties),
+            };
+            unambiguousMatch.assignedCharacters = mergeUnique(unambiguousMatch.assignedCharacters, legacy.assignedCharacters);
+            unambiguousMatch.assignedPersonas = mergeUnique(unambiguousMatch.assignedPersonas, legacy.assignedPersonas);
+            unambiguousMatch.assignedVerses = mergeUnique(unambiguousMatch.assignedVerses, legacy.assignedVerses);
+            unambiguousMatch.assignedVersesIncludePersonas = Boolean(
+                unambiguousMatch.assignedVersesIncludePersonas || legacy.assignedVersesIncludePersonas,
+            );
+            unambiguousMatch.isDefault = Boolean(unambiguousMatch.isDefault || legacy.isDefault);
+            unambiguousMatch.enabled = unambiguousMatch.enabled !== false || legacy.enabled !== false;
+            continue;
+        }
+
+        const collides = Boolean(
+            key && ((fontMatches.get(key)?.length || 0) > 0 || (nameCounts.get(key) || 0) > 1),
+        );
+        legacy.name = collides ? uniqueImportedStyleName(legacy.name, usedNames) : (legacy.name || 'Imported Name');
+        usedNames.add(normalizeStyleName(legacy.name));
+        legacy.element = 'dialogue';
+        legacy.properties = {
+            ...ELEMENT_DEFAULTS.dialogue,
+            ...namePropertiesForFonts(legacy.properties),
+        };
+    }
+
+    chatDesign.styles = styles.filter(style => style?.element !== 'name');
+    saveSettingsDebounced();
+}
+
+export function getChatDesignModalSize() {
+    const size = getChatDesignSettings().modalSize;
+    if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height)) return null;
+    return { width: size.width, height: size.height };
+}
+
+export function setChatDesignModalSize(size) {
+    const settings = getChatDesignSettings();
+    if (!size) {
+        delete settings.modalSize;
+    } else {
+        settings.modalSize = {
+            width: Math.round(size.width),
+            height: Math.round(size.height),
+        };
+    }
+    saveSettingsDebounced();
 }
 
 export function isChatDesignEnabled() {
@@ -555,6 +1368,7 @@ export function createStyle(elementType, name) {
         id: generateId(),
         name: name || `New ${ELEMENT_LABELS[elementType] || elementType} style`,
         element: elementType,
+        enabled: true,
         // Deep clone so nested defaults (e.g. cursor.manual) aren't shared by
         // reference across styles — a shallow spread would alias the object.
         properties: JSON.parse(JSON.stringify(ELEMENT_DEFAULTS[elementType])),
@@ -588,6 +1402,7 @@ export function updateStyleMeta(styleId, updates) {
     const style = getStyleById(styleId);
     if (!style) return null;
     if (updates.name !== undefined) style.name = updates.name;
+    if (updates.enabled !== undefined) style.enabled = updates.enabled;
     if (updates.isDefault !== undefined) style.isDefault = updates.isDefault;
     if (updates.assignedVerses !== undefined) style.assignedVerses = updates.assignedVerses;
     if (updates.assignedVersesIncludePersonas !== undefined) style.assignedVersesIncludePersonas = updates.assignedVersesIncludePersonas;

@@ -66,6 +66,26 @@ export function normalizeToHex(val) {
     return null;
 }
 
+/** Accept only relative or HTTP(S) image URLs that are safe to persist in
+ * markup and generated CSS. Quotes, backslashes, and control characters are
+ * rejected instead of relying on every caller to escape them correctly. */
+export function normalizeBannerUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw || /[\u0000-\u001f\u007f'"\\]/.test(raw)) return '';
+    try {
+        const base = globalThis.location?.href || 'http://localhost/';
+        const url = new URL(raw, base);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? raw : '';
+    } catch {
+        return '';
+    }
+}
+
+/** Serialize a URL as a quoted CSS url() token. */
+export function serializeCssUrl(value) {
+    return `url(${JSON.stringify(String(value || ''))})`;
+}
+
 /**
  * Calculate the saturation of an [r, g, b] triplet (0–1 scale).
  * @param {number[]} rgb - [r, g, b]
@@ -223,6 +243,39 @@ export async function uploadBannerImage(file, entityName) {
 
     log('Banner image uploaded:', fullPath, '→', justFilename);
     return justFilename;
+}
+
+/** Upload a design image to a named user/images subfolder and return its served path. */
+export async function uploadDesignImage(file, folder, filenamePrefix = 'image') {
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    let format = (file.type.split('/')[1] || extension || 'png').toLowerCase().split('+')[0];
+    if (format === 'jpg') format = 'jpeg';
+
+    const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+    });
+    if (!base64) throw new Error('The selected image was empty.');
+
+    const safeFolder = String(folder || 'uploads').replace(/[^a-z0-9_-]+/gi, '_');
+    const safePrefix = String(filenamePrefix || 'image').replace(/[^a-z0-9_-]+/gi, '_');
+    const response = await fetch('/api/images/upload', {
+        method: 'POST',
+        headers: getContext().getRequestHeaders(),
+        body: JSON.stringify({
+            image: base64,
+            format,
+            filename: `${safePrefix}_${Date.now()}`,
+            ch_name: safeFolder,
+        }),
+    });
+    if (!response.ok) throw new Error(`Upload failed (${response.status}).`);
+    const result = await response.json();
+    const path = normalizeBannerUrl(result.path || '');
+    if (!path) throw new Error('SillyTavern did not return an image path.');
+    return path;
 }
 
 // ============================================================

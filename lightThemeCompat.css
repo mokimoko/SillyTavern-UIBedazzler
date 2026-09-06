@@ -1,0 +1,515 @@
+/* ============================================================
+   Light Theme Compatibility
+   Corrects dark control surfaces without changing global theme variables,
+   chat messages, or the structure of Bedazzler's authored takeovers.
+   ============================================================ */
+
+body.bd-light-theme-compat {
+    --bd-light-ui-base: var(--SmartThemeBlurTintColor, #d8e8f5);
+    --bd-light-ui-surface: color-mix(in srgb, var(--bd-light-ui-base) 86%, white 14%);
+    --bd-light-ui-field: color-mix(in srgb, var(--bd-light-ui-base) 62%, white 38%);
+    --bd-light-ui-field-hover: color-mix(in srgb, var(--bd-light-ui-base) 76%, white 24%);
+    --bd-light-ui-button: color-mix(in srgb, var(--bd-light-ui-base) 54%, white 46%);
+    --bd-light-ui-button-hover: color-mix(in srgb, var(--bd-light-ui-base) 82%, white 18%);
+    --bd-light-ui-text: color-mix(in srgb, var(--bd-light-ui-base) 18%, #071321 82%);
+    --bd-light-ui-muted: color-mix(in srgb, var(--bd-light-ui-text) 58%, transparent);
+    --bd-light-ui-border: color-mix(in srgb, var(--bd-light-ui-text) 24%, transparent);
+    --bd-light-ui-accent: color-mix(in srgb, var(--SmartThemeQuoteColor, #46759e) 58%, var(--bd-light-ui-text) 42%);
+}
+
+/* Core brightness filters invert the intended emphasis for dark icons on a
+   light Chat Top Bar. Keep their authored color and use opacity for depth. */
+body.bd-light-theme-compat #extensionTopBar .right_menu_button:not(.not-in-chat) {
+    filter: none;
+    opacity: 0.72;
+}
+
+body.bd-light-theme-compat #extensionTopBar .right_menu_button:not(.not-in-chat):is(:hover, :focus-visible, .active) {
+    filter: none;
+    opacity: 1;
+}
+
+/* ST normally animates drawer height to calc-size(auto, size). That forces
+   large settings/background drawers through repeated layout while their
+   backdrop blur is also repainting. Reveal the finished layout with a short
+   fade instead; opening still feels animated without the heavy height tween. */
+body.bd-light-theme-compat .drawer-content {
+    opacity: 0;
+    transition-property: opacity, display;
+    transition-duration: var(--animation-duration);
+    transition-timing-function: ease-out;
+    transition-behavior: allow-discrete;
+}
+
+body.bd-light-theme-compat .drawer-content.openDrawer {
+    opacity: 1;
+
+    @starting-style {
+        opacity: 0;
+    }
+}
+
+/* Native reasoning summaries use --grey30, which reads like a dark button on
+   light chats. Preserve SillyTavern's size and structure while correcting the
+   surface direction: pale at rest, one step darker on hover or keyboard focus. */
+body.bd-light-theme-compat #chat .mes_reasoning_header {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button);
+    text-shadow: none;
+}
+
+body.bd-light-theme-compat #chat .mes_reasoning_summary:is(:hover, :focus-visible) .mes_reasoning_header {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button-hover);
+}
+
+body.bd-light-theme-compat #chat .mes_reasoning_summary:focus-visible {
+    outline: none;
+}
+
+/* ST applies a theme shadow to every element. Remove it inside native panels. */
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup),
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup) * {
+    text-shadow: none;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup) {
+    color: var(--bd-light-ui-text);
+}
+
+/* These headers otherwise contain a fixed 70%-black gradient. */
+body.bd-light-theme-compat #extensions_settings .inline-drawer-toggle.inline-drawer-header,
+body.bd-light-theme-compat #extensions_settings2 .inline-drawer-toggle.inline-drawer-header,
+body.bd-light-theme-compat #user-settings-block h4,
+body.bd-light-theme-compat .drawer-content .standoutHeader {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-surface);
+    background-image: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--bd-light-ui-accent) 18%, var(--bd-light-ui-surface)) 0%,
+        var(--bd-light-ui-surface) 72%,
+        color-mix(in srgb, white 22%, var(--bd-light-ui-surface)) 100%
+    );
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat #extensions_settings .inline-drawer-toggle.inline-drawer-header:hover,
+body.bd-light-theme-compat #extensions_settings2 .inline-drawer-toggle.inline-drawer-header:hover,
+body.bd-light-theme-compat .drawer-content .standoutHeader.inline-drawer-header:hover {
+    filter: brightness(0.965);
+}
+
+body.bd-light-theme-compat .drawer-content .standoutHeader ~ .inline-drawer-content {
+    background-color: color-mix(in srgb, var(--bd-light-ui-base) 82%, white 18%);
+    border-color: var(--bd-light-ui-border);
+}
+
+/* The Chat Completion preset bar can be moved outside its native drawer by
+   layout customizations, so give it an explicit light-theme scope. */
+body.bd-light-theme-compat #openai_api-presets {
+    color: var(--bd-light-ui-text);
+    text-shadow: none;
+}
+
+body.bd-light-theme-compat #openai_api-presets .standoutHeader {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-surface);
+    background-image: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--bd-light-ui-accent) 18%, var(--bd-light-ui-surface)) 0%,
+        var(--bd-light-ui-surface) 72%,
+        color-mix(in srgb, white 22%, var(--bd-light-ui-surface)) 100%
+    );
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat #openai_api-presets #settings_preset_openai {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-field);
+    border-color: var(--bd-light-ui-border);
+    box-shadow: none;
+}
+
+body.bd-light-theme-compat #openai_api-presets #settings_preset_openai:hover {
+    background-color: var(--bd-light-ui-field-hover);
+}
+
+body.bd-light-theme-compat #openai_api-presets #settings_preset_openai:focus {
+    outline: none;
+    border-color: var(--bd-light-ui-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bd-light-ui-accent) 35%, transparent);
+}
+
+body.bd-light-theme-compat #openai_api-presets #settings_preset_openai option {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-field);
+}
+
+body.bd-light-theme-compat #openai_api-presets .menu_button:not(.red_button) {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button);
+    background-image: none;
+    border-color: var(--bd-light-ui-border);
+    filter: none;
+}
+
+body.bd-light-theme-compat #openai_api-presets .menu_button:not(.red_button):not(.disabled):not([disabled]):is(:hover, :focus-visible, .active) {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button-hover);
+    filter: none;
+}
+
+/* Select2 builds the Triggers field from a dark outer shell plus a separately
+   painted search textarea. Treat both layers as a single light input. */
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    .select2-selection--multiple {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-field);
+    border-color: var(--bd-light-ui-border);
+    box-shadow: none;
+    text-shadow: none;
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container:is(:hover, .select2-container--focus)
+    .select2-selection--multiple {
+    background-color: var(--bd-light-ui-field-hover);
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container.select2-container--focus
+    .select2-selection--multiple {
+    border-color: var(--bd-light-ui-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bd-light-ui-accent) 35%, transparent);
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    .select2-search--inline
+    textarea.select2-search__field,
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    .select2-search--inline
+    textarea.select2-search__field:is(:hover, :focus) {
+    color: var(--bd-light-ui-text);
+    caret-color: var(--bd-light-ui-text);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    textarea.select2-search__field::placeholder {
+    color: var(--bd-light-ui-muted);
+    opacity: 1;
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    .select2-selection__choice {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat
+    #completion_prompt_manager_popup_entry_form_injection_trigger
+    + .select2-container
+    .select2-selection__choice__remove {
+    color: var(--bd-light-ui-text);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat
+    .select2-container--open:has(#select2-completion_prompt_manager_popup_entry_form_injection_trigger-results)
+    .select2-dropdown {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-surface);
+    border-color: var(--bd-light-ui-border) !important;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--bd-light-ui-text) 16%, transparent);
+    text-shadow: none;
+    backdrop-filter: none;
+}
+
+body.bd-light-theme-compat
+    .select2-container--open:has(#select2-completion_prompt_manager_popup_entry_form_injection_trigger-results)
+    .select2-results__option--selectable {
+    color: var(--bd-light-ui-text);
+    background-color: transparent;
+}
+
+body.bd-light-theme-compat
+    .select2-container--open:has(#select2-completion_prompt_manager_popup_entry_form_injection_trigger-results)
+    .select2-results__option--highlighted.select2-results__option--selectable {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button-hover);
+}
+
+body.bd-light-theme-compat
+    .select2-container--open:has(#select2-completion_prompt_manager_popup_entry_form_injection_trigger-results)
+    .select2-results__option::before {
+    background-color: var(--bd-light-ui-field);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat
+    .select2-container--open:has(#select2-completion_prompt_manager_popup_entry_form_injection_trigger-results)
+    .select2-results__option--selected::before {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button-hover);
+}
+
+/* Native fields use fixed black30/black50 surfaces, even in a light theme. */
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="color"]),
+    textarea,
+    select,
+    .text_pole,
+    .range-block-counter input,
+    .neo-range-input
+) {
+    color: var(--bd-light-ui-text);
+    caret-color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-field);
+    border-color: var(--bd-light-ui-border);
+    box-shadow: none;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="color"]),
+    textarea,
+    select,
+    .text_pole,
+    .range-block-counter input,
+    .neo-range-input
+):hover {
+    background-color: var(--bd-light-ui-field-hover);
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="color"]),
+    textarea,
+    select,
+    .text_pole,
+    .range-block-counter input,
+    .neo-range-input
+):focus {
+    outline: none;
+    border-color: var(--bd-light-ui-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bd-light-ui-accent) 35%, transparent);
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(input, textarea)::placeholder {
+    color: var(--bd-light-ui-muted);
+    opacity: 1;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) select option,
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) select option:not(:checked) {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-field);
+}
+
+/* Native ranges filter the entire control, which washes out custom light
+   palettes and shifts their chosen colors again on hover. Preserve the authored
+   track/thumb colors and provide contrast with edges instead. Preset Drawer
+   Expanded is body-mounted, so it needs an explicit scope. */
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal) :is(
+    input[type="range"],
+    .neo-range-slider
+) {
+    filter: none !important;
+    box-shadow:
+        inset 0 0 0 1px var(--bd-light-ui-border),
+        inset 0 1px 2px color-mix(in srgb, var(--bd-light-ui-text) 12%, transparent) !important;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal) :is(
+    input[type="range"],
+    .neo-range-slider
+):not(:disabled):hover {
+    filter: none !important;
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--bd-light-ui-accent) 55%, var(--bd-light-ui-border)),
+        inset 0 1px 2px color-mix(in srgb, var(--bd-light-ui-text) 16%, transparent) !important;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal) :is(
+    input[type="range"],
+    .neo-range-slider
+):disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal)
+    input[type="range"]::-webkit-slider-thumb {
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--bd-light-ui-text) 16%, transparent),
+        0 1px 3px color-mix(in srgb, var(--bd-light-ui-text) 24%, transparent);
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal)
+    input[type="range"]:not(:disabled):hover::-webkit-slider-thumb {
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--bd-light-ui-accent) 18%, transparent),
+        0 1px 3px color-mix(in srgb, var(--bd-light-ui-text) 24%, transparent);
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal)
+    input[type="range"]::-moz-range-track {
+    height: 5px;
+    background: var(--bd-light-ui-field-hover);
+    border: 1px solid var(--bd-light-ui-border);
+    border-radius: 15px;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal)
+    input[type="range"]::-moz-range-progress {
+    height: 5px;
+    background: var(--bd-light-ui-accent);
+    border-radius: 15px;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root, #wl-pe-root, .wl-cdm-modal)
+    input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: var(--bd-light-ui-accent);
+    border: 2px solid var(--bd-light-ui-surface);
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--bd-light-ui-text) 16%, transparent),
+        0 1px 3px color-mix(in srgb, var(--bd-light-ui-text) 24%, transparent);
+}
+
+/* ST brightens native buttons on hover, which reverses the expected depth cue
+   on light surfaces. Resting controls are pale; hover/active steps inward. */
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    .menu_button:not(.red_button):not(.redWarningBG):not(.popup-button-ok),
+    .right_menu_button
+) {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button);
+    background-image: none;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    .menu_button:not(.red_button):not(.redWarningBG):not(.popup-button-ok),
+    .right_menu_button
+):not(.disabled):not([disabled]) {
+    filter: none;
+}
+
+body.bd-light-theme-compat :is(.drawer-content, dialog.popup, #wl-cb-root, #wl-xd-root) :is(
+    .menu_button:not(.red_button):not(.redWarningBG):not(.popup-button-ok),
+    .right_menu_button
+):not(.disabled):not([disabled]):is(:hover, .active) {
+    color: var(--bd-light-ui-text);
+    background-color: var(--bd-light-ui-button-hover);
+    filter: none;
+}
+
+/* The Browser's search controls are compound fields. Keep their inner inputs
+   transparent so the light surface belongs to the wrapper only. */
+body.bd-light-theme-compat #wl-cb-root :is(.wl-cb-search, .wl-cb-th-search) {
+    color: var(--bd-light-ui-text);
+    background: var(--bd-light-ui-field);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat #wl-cb-root :is(.wl-cb-search, .wl-cb-th-search):hover {
+    background: var(--bd-light-ui-field-hover);
+}
+
+body.bd-light-theme-compat #wl-cb-root :is(.wl-cb-search input, .wl-cb-th-search > input),
+body.bd-light-theme-compat #wl-cb-root :is(.wl-cb-search input, .wl-cb-th-search > input):hover,
+body.bd-light-theme-compat #wl-cb-root :is(.wl-cb-search input, .wl-cb-th-search > input):focus {
+    color: var(--bd-light-ui-text);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* Bedazzler-authored neutral controls use the same pale-rest/darker-hover cue.
+   Accent and destructive actions keep their semantic colours below. */
+body.bd-light-theme-compat #wl-cb-root :is(
+    .wl-cb-close,
+    .wl-cb-page-btn:not(.is-current),
+    .wl-cb-act:not(.wl-cb-act-primary),
+    .wl-cb-bulk-btn:not(.wl-cb-bulk-danger):not(.wl-cb-bulk-done)
+),
+body.bd-light-theme-compat #wl-xd-root :is(#wl-xd-browser-link, .wl-xd-close) {
+    color: var(--bd-light-ui-text);
+    background: var(--bd-light-ui-button);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat #wl-cb-root :is(
+    .wl-cb-close,
+    .wl-cb-page-btn:not(.is-current):not(:disabled),
+    .wl-cb-act:not(.wl-cb-act-primary):not(:disabled),
+    .wl-cb-bulk-btn:not(.wl-cb-bulk-danger):not(.wl-cb-bulk-done):not(:disabled)
+):hover,
+body.bd-light-theme-compat #wl-xd-root :is(#wl-xd-browser-link, .wl-xd-close):hover {
+    color: var(--bd-light-ui-text);
+    background: var(--bd-light-ui-button-hover);
+    border-color: var(--bd-light-ui-border);
+}
+
+body.bd-light-theme-compat #wl-cb-root .wl-cb-act-primary:hover,
+body.bd-light-theme-compat #wl-cb-root .wl-cb-bulk-done:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #46759e) 84%, var(--bd-light-ui-text) 16%);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #46759e) 84%, var(--bd-light-ui-text) 16%);
+}
+
+body.bd-light-theme-compat #wl-xd-root #wl-xd-create-btn:hover {
+    filter: brightness(0.9);
+}
+
+/* Preserve the meaning of active accent and mode buttons after extending the
+   neutral menu-button treatment into the two full-screen takeovers. */
+body.bd-light-theme-compat #wl-cb-root #wl-cb-msel-btn.is-active {
+    color: #fff;
+    background: var(--SmartThemeQuoteColor, #46759e);
+    border-color: var(--SmartThemeQuoteColor, #46759e);
+}
+
+body.bd-light-theme-compat #wl-cb-root #wl-cb-msel-btn.is-active:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #46759e) 84%, var(--bd-light-ui-text) 16%);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #46759e) 84%, var(--bd-light-ui-text) 16%);
+}
+
+body.bd-light-theme-compat #wl-xd-root .wl-xd-gallery-delete-toggle[aria-pressed="true"] {
+    color: #fff;
+    background: var(--crimson70a, #b3103ccc);
+}
+
+body.bd-light-theme-compat #wl-xd-root .wl-xd-gallery-avatar-toggle[aria-pressed="true"] {
+    color: #fff;
+    background: rgba(56, 132, 255, .8);
+}
+
+/* Creator's Notes is relocated outside the native drawer tree in expanded
+   mode, so its native dark header needs an explicit light-theme surface. */
+body.bd-light-theme-compat #wl-xd-notes-slot #spoiler_free_desc .inline-drawer-header {
+    color: var(--bd-light-ui-text);
+    background: var(--bd-light-ui-button);
+    border-color: var(--bd-light-ui-border);
+    text-shadow: none;
+}
+
+body.bd-light-theme-compat #wl-xd-notes-slot #spoiler_free_desc .inline-drawer-header:hover {
+    color: var(--bd-light-ui-text);
+    background: var(--bd-light-ui-button-hover);
+    filter: none;
+}

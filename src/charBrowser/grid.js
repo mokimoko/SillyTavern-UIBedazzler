@@ -41,6 +41,7 @@ const log = () => {};
 // is the fallback (matches the mockup's 24).
 export const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
 const DEFAULT_PAGE_SIZE = 24;
+const MAX_MEASURED_TAG_CHIPS = 12;
 
 // Shared page-size state (module-level so the Tag Hub sees the same value).
 // Seeded from the persisted setting on load; setPageSize writes it back through
@@ -559,30 +560,31 @@ function fitAllTagRows() {
 
     const measurements = rows.map(row => {
         const chips = [...row.children];
-        const total = chips.length;
+        const total = Number(row.dataset.totalTags) || chips.length;
         if (!total || row.clientWidth === 0) return null;
 
-        const rowRight = row.getBoundingClientRect().right;
+        const rowWidth = row.clientWidth;
+        const rowLeft = row.offsetLeft;
         const firstTop = chips[0].offsetTop;
         let fit = 0;
-        let lastRight = 0;
+        let lastEdge = 0;
         for (const chip of chips) {
             if (chip.offsetTop !== firstTop) break;
             fit++;
-            lastRight = chip.getBoundingClientRect().right;
+            lastEdge = chip.offsetLeft - rowLeft + chip.offsetWidth;
         }
         if (fit === total) return { row, chips, total, visible: total };
 
         const badgeEstimate = 30 + String(total - fit + 1).length * 9;
         let visible = fit;
-        if (rowRight - lastRight < badgeEstimate && visible > 1) visible--;
+        if (rowWidth - lastEdge < badgeEstimate && visible > 1) visible--;
         return { row, chips, total, visible };
     });
 
     for (const measurement of measurements) {
         if (!measurement || measurement.visible === measurement.total) continue;
         const { row, chips, total, visible } = measurement;
-        for (let i = visible; i < total; i++) chips[i].style.display = 'none';
+        for (let i = visible; i < chips.length; i++) chips[i].style.display = 'none';
         const more = document.createElement('span');
         more.className = 'wl-cb-chip wl-cb-chip-more';
         more.textContent = `+${total - visible}`;
@@ -797,11 +799,10 @@ function buildCardBody(m) {
     if (m.tagChips.length) {
         const tagRow = document.createElement('div');
         tagRow.className = 'wl-cb-card-tags';
-        // Render ALL chips; how many actually SHOW (and the "+N" overflow count)
-        // is decided by the batched measurement pass once cards are laid out,
-        // so it honours the real row width and each chip's real length instead of
-        // a fixed cap. Until then the CSS one-row clip keeps it from spilling.
-        for (const t of m.tagChips) {
+        tagRow.dataset.totalTags = String(m.tagChips.length);
+        // A card can only display a handful of chips on one line. Cap the
+        // measurement candidates while retaining the full count for the +N.
+        for (const t of m.tagChips.slice(0, MAX_MEASURED_TAG_CHIPS)) {
             const chip = document.createElement('span');
             chip.className = 'wl-cb-chip';
             chip.textContent = t.name;

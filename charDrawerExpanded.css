@@ -373,12 +373,65 @@
     padding: 10px 18px 14px;
 }
 
+#wl-xd-tab-strip {
+    display: grid;
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+    align-items: stretch;
+    min-width: 0;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #2f2b40);
+    transition: grid-template-columns .15s ease;
+}
+#wl-xd-tab-strip.wl-xd-tab-overflow {
+    grid-template-columns: 24px minmax(0, 1fr) 24px;
+}
+
 #wl-xd-tab-bar {
     display: flex;
     gap: 2px;
-    border-bottom: 2px solid var(--SmartThemeBorderColor, #2f2b40);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+#wl-xd-tab-bar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.wl-xd-tab-scroll {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity .15s ease, background .15s ease;
+}
+.wl-xd-tab-overflow .wl-xd-tab-scroll {
+    opacity: .52;
+    pointer-events: auto;
+}
+.wl-xd-tab-overflow .wl-xd-tab-scroll:hover:not(:disabled) {
+    opacity: .9;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #9b8cff) 10%, transparent);
+}
+.wl-xd-tab-overflow .wl-xd-tab-scroll:disabled {
+    opacity: .16;
+    cursor: default;
+}
+.wl-xd-tab-scroll i { font-size: .68em; }
 
 .wl-xd-tab {
     background: none;
@@ -393,6 +446,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex: 0 0 auto;
     white-space: nowrap;
     transition: opacity .15s;
 }
@@ -413,7 +467,12 @@
     overflow-y: auto;
     min-height: 0;
     padding: 14px 2px 6px;
+    /* Keep long panes wheel/touch-scrollable without adding a permanent rail
+       beside ECD's center column. Mirrors the scrollbar-free side buttons. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+#wl-xd-tab-content::-webkit-scrollbar { display: none; }
 
 .wl-xd-pane {
     display: none;
@@ -422,6 +481,188 @@
     min-height: 100%;
 }
 .wl-xd-pane.active { display: flex; }
+
+/* A:E normally hides the native Description editor when Dynamic Fields is on.
+   In ECD those controls have their own Integrations tab, so keep Basics useful
+   and visible; this changes editor presentation only, not prompt injection. */
+.wl-xd-pane[data-tab="basics"] > #descriptionWrapper {
+    display: flex !important;
+}
+
+/* ── Integrations › Aspect: Evolutia ─────────────────────────
+   A:E's live controls are relocated intact so its own handlers and persistence
+   remain authoritative. These rules only reshape them for ECD's wider canvas. */
+.wl-xd-pane[data-tab="integrations"] {
+    --wl-xd-ae-accent: #b76e79;
+    gap: 0;
+}
+.wl-xd-ae-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+}
+.wl-xd-ae-hero {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--wl-xd-ae-accent) 48%, var(--SmartThemeBorderColor, transparent));
+    border-radius: 12px;
+    background:
+        linear-gradient(110deg, color-mix(in srgb, var(--wl-xd-ae-accent) 18%, transparent), transparent 52%),
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 88%, var(--SmartThemeBodyColor, #e8e6f0) 12%);
+    overflow: hidden;
+}
+.wl-xd-ae-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.wl-xd-ae-eyebrow {
+    margin-bottom: 2px;
+    color: color-mix(in srgb, var(--wl-xd-ae-accent) 78%, white 22%);
+    font-size: .68em;
+    font-weight: 750;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.wl-xd-ae-heading h3,
+.wl-xd-ae-section-head h4 {
+    margin: 0;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+}
+.wl-xd-ae-heading h3 { font-size: 1.08em; }
+.wl-xd-ae-heading p,
+.wl-xd-ae-section-head p {
+    margin: 3px 0 0;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .8em;
+    line-height: 1.35;
+    opacity: .68;
+}
+.wl-xd-ae-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--wl-xd-ae-accent) 44%, transparent);
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--wl-xd-ae-accent) 72%, white 28%);
+    background: color-mix(in srgb, var(--wl-xd-ae-accent) 10%, transparent);
+    font-size: .7em;
+    white-space: nowrap;
+    cursor: default;
+}
+.wl-xd-ae-status * {
+    cursor: default !important;
+}
+.wl-xd-ae-section {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.12));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 94%, var(--SmartThemeBodyColor, #e8e6f0) 6%);
+    overflow: visible;
+}
+.wl-xd-ae-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.1));
+}
+.wl-xd-ae-section-head h4 { font-size: .9em; }
+.wl-xd-ae-section-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    color: color-mix(in srgb, var(--wl-xd-ae-accent) 74%, white 26%);
+    background: color-mix(in srgb, var(--wl-xd-ae-accent) 15%, transparent);
+}
+.wl-xd-ae-waiting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 18px;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: .82em;
+    opacity: .65;
+}
+.wl-xd-ae-waiting[hidden] { display: none; }
+
+#wl-xd-ae-alter-slot #dsf_alter_ego_row,
+#wl-xd-ae-fields-slot #dsf_swap_bar {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0 0 12px 12px;
+    background: transparent;
+    box-shadow: none;
+}
+#wl-xd-ae-alter-slot #dsf_alter_ego_row {
+    padding: 0;
+    overflow: visible;
+}
+#wl-xd-ae-alter-slot .dsf-alter-ego-header { display: none; }
+#wl-xd-ae-alter-slot .dsf-alter-ego-body {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 14px;
+}
+#wl-xd-ae-alter-slot .dsf-alter-ego-preview {
+    width: 104px;
+    height: 136px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+#wl-xd-ae-alter-slot .dsf-alter-ego-control-stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    align-items: stretch;
+    gap: 10px;
+}
+#wl-xd-ae-alter-slot :is(.dsf-alter-ego-current-group, .dsf-alter-ego-image-group) {
+    align-content: start;
+    padding: 11px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, rgba(255,255,255,.12)) 72%, transparent);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 82%, transparent);
+}
+#wl-xd-ae-fields-slot #dsf_swap_bar {
+    padding: 13px;
+}
+#wl-xd-ae-fields-slot #dsf_swap_bar .dsf-top-controls {
+    padding-bottom: 11px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.1));
+}
+#wl-xd-ae-fields-slot #dsf_panel .dsf-field {
+    margin: 12px 0 0;
+    padding: 13px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 82%, transparent);
+}
+#wl-xd-ae-fields-slot #dsf_panel .dsf-content {
+    min-height: 150px;
+}
+.wl-xd-pane[data-tab="integrations"] textarea {
+    flex: 0 0 auto;
+    resize: vertical;
+}
+
+@media (max-width: 900px) {
+    .wl-xd-ae-hero { align-items: flex-start; flex-wrap: wrap; }
+    #wl-xd-ae-alter-slot .dsf-alter-ego-body { grid-template-columns: 1fr; }
+    #wl-xd-ae-alter-slot .dsf-alter-ego-preview {
+        width: 82px;
+        height: 82px;
+    }
+}
 
 /* Relocated field wrappers (e.g. #descriptionWrapper) fill the pane height so
    the textarea grows to fill available space, matching the mockup's roomy feel.

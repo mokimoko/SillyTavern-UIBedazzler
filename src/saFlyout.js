@@ -4,6 +4,7 @@
 // the LEFT (the strip is pinned to the right edge) showing:
 //   - a row of group "pills" on top (toggling a group cascades to its agents)
 //   - a grid of agent icons below
+//   - a global pause switch that preserves each agent's enabled state
 // Clicking an icon toggles that agent/group on or off. Enabled = full colour;
 // disabled = dimmed. Hovering an icon reveals its name via a subtle label.
 //
@@ -20,6 +21,7 @@ const CLOSE_DELAY = 220; // ms grace so moving cursor button→panel doesn't clo
 let closeTimer = null;
 let boundBtn = null;
 let runStateBound = false;
+let pauseStateBound = false;
 
 // ── SuperAgents API access (all optional / defensive) ──────────────
 function SA() { return window.SuperAgents || null; }
@@ -43,6 +45,16 @@ function resolveGroupIcon(group) {
 function toggleAgent(id) {
     try { return SA()?.agents?.toggle?.(id); } catch { return null; }
 }
+function getEnabledSetState() {
+    try {
+        const getter = SA()?.agents?.getEnabledSetState;
+        if (typeof getter === 'function') return getter();
+    } catch { /* fall through */ }
+    return { disabled: false, count: getAgents().filter(agent => agent.enabled).length };
+}
+function toggleEnabledSet() {
+    try { return SA()?.agents?.toggleEnabledSet?.(); } catch { return null; }
+}
 function toggleGroup(id) {
     try { return SA()?.groups?.toggle?.(id); } catch { return null; }
 }
@@ -51,11 +63,31 @@ function toggleGroup(id) {
 function runAgentOnLast(id) {
     try { return SA()?.agents?.runOnLast?.(id); } catch { return null; }
 }
+function runGroupOnLast(id) {
+    try { return SA()?.groups?.runOnLast?.(id); } catch { return null; }
+}
 // True while any SuperAgents run is in flight. The engine is single-flight, so
 // this doubles as "is THIS agent running" for our purposes: if anything is
 // running, a second play click would only be rejected anyway.
 function isRunActive() {
     try { return !!SA()?.lifecycle?.isActive?.(); } catch { return false; }
+}
+function isAgentsPaused() {
+    try {
+        const apiValue = SA()?.agents?.isPaused?.();
+        if (typeof apiValue === 'boolean') return apiValue;
+        return !!SA()?.settings?.get?.()?.agentsPaused;
+    } catch { return false; }
+}
+function toggleAgentsPaused() {
+    try {
+        const toggle = SA()?.agents?.togglePaused;
+        if (typeof toggle === 'function') return toggle();
+        const settings = SA()?.settings;
+        const next = !isAgentsPaused();
+        settings?.set?.({ agentsPaused: next });
+        return next;
+    } catch { return null; }
 }
 
 function esc(str) {
@@ -76,6 +108,18 @@ function renderFlyoutBody(panel) {
     const agents = getAgents();
     const groups = getGroups();
     const agentsById = new Map(agents.map(a => [a.id, a]));
+    const enabledCount = agents.filter(agent => agent.enabled).length;
+    const enabledSet = getEnabledSetState();
+    const setDisabled = !!enabledSet?.disabled;
+    const savedCount = Number(enabledSet?.count) || 0;
+    const enabledState = setDisabled
+        ? `${savedCount} saved agent${savedCount === 1 ? '' : 's'} currently off`
+        : enabledCount
+            ? `${enabledCount} enabled; others stay off`
+            : 'No enabled agents to save';
+    const paused = isAgentsPaused();
+    const running = isRunActive();
+    panel.classList.toggle('bd-saf-paused', paused);
 
     const groupRow = groups.length ? `
         <div class="bd-saf-section-label">Groups</div>
@@ -84,17 +128,25 @@ function renderFlyoutBody(panel) {
                 const active = groupIsActive(g, agentsById);
                 const icon = resolveGroupIcon(g);
                 const n = (g.agentIds || []).length;
+                const name = esc(g.name || 'Group');
                 return `
-                <button type="button" class="bd-saf-pill ${active ? 'bd-saf-on' : 'bd-saf-off'}"
-                        data-group-id="${esc(g.id)}" data-name="${esc(g.name || 'Group')}">
+                <div class="bd-saf-pill ${active ? 'bd-saf-on' : 'bd-saf-off'}${running || paused ? ' bd-saf-busy' : ''}"
+                        role="button" tabindex="0" aria-disabled="${paused}"
+                        data-group-id="${esc(g.id)}" data-name="${name}">
                     <i class="fa-solid ${esc(icon)}"></i>
-                    <span class="bd-saf-pill-name">${esc(g.name || 'Group')}</span>
+                    <span class="bd-saf-pill-name">${name}</span>
                     <span class="bd-saf-pill-count">${n}</span>
-                </button>`;
+                    <button type="button" class="bd-saf-run bd-saf-group-run" tabindex="-1"
+                            data-group-run-id="${esc(g.id)}"
+                            aria-label="Run ${name} on last message"
+                            title="${active ? 'Run group on last message' : 'Enable a group agent before running'}"
+                            ${active && !running && !paused ? '' : 'disabled'}>
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                </div>`;
             }).join('')}
         </div>` : '';
 
-    const running = isRunActive();
     const agentGrid = agents.length ? `
         <div class="bd-saf-section-label">Agents</div>
         <div class="bd-saf-agents">
@@ -102,14 +154,16 @@ function renderFlyoutBody(panel) {
                 const icon = resolveAgentIcon(a);
                 const name = esc(a.name || 'Unnamed');
                 return `
-                <div class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}${running ? ' bd-saf-busy' : ''}"
+                <div class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}${running || paused ? ' bd-saf-busy' : ''}"
                      role="button" tabindex="0"
+                     aria-disabled="${paused}"
                      data-agent-id="${esc(a.id)}" data-name="${name}">
                     <i class="fa-solid ${esc(icon)}"></i>
                     <button type="button" class="bd-saf-run" tabindex="-1"
                             data-run-id="${esc(a.id)}"
                             aria-label="Run ${name} on last message"
-                            title="Run on last message">
+                            title="${a.enabled ? 'Run on last message' : 'Enable this agent before running'}"
+                            ${a.enabled && !running && !paused ? '' : 'disabled'}>
                         <i class="fa-solid fa-play"></i>
                     </button>
                 </div>`;
@@ -120,6 +174,43 @@ function renderFlyoutBody(panel) {
         ${groupRow}
         ${agentGrid}
         <div class="bd-saf-hovername" aria-hidden="true"></div>
+        <div class="bd-saf-control-stack">
+            <div class="bd-saf-control-row bd-saf-enabled-set-row">
+                <div class="bd-saf-control-copy">
+                    <span class="bd-saf-control-title">${setDisabled ? 'Restore active set' : 'Disable active set'}</span>
+                    <span class="bd-saf-control-state">${enabledState}</span>
+                </div>
+                <button type="button"
+                        class="bd-saf-pause-toggle bd-saf-set-toggle${setDisabled ? '' : ' is-enabled'}"
+                        data-toggle-enabled-set
+                        role="switch"
+                        aria-checked="${!setDisabled}"
+                        aria-label="${setDisabled ? 'Restore previously enabled agents' : 'Disable currently enabled agents'}"
+                        title="${setDisabled ? 'Restore only the saved active set' : 'Turn off and remember the active set'}"
+                        ${setDisabled || enabledCount ? '' : 'disabled'}>
+                    <span class="bd-saf-pause-track" aria-hidden="true">
+                        <span class="bd-saf-pause-knob"></span>
+                    </span>
+                </button>
+            </div>
+            <div class="bd-saf-control-row bd-saf-pause-row">
+                <div class="bd-saf-control-copy">
+                    <span class="bd-saf-control-title">Pause all agents</span>
+                    <span class="bd-saf-control-state bd-saf-pause-state">${paused ? 'Paused — saved enabled states masked' : 'Agents run normally'}</span>
+                </div>
+                <button type="button"
+                        class="bd-saf-pause-toggle${paused ? ' is-paused' : ''}"
+                        data-pause-toggle
+                        role="switch"
+                        aria-checked="${paused}"
+                        aria-label="${paused ? 'Resume all agents' : 'Pause all agents'}"
+                        title="${paused ? 'Resume previously enabled agents' : 'Pause all agents'}">
+                    <span class="bd-saf-pause-track" aria-hidden="true">
+                        <span class="bd-saf-pause-knob"></span>
+                    </span>
+                </button>
+            </div>
+        </div>
     `;
 }
 
@@ -150,6 +241,23 @@ function subscribeRunState() {
     } catch { /* hook shape changed — safe to skip, badges still work */ }
 }
 
+// Keep the switch and effective on/off styling in sync when /sa-pause changes
+// the state outside this panel.
+function subscribePauseState() {
+    if (pauseStateBound) return;
+    const sub = SA()?.agents?.onPauseChange;
+    if (typeof sub !== 'function') return;
+    try {
+        sub(() => {
+            const panel = document.getElementById(FLYOUT_ID);
+            if (panel && panel.classList.contains('bd-saf-visible')) {
+                renderFlyoutBody(panel);
+            }
+        });
+        pauseStateBound = true;
+    } catch { /* optional integration hook */ }
+}
+
 // ── Show / hide ────────────────────────────────────────────────────
 function showFlyout(anchor) {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
@@ -162,6 +270,7 @@ function showFlyout(anchor) {
         document.body.appendChild(panel);
         wirePanelEvents(panel);
         subscribeRunState();
+        subscribePauseState();
     }
     renderFlyoutBody(panel);
     positionFlyout(panel, anchor);
@@ -202,6 +311,22 @@ function wirePanelEvents(panel) {
     });
 
     panel.addEventListener('click', (e) => {
+        const enabledSetToggle = e.target.closest('[data-toggle-enabled-set]');
+        if (enabledSetToggle) {
+            e.stopPropagation();
+            toggleEnabledSet();
+            renderFlyoutBody(panel);
+            return;
+        }
+
+        const pauseToggle = e.target.closest('[data-pause-toggle]');
+        if (pauseToggle) {
+            e.stopPropagation();
+            toggleAgentsPaused();
+            renderFlyoutBody(panel);
+            return;
+        }
+
         // Play badge first — it lives INSIDE the agent cell, so a badge click
         // also matches the cell. Catch it here and stop it bubbling to toggle.
         const runBtn = e.target.closest('.bd-saf-run');
@@ -209,20 +334,23 @@ function wirePanelEvents(panel) {
             e.stopPropagation();
             // Single-flight: ignore the click if a run is already in progress
             // (the badge is styled disabled in that state as a visual cue).
-            if (isRunActive()) return;
-            runAgentOnLast(runBtn.dataset.runId);
+            if (runBtn.disabled || isRunActive() || isAgentsPaused()) return;
+            if (runBtn.dataset.groupRunId) runGroupOnLast(runBtn.dataset.groupRunId);
+            else runAgentOnLast(runBtn.dataset.runId);
             // Reflect the now-busy state on the grid (badges dim out).
             renderFlyoutBody(panel);
             return;
         }
         const agentCell = e.target.closest('.bd-saf-icon');
         if (agentCell) {
+            if (isAgentsPaused()) return;
             toggleAgent(agentCell.dataset.agentId);
             renderFlyoutBody(panel);
             return;
         }
         const groupPill = e.target.closest('.bd-saf-pill');
         if (groupPill) {
+            if (isAgentsPaused()) return;
             toggleGroup(groupPill.dataset.groupId);
             renderFlyoutBody(panel);
             return;

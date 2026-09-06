@@ -25,8 +25,9 @@ const DEFAULT_SETTINGS = {
     userSettingsDrawerTakeover: true,
     personaDrawerTakeover: true,
     charDrawerTakeover: true,
-    // Expanded character drawer — full 3-column takeover. Off by default; it's
-    // a large optional overhaul and is mutually exclusive with charDrawerTakeover.
+    // Expanded character drawer — full 3-column takeover. Off by default. It
+    // can coexist with the classic takeover; runtime ownership is coordinated
+    // while the expanded drawer opens and closes.
     charDrawerExpanded: false,
     // Character Browser — the !hasCharacterContext() "hub" surface (welcome /
     // no char loaded). A COMPANION of the expanded drawer: it's only meaningful
@@ -83,11 +84,22 @@ const DEFAULT_SETTINGS = {
         themeDefault: '',
         iconAssignments: {},
         sideButtonStyleAssignments: {},
+        modalSize: null,
     },
 
     // --- Side Buttons ---
     sideButtons: true,
     sideButtonStyle: 'default',
+    sideButtonPosition: null,
+    weatherBadgePosition: null,
+
+    // Automatically corrects ST's dark-oriented native surfaces when the
+    // active theme's main UI tint is perceptually light.
+    lightThemeCompat: false,
+
+    // Keep Weather Cycle's WebGL heat/blur canvas from replacing backgrounds
+    // with stretched horizontal bands. Other weather layers remain available.
+    weatherCycleCompat: true,
 
     // Centered Prompt Viewer — replaces ST's native "Show raw prompt" /
     // "Diff with previous" side-slide (in the message Prompt Itemization popup)
@@ -116,13 +128,14 @@ const DEFAULT_SETTINGS = {
     //   'default' | 'phosphor' | 'phosphor-duotone'
     // topbarIconSet re-skins only the top nav bar and chat-input buttons,
     // which are hand-picked rather than bulk-mapped:
-    //   'default' | 'pepicons' | 'freehand'
+    //   shipped set id | 'custom' (assignments live in the shared sidecar)
     //
     // Split because the two have genuinely different needs: the topbar is a
     // dozen icons you curate, the general set is 156 that need coverage. A
     // set that's good at one is usually bad at the other.
     generalIconSet: 'default',
     topbarIconSet: 'default',
+    topbarCustomSetId: '',
 };
 
 // Pre-split, a single `phosphorIcons` boolean covered the general set. Carry

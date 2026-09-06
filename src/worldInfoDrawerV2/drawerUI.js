@@ -24,6 +24,7 @@ import { initSim, teardownSim, refreshSim } from './sim.js';
 import { initSimData, teardownSimData } from './simData.js';
 import { getOpenBookName } from './rail.js';
 import { getBook } from './listData.js';
+import { applyWorldInfoThemePalette } from './themePalette.js';
 
 const log = () => {};
 
@@ -108,6 +109,7 @@ export function takeoverWiV2() {
     if (!extension_settings[MODULE_NAME]?.worldInfoDrawerExpanded) return;
 
     container = buildShell();
+    applyWorldInfoThemePalette(container);
     document.body.appendChild(container);
     document.body.classList.add(BODY_CLASS);
     isActive = true;

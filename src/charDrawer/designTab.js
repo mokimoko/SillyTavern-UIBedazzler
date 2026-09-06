@@ -15,6 +15,7 @@ import {
     hexToRgb, rgbToHex, parseRgba,
     extractColorsFromImage, uploadBannerImage,
     escapeCSSName, injectStyleElement, clearStyleElement,
+    normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { getCharacterAvatarUrl } from '../hostAdapter.js';
 
@@ -52,17 +53,6 @@ function normalizeBoxColor(value) {
     const b = Math.round(clamp(parsed.b, 0, 255, 0));
     const a = clamp(parsed.a, 0, 1, 1);
     return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-function normalizeBannerUrl(value) {
-    const raw = String(value || '').trim();
-    if (!raw || /[\u0000-\u001f\u007f'"\\]/.test(raw)) return '';
-    try {
-        const url = new URL(raw, window.location.href);
-        return url.protocol === 'http:' || url.protocol === 'https:' ? raw : '';
-    } catch {
-        return '';
-    }
 }
 
 function normalizeDesign(design) {
@@ -532,7 +522,10 @@ function buildCharacterCSS(charName, design, avatarFile) {
     if (!hasAnyColor && !hasBanner) return '';
 
     const escapedName = escapeCSSName(charName);
-    const selector = `.mes[ch_name="${escapedName}"]`;
+    // Match Persona Design's role-qualified specificity. Without this,
+    // Character Design's banner padding ties with a direct Chat Design rule
+    // and loses by source order, while the equivalent persona rule wins.
+    const selector = `.mes[ch_name="${escapedName}"][is_user="false"]`;
     const pos = bannerPosition;
     const rules = [];
 
@@ -556,6 +549,8 @@ function buildCharacterCSS(charName, design, avatarFile) {
 
         if (bannerImageUrl) {
             rules.push(`#chat ${selector} {
+    --wl-cdm-banner-image: ${serializeCssUrl(bannerImageUrl)};
+    --wl-cdm-banner-position: ${pos}%;
     position: relative !important;
     padding-top: 140px !important;
     overflow: visible !important;
@@ -566,7 +561,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 140px;
-    background: url(${JSON.stringify(bannerImageUrl)}) center ${pos}% / cover no-repeat;
+    background: ${serializeCssUrl(bannerImageUrl)} center ${pos}% / cover no-repeat;
     z-index: 1;
     pointer-events: none;
     -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 30%, transparent 100%);

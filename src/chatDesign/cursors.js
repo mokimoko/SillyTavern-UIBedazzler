@@ -25,7 +25,7 @@
 
 import { getAllStyles, resolveStyleTargets } from './storage.js';
 import { cleanAvatar } from '../design/designUtils.js';
-import { getContext } from '../../../../../extensions.js';
+import { getAppearanceAvatar } from './chatScope.js';
 import { getAdapter } from '../hostAdapter.js';
 
 // Plugin route for the optional .ani/.cur/.ico image processor (server host
@@ -286,10 +286,11 @@ export function getSetByName(setName) {
  * Build the served URL for a file inside a set:
  *   /user/files/cursors/<set>/<file>
  * The root may contain slashes (it's a fixed relative base) so it is not
- * encoded; the set and file segments are.
+ * encoded; the set and every safe relative file segment are.
  */
 export function cursorFileUrl(setName, file, root = _discovery.root || DEFAULT_ROOT) {
-    return `/${root}/${encodeURIComponent(setName)}/${encodeURIComponent(file)}`;
+    const encodedFile = String(file || '').split('/').map(encodeURIComponent).join('/');
+    return `/${root}/${encodeURIComponent(setName)}/${encodedFile}`;
 }
 
 /**
@@ -389,15 +390,11 @@ export function buildCursorCSS(style) {
 // per-message one, so it keys off the character only.
 
 /** Resolve + build the CSS for whichever cursor style applies right now. */
-export function buildActiveCursorCSS() {
-    const cursorStyles = getAllStyles().filter(s => s.element === 'cursor');
+export function buildActiveCursorCSS(styles = getAllStyles()) {
+    const cursorStyles = styles.filter(s => s.enabled !== false && s.element === 'cursor');
     if (cursorStyles.length === 0) return '';
 
-    const ctx = getContext();
-    const chid = ctx.characterId;
-    const activeChar = (chid != null && ctx.characters?.[chid])
-        ? cleanAvatar(ctx.characters[chid].avatar)
-        : null;
+    const activeChar = getAppearanceAvatar() || null;
 
     let winner = null;
     let bestScore = -1;

@@ -4,9 +4,7 @@
 // Manages ST interface upgrades independently of any preset.
 // Each feature can be toggled from the extensions drawer menu.
 
-import { saveSettingsDebounced } from '../../../../script.js';
-import { getContext, extension_settings } from '../../../extensions.js';
-import * as extensionApi from '../../../extensions.js';
+import { getContext } from '../../../extensions.js';
 
 import { MODULE_NAME, ensureSettings, getSettings, getSetting, setSetting } from './src/settings.js';
 import { isDebug } from './src/debug.js';
@@ -59,8 +57,14 @@ import { openChatDesignModal } from './src/chatDesign/modalLoader.js';
 import { initAuthorsNote } from './src/authorsNote/index.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
 import { initCuteLoader } from './src/cuteLoader.js';
-import { installTauriCloak } from './src/tauriCloak.js';
 import { initSideButtons, onSideButtonsToggleChanged } from './src/sideButtons.js';
+import {
+    initWeatherCycleBadge,
+    resetWeatherCycleBadgePosition,
+    syncWeatherCycleBadgeSettingsRow,
+} from './src/weatherCycleBadge.js';
+import { initWeatherCycleVisibility } from './src/weatherCycleVisibility.js';
+import { onWeatherCycleCompatToggleChanged } from './src/weatherCycleCompat.js';
 import {
     applySideButtonStyleForActiveChar,
     getDefaultSideButtonStyle,
@@ -68,6 +72,10 @@ import {
     setDefaultSideButtonStyle,
 } from './src/chatDesign/sideButtonStyleSwitch.js';
 import { initVariableViewer } from './src/variableViewer/index.js';
+import {
+    initLightThemeCompat,
+    onLightThemeCompatToggleChanged,
+} from './src/lightThemeCompat.js';
 // Centered Prompt Viewer — replaces ST's native raw-prompt / diff side-slide
 // (in the message Prompt Itemization popup) with a centered overlay. Always-on
 // listeners, live-gated on the `centeredPromptViewer` setting; no toggle handler
@@ -80,15 +88,9 @@ import { initNativePromptViewer } from './src/nativePromptViewer.js';
 import { initGreetingsGuard } from './src/greetingsGuard.js';
 
 const log = () => {};
-
-// ── TauriTavern loading cloak (must run at MODULE-EVAL, not in jQuery init) ──
-// Installs window.__nebulaClaimCloak / __nebulaLiftCloak so Landing Page Redux
-// can bridge its first paint without a flash of the bare TT shell. UIBedazzler's
-// loading_order (0) is below LPR's (16), so this runs before LPR evaluates and
-// calls the protocol. No-op unless we're on TauriTavern with LPR enabled — see
-// src/tauriCloak.js for the full rationale. Kept out of jQuery(async …) on
-// purpose: waiting for DOM-ready/APP_READY would be far too late to cover boot.
-installTauriCloak(extension_settings, extensionApi);
+const tauriRecentChatsFixInstalled = globalThis[
+    Symbol.for('UIBedazzler.bootstrapState')
+]?.tauriRecentChatsFixInstalled === true;
 
 // ============================================================
 // Extension Settings Panel HTML
@@ -114,10 +116,10 @@ function buildSettingsHTML() {
                                 <i class="fa-solid fa-circle-info bd-info-icon"></i>
                             </label>
                             <div class="bd-chat-design-btn-row">
-                                <div class="menu_button menu_button_icon bd-open-chat-design" id="bd-open-chat-design" title="Open Chat Design editor">
+                                <button type="button" class="menu_button menu_button_icon bd-open-chat-design" id="bd-open-chat-design" title="Open Chat Design editor">
                                     <i class="fa-solid fa-palette"></i>
                                     <span>Open Editor</span>
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -158,13 +160,13 @@ function buildSettingsHTML() {
                                 <input type="checkbox" class="bd-switch" data-bd-key="personaDrawerTakeover">
                             </label>
 
-                            <label class="bd-row" title="Adds a Design tab to Advanced Definitions for per-character styling.">
-                                <span class="bd-row-name">Advanced Definitions</span>
+                            <label class="bd-row" title="Reorganizes Advanced Definitions into tabs and adds a Design tab for per-character styling.">
+                                <span class="bd-row-name">Character Drawer</span>
                                 <input type="checkbox" class="bd-switch" data-bd-key="charDrawerTakeover">
                             </label>
 
                             <div class="bd-rowwrap" data-bd-parent="charDrawerExpanded">
-                                <label class="bd-row" title="Full 3-column character workspace. Adds an expand button to the character editor. Works alongside Advanced Definitions: whichever is open owns the fields.">
+                                <label class="bd-row" title="Full 3-column character workspace. Adds an expand button to the character editor. Works alongside Character Drawer: whichever is open owns the fields.">
                                     <span class="bd-row-name">Expanded Character Drawer</span>
                                     <input type="checkbox" class="bd-switch" data-bd-key="charDrawerExpanded">
                                 </label>
@@ -213,9 +215,21 @@ function buildSettingsHTML() {
                                     </select>
                                 </label>
                             </div>
+                            <div class="bd-row" id="bd-weather-badge-position-row" hidden>
+                                <span class="bd-row-name">Weather Badge Position</span>
+                                <button class="bd-small-action" id="bd-reset-weather-badge-position" type="button">Reset</button>
+                            </div>
+                            <label class="bd-row" title="Automatically adapts SillyTavern's native headers, fields, and text shadows when the active UI theme is light. Dark themes are left unchanged.">
+                                <span class="bd-row-name">Light Theme Compatibility</span>
+                                <input type="checkbox" class="bd-switch" data-bd-key="lightThemeCompat">
+                            </label>
                             <label class="bd-row" title="Replaces ST's native 'Show raw prompt' side-slide (in a message's Prompt Itemization popup) with a centered, role-separated prompt viewer — the same one used in the Expanded Preset Drawer's Test chat.">
                                 <span class="bd-row-name">Centered Prompt Viewer</span>
                                 <input type="checkbox" class="bd-switch" data-bd-key="centeredPromptViewer">
+                            </label>
+                            <label class="bd-row" title="Prevents stretched or banded backgrounds by disabling Weather Cycle's Heat Haze / Background Blur canvas. Rain, snow, fog, lightning, tint, controls, and the badge remain available.">
+                                <span class="bd-row-name">Protect Weather Cycle Background</span>
+                                <input type="checkbox" class="bd-switch" data-bd-key="weatherCycleCompat">
                             </label>
                             <!-- nebula-loader companion rows (Nebula Engine, Phosphor Icons)
                                  are injected here by src/cuteLoader.js only when the
@@ -278,6 +292,8 @@ function wireSettingsEvents() {
         charBrowser: onCharBrowserToggleChanged,
         worldInfoDrawerExpanded: onWorldInfoDrawerExpandedToggleChanged,
         sideButtons: onSideButtonsToggleChanged,
+        lightThemeCompat: onLightThemeCompatToggleChanged,
+        weatherCycleCompat: onWeatherCycleCompatToggleChanged,
     };
 
     container.querySelectorAll('[data-bd-key]').forEach(checkbox => {
@@ -324,6 +340,12 @@ function wireSettingsEvents() {
             applySideButtonStyleForActiveChar();
         });
     }
+
+    container.querySelector('#bd-reset-weather-badge-position')?.addEventListener('click', () => {
+        resetWeatherCycleBadgePosition();
+        toastr.info('Weather badge position reset.');
+    });
+    syncWeatherCycleBadgeSettingsRow();
 
     // ── Collapsible section headers ──────────────────────────
     // Click or Enter/Space toggles the section body; chevron rotates.
@@ -378,10 +400,10 @@ function wireSettingsEvents() {
 
 function addWandMenuItem() {
     const menuItem = $(`
-        <div id="bd_chat_design_wand" class="list-group-item flex-container flexGap5">
+        <button type="button" id="bd_chat_design_wand" class="list-group-item flex-container flexGap5">
             <div class="fa-solid fa-palette extensionsMenuExtensionButton"></div>
             <span>Chat Design</span>
-        </div>
+        </button>
     `);
     $('#extensionsMenu').append(menuItem);
     menuItem.on('click', () => openChatDesignModal());
@@ -404,6 +426,17 @@ jQuery(async () => {
     };
 
     _time('ensureSettings', () => ensureSettings());
+
+    // Third-party extensions load after TT's first welcome render. Redraw that
+    // already-open panel once so its existing rows also receive corrected IDs.
+    if (tauriRecentChatsFixInstalled && document.querySelector('#chat > .welcomePanel')) {
+        try {
+            const { openWelcomeScreen } = await import('../../../../scripts/welcome-screen.js');
+            await openWelcomeScreen({ force: true });
+        } catch (error) {
+            console.warn('[UIBedazzler] Could not refresh the patched Recent Chats panel.', error);
+        }
+    }
 
     // Inject settings panel into extensions drawer
     _time('settingsPanel', () => {
@@ -429,8 +462,11 @@ jQuery(async () => {
     _time('initWorldInfoDrawerV2', () => initWorldInfoDrawerV2());
     _time('initChatDesign', () => initChatDesign());
     _time('initAuthorsNote', () => initAuthorsNote());
+    _time('initWeatherCycleVisibility', () => initWeatherCycleVisibility());
     _time('initSideButtons', () => initSideButtons());
+    _time('initWeatherCycleBadge', () => initWeatherCycleBadge());
     _time('initVariableViewer', () => initVariableViewer());
+    _time('initLightThemeCompat', () => initLightThemeCompat());
     _time('initNativePromptViewer', () => initNativePromptViewer());
     _time('initGreetingsGuard', () => initGreetingsGuard());
 

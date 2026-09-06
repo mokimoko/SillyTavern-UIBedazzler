@@ -49,9 +49,98 @@ let pendingCompiledPrompt = null;
 const compiledPromptCache = new Map();
 const promptStorage = localforage.createInstance({ name: 'SillyTavern_Prompts' });
 const compiledPromptStorage = localforage.createInstance({ name: 'UIBedazzler_CompiledPrompts' });
+const PROMPT_KEY_SEPARATOR = '\u001f';
+const PROMPT_INDEX_KEY = '__bd_prompt_index_v1';
+const MAX_MEMORY_PROMPTS = 6;
+const MAX_PERSISTED_PROMPTS_PER_CHAT = 12;
+const MAX_PERSISTED_PROMPTS = 80;
+let storageQueue = Promise.resolve();
 
 function isEnabled() {
     return !!extension_settings?.[MODULE_NAME]?.[NPV_SETTING_KEY];
+}
+
+function rememberCompiledPrompt(key, prompt) {
+    compiledPromptCache.delete(key);
+    compiledPromptCache.set(key, prompt);
+    while (compiledPromptCache.size > MAX_MEMORY_PROMPTS) {
+        compiledPromptCache.delete(compiledPromptCache.keys().next().value);
+    }
+    return prompt;
+}
+
+function parseCompiledPromptKey(key) {
+    if (typeof key !== 'string' || key === PROMPT_INDEX_KEY) return null;
+    const separatorAt = key.lastIndexOf(PROMPT_KEY_SEPARATOR);
+    if (separatorAt < 1) return null;
+    const mesId = Number(key.slice(separatorAt + 1));
+    if (!Number.isFinite(mesId)) return null;
+    return { key, chatId: key.slice(0, separatorAt), mesId };
+}
+
+function queueStorageTask(task) {
+    storageQueue = storageQueue
+        .catch(() => undefined)
+        .then(task)
+        .catch((error) => console.warn('[BD nativePromptViewer] Prompt-cache maintenance failed:', error));
+}
+
+async function prunePersistedPrompts(newEntry = null) {
+    const [storedKeys, savedIndex] = await Promise.all([
+        compiledPromptStorage.keys(),
+        compiledPromptStorage.getItem(PROMPT_INDEX_KEY),
+    ]);
+    const dataKeys = storedKeys.filter((key) => key !== PROMPT_INDEX_KEY);
+    const dataKeySet = new Set(dataKeys);
+    const entries = new Map();
+
+    for (const entry of Array.isArray(savedIndex) ? savedIndex : []) {
+        if (!entry?.key || !dataKeySet.has(entry.key)) continue;
+        const parsed = parseCompiledPromptKey(entry.key);
+        if (!parsed) continue;
+        entries.set(entry.key, {
+            ...parsed,
+            cachedAt: Number(entry.cachedAt) || 0,
+        });
+    }
+
+    // Adopt caches created by older UIBedazzler builds so the first maintenance
+    // pass also bounds pre-existing data.
+    for (const key of dataKeys) {
+        if (entries.has(key)) continue;
+        const parsed = parseCompiledPromptKey(key);
+        if (parsed) entries.set(key, { ...parsed, cachedAt: 0 });
+    }
+    if (newEntry) entries.set(newEntry.key, newEntry);
+
+    const byChat = new Map();
+    for (const entry of entries.values()) {
+        if (!byChat.has(entry.chatId)) byChat.set(entry.chatId, []);
+        byChat.get(entry.chatId).push(entry);
+    }
+
+    const candidates = [];
+    for (const chatEntries of byChat.values()) {
+        chatEntries.sort((a, b) => (b.cachedAt - a.cachedAt) || (b.mesId - a.mesId));
+        candidates.push(...chatEntries.slice(0, MAX_PERSISTED_PROMPTS_PER_CHAT));
+    }
+    candidates.sort((a, b) => (b.cachedAt - a.cachedAt) || (b.mesId - a.mesId));
+
+    const kept = candidates.slice(0, MAX_PERSISTED_PROMPTS);
+    const keptKeys = new Set(kept.map((entry) => entry.key));
+    const removals = dataKeys.filter((key) => !keptKeys.has(key));
+    await Promise.all(removals.map((key) => compiledPromptStorage.removeItem(key)));
+    await compiledPromptStorage.setItem(PROMPT_INDEX_KEY, kept);
+}
+
+async function persistCompiledPrompt(key, chatId, mesId, prompt) {
+    await compiledPromptStorage.setItem(key, prompt);
+    await prunePersistedPrompts({
+        key,
+        chatId: String(chatId),
+        mesId: Number(mesId),
+        cachedAt: Date.now(),
+    });
 }
 
 // ============================================================
@@ -65,27 +154,32 @@ export function initNativePromptViewer() {
     const context = getContext();
     const events = context?.eventTypes || context?.event_types;
 
+    // Prune data left by older unbounded builds without delaying startup.
+    queueStorageTask(() => prunePersistedPrompts());
+
     // This is the public ST boundary where ChatCompletion.getChat() has already
     // produced the exact [{ role, content, name? }] payload sent to the model.
     context?.eventSource?.on?.(events?.CHAT_COMPLETION_PROMPT_READY, (eventData) => {
-        if (eventData?.dryRun !== false || !Array.isArray(eventData?.chat)) return;
+        if (!isEnabled() || eventData?.dryRun !== false || !Array.isArray(eventData?.chat)) {
+            pendingCompiledPrompt = null;
+            return;
+        }
         pendingCompiledPrompt = structuredClone(eventData.chat);
     });
 
     // MESSAGE_RECEIVED supplies the authoritative message id, including swipes
     // and group generations. Cache synchronously; persistence can finish later.
     context?.eventSource?.on?.(events?.MESSAGE_RECEIVED, (mesId, type) => {
-        if (!pendingCompiledPrompt || type === 'quiet') return;
+        if (!pendingCompiledPrompt) return;
+        const prompt = pendingCompiledPrompt;
+        pendingCompiledPrompt = null;
+        if (!isEnabled() || type === 'quiet') return;
         const chatId = getContext()?.getCurrentChatId?.();
         if (!chatId) return;
 
-        const prompt = pendingCompiledPrompt;
-        pendingCompiledPrompt = null;
         const key = compiledPromptKey(chatId, mesId);
-        compiledPromptCache.set(key, prompt);
-        void compiledPromptStorage.setItem(key, prompt).catch((err) => {
-            console.warn('[BD nativePromptViewer] Could not persist compiled prompt:', err);
-        });
+        rememberCompiledPrompt(key, prompt);
+        queueStorageTask(() => persistCompiledPrompt(key, chatId, mesId, prompt));
     });
 
     // Observe (do NOT preempt) the native Prompt button so we know which
@@ -130,19 +224,20 @@ function rawPromptForMessage(sets, mesId) {
 }
 
 function compiledPromptKey(chatId, mesId) {
-    return `${chatId}\u001f${Number(mesId)}`;
+    return `${chatId}${PROMPT_KEY_SEPARATOR}${Number(mesId)}`;
 }
 
 async function loadCapturedRawPrompt(mesId) {
     const chatId = getContext()?.getCurrentChatId?.();
     if (!chatId) return null;
     const key = compiledPromptKey(chatId, mesId);
-    if (compiledPromptCache.has(key)) return compiledPromptCache.get(key);
+    if (compiledPromptCache.has(key)) {
+        return rememberCompiledPrompt(key, compiledPromptCache.get(key));
+    }
 
     try {
         const prompt = await compiledPromptStorage.getItem(key);
-        if (Array.isArray(prompt)) compiledPromptCache.set(key, prompt);
-        return Array.isArray(prompt) ? prompt : null;
+        return Array.isArray(prompt) ? rememberCompiledPrompt(key, prompt) : null;
     } catch (err) {
         console.warn('[BD nativePromptViewer] Could not load captured prompt:', err);
         return null;

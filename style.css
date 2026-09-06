@@ -10,6 +10,7 @@
 @import url('./personaLore.css');
 @import url('./charDrawer.css');
 @import url('./nativePromptViewer.css');
+@import url('./lightThemeCompat.css');
 
 /* Lightweight launch controls stay resident; large overlay styles load only
    when their corresponding expanded surface is opened. */
@@ -324,6 +325,14 @@
     justify-content: center;
 }
 
+#bd_chat_design_wand {
+    width: 100%;
+    border: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+}
+
 
 /* === Nebula Engine Integration (nebula-loader companion) === */
 .bd-nebula-section {
@@ -345,20 +354,117 @@
     border-radius: 3px;
 }
 
+.bd-custom-icons-launch-row {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 2px 5px 22px;
+}
+
+.bd-custom-icons-launch-row[hidden] {
+    display: none;
+}
+
+.bd-custom-icon-set-select {
+    width: 100%;
+    min-width: 0;
+}
+
+#bd-edit-custom-icons {
+    width: 100%;
+    min-width: max-content;
+    padding: 5px 10px;
+    font-size: 0.76em;
+    white-space: nowrap;
+}
+
 
 /* === Side Buttons (floating toolbar) === */
 #bd-side-buttons {
     position: fixed;
-    top: 10px;
+    top: calc(var(--topBarBlockSize, 40px) + max(var(--tt-inset-top, 0px), 0px) + 28px);
     right: 20px;
     z-index: 25; /* below Variable Viewer popup (#vv--root, z-index 30) */
+    pointer-events: none;
+    overflow: visible;
+}
+
+.bd-side-buttons-scroll {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    pointer-events: none;
+    max-height: calc(100vh - 96px);
+    max-height: var(--bd-side-buttons-max-height, calc(100dvh - 96px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.bd-side-buttons-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.bd-side-buttons-drag-handle {
+    position: absolute;
+    left: 50%;
+    z-index: 1;
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 20px;
+    min-height: 0;
+    padding: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: rgb(205 211 217 / 58%) !important;
+    font: inherit;
+    font-size: 10px;
+    line-height: 1;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0;
+    transform: translateX(-50%);
+    transition: color 0.15s, opacity 0.15s;
+}
+
+.bd-side-buttons-drag-handle-top {
+    top: -20px;
+}
+
+.bd-side-buttons-drag-handle-bottom {
+    bottom: -20px;
+}
+
+.bd-side-buttons-drag-handle:hover,
+.bd-side-buttons-drag-handle:focus-visible,
+#bd-side-buttons.bd-side-buttons-dragging .bd-side-buttons-drag-handle {
+    color: rgb(235 239 242 / 72%) !important;
+    opacity: 0.62;
+}
+
+.bd-side-buttons-drag-handle > i {
+    color: inherit !important;
+    font-size: 10px;
+    filter: none !important;
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 !important;
+    transform: rotate(90deg);
+}
+
+#bd-side-buttons.bd-side-buttons-dragging .bd-side-buttons-drag-handle {
+    cursor: grabbing;
 }
 
 .bd-side-btn {
+    flex: 0 0 auto;
     pointer-events: auto;
     display: flex;
     align-items: center;
@@ -372,8 +478,6 @@
     cursor: pointer;
     color: var(--bd-text-dim);
     font-size: 16px;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
     transition: background 0.2s ease,
                 border-color 0.2s ease,
                 color 0.2s ease,
@@ -416,6 +520,89 @@
     display: none !important;
 }
 
+.bd-small-action {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border: 1px solid var(--bd-border);
+    border-radius: 6px;
+    background: var(--bd-surface);
+    color: var(--bd-text-dim);
+    cursor: pointer;
+    font-size: 0.76em;
+}
+
+.bd-small-action:hover {
+    border-color: var(--bd-border-hover);
+    color: var(--bd-accent);
+}
+
+/* Weather Cycle keeps ownership of its compact control panel. UIBedazzler
+   only moves that panel beside the replacement side button while active. */
+html.bd-weather-cycle-background-safe #st-weather-cycle-heat-canvas {
+    /* Heat Haze and Background Blur share this faulty WebGL surface. Hiding it
+       preserves the source image and collapses Weather Cycle's render target,
+       while its separate overlay, fog, particle, and lightning layers remain. */
+    display: none !important;
+    width: 1px !important;
+    height: 1px !important;
+}
+
+body.bd-weather-cycle-no-chat #st-weather-cycle-badge,
+body.bd-weather-cycle-no-chat #st-weather-cycle-toggle,
+body.bd-weather-cycle-no-chat #st-weather-cycle-panel,
+body.bd-weather-cycle-no-chat .bd-side-btn[data-id="weather-cycle"] {
+    display: none !important;
+}
+
+#st-weather-cycle-panel.bd-weather-cycle-panel-adapted {
+    right: auto;
+    bottom: auto;
+    width: min(280px, calc(100vw - 80px));
+    max-height: calc(100vh - 16px);
+    box-sizing: border-box;
+    overflow-y: auto;
+    color: var(--bd-text);
+    background: var(--bd-surface);
+    border-color: var(--bd-border);
+    box-shadow: 0 12px 32px var(--bd-shadow);
+    text-shadow: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+#st-weather-cycle-panel.bd-weather-cycle-panel-adapted select {
+    color: var(--bd-text);
+    background-color: var(--bd-surface-2);
+    border: 1px solid var(--bd-border);
+}
+
+#st-weather-cycle-panel.bd-weather-cycle-panel-adapted select:is(:hover, :focus-visible) {
+    border-color: var(--bd-border-hover);
+}
+
+#st-weather-cycle-panel.bd-weather-cycle-panel-adapted select option {
+    color: var(--bd-text);
+    background: var(--bd-surface);
+}
+
+#st-weather-cycle-panel.bd-weather-cycle-panel-adapted input[type="range"] {
+    accent-color: var(--bd-accent);
+}
+
+#st-weather-cycle-badge.bd-weather-cycle-badge-movable {
+    /* Match Word Count's chat-float tier: above chat, below native drawers. */
+    z-index: 100;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+#st-weather-cycle-badge.bd-weather-cycle-badge-dragging {
+    cursor: grabbing;
+}
+
 
 /* ST-Copilot: subtle purple tint echoing the original dock icon.
    Purple is semantic (Copilot's brand), so it stays fixed — layered
@@ -436,7 +623,6 @@
 
 /* Quiet Rail — compact controls on one shared frosted surface. */
 body.bd-side-buttons-quiet-rail #bd-side-buttons {
-    gap: 2px;
     padding: 5px;
     border: 1px solid var(--bd-border);
     border-radius: 16px;
@@ -444,6 +630,10 @@ body.bd-side-buttons-quiet-rail #bd-side-buttons {
     box-shadow: 0 10px 30px color-mix(in srgb, var(--bd-shadow) 55%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+}
+
+body.bd-side-buttons-quiet-rail .bd-side-buttons-scroll {
+    gap: 2px;
 }
 
 body.bd-side-buttons-quiet-rail .bd-side-btn {
@@ -470,6 +660,9 @@ body.bd-side-buttons-quiet-rail .bd-side-btn:is(:hover, .bd-side-btn-active) {
 /* Edge Tabs — unboxed controls that visually attach to the viewport edge. */
 body.bd-side-buttons-edge-tabs #bd-side-buttons {
     right: 0;
+}
+
+body.bd-side-buttons-edge-tabs .bd-side-buttons-scroll {
     gap: 2px;
 }
 
@@ -500,7 +693,7 @@ body.bd-side-buttons-edge-tabs .bd-side-btn:is(:hover, .bd-side-btn-active) {
 }
 
 /* Soft Tiles — compact low-contrast squares without floating depth. */
-body.bd-side-buttons-soft-tiles #bd-side-buttons {
+body.bd-side-buttons-soft-tiles .bd-side-buttons-scroll {
     gap: 5px;
 }
 
@@ -525,7 +718,7 @@ body.bd-side-buttons-soft-tiles .bd-side-btn:is(:hover, .bd-side-btn-active) {
 }
 
 /* Halo — airy circles that gain a surface only when emphasized. */
-body.bd-side-buttons-halo #bd-side-buttons {
+body.bd-side-buttons-halo .bd-side-buttons-scroll {
     gap: 5px;
 }
 
@@ -630,6 +823,7 @@ body:is(
     gap: 5px;
 }
 .bd-saf-pill {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -728,6 +922,110 @@ body:is(
     padding: 12px 0;
 }
 
+/* Persisted all-on/all-off control plus the separate global execution mask. */
+.bd-saf-control-stack {
+    margin-top: 4px;
+    padding-top: 3px;
+    border-top: 1px solid var(--bd-border);
+}
+.bd-saf-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 2px;
+}
+.bd-saf-control-row + .bd-saf-control-row {
+    border-top: 1px solid var(--bd-border);
+}
+.bd-saf-control-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.bd-saf-control-title {
+    color: var(--bd-text);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+}
+.bd-saf-control-state {
+    color: var(--bd-text-faint);
+    font-size: 9px;
+    line-height: 1.2;
+}
+.bd-saf-pause-toggle {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 22px;
+    padding: 2px;
+    border: 1px solid rgba(120, 180, 130, 0.42);
+    border-radius: 999px;
+    background: rgba(120, 180, 130, 0.12);
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease,
+                box-shadow 0.16s ease, transform 0.12s ease;
+}
+.bd-saf-pause-toggle:hover { transform: scale(1.04); }
+.bd-saf-pause-toggle:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.bd-saf-pause-toggle:disabled:hover { transform: none; }
+.bd-saf-pause-toggle:focus-visible {
+    outline: 2px solid var(--bd-accent);
+    outline-offset: 2px;
+}
+.bd-saf-pause-track {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.bd-saf-pause-knob {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(170, 200, 175, 1);
+    box-shadow: 0 1px 4px var(--bd-shadow-strong);
+    transition: left 0.18s ease, background 0.18s ease;
+}
+.bd-saf-set-toggle {
+    border-color: var(--bd-border-hover);
+    background: var(--bd-surface-2);
+}
+.bd-saf-set-toggle .bd-saf-pause-knob {
+    background: var(--bd-text-faint);
+}
+.bd-saf-set-toggle.is-enabled {
+    border-color: rgba(120, 180, 130, 0.42);
+    background: rgba(120, 180, 130, 0.12);
+}
+.bd-saf-set-toggle.is-enabled .bd-saf-pause-knob {
+    left: 17px;
+    background: rgba(170, 200, 175, 1);
+}
+.bd-saf-pause-toggle.is-paused {
+    border-color: rgba(238, 170, 95, 0.62);
+    background: rgba(225, 130, 75, 0.22);
+    box-shadow: 0 0 10px rgba(225, 130, 75, 0.12);
+}
+.bd-saf-pause-toggle.is-paused .bd-saf-pause-knob {
+    left: 17px;
+    background: rgba(255, 196, 126, 1);
+}
+.bd-saf-paused .bd-saf-pause-state { color: rgba(238, 170, 95, 0.9); }
+.bd-saf-paused .bd-saf-icon,
+.bd-saf-paused .bd-saf-pill { cursor: default; }
+.bd-saf-paused .bd-saf-icon:hover {
+    transform: none;
+}
+
 
 /* Play badge — "run on last message". Hidden until the cell is hovered.
    Sits top-right as a small chip. Green run-glyph is semantic; the chip
@@ -757,7 +1055,8 @@ body:is(
     transition: transform 0.12s ease, background 0.12s ease,
                 border-color 0.12s ease, opacity 0.12s ease;
 }
-.bd-saf-icon:hover .bd-saf-run {
+.bd-saf-icon:hover .bd-saf-run,
+.bd-saf-pill:hover > .bd-saf-run {
     display: flex;
     opacity: 1;
 }

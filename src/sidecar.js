@@ -15,7 +15,8 @@
 //     version: 2,
 //     lastModified: <iso>,
 //     subjects:   { "<book>": { "<uid>": subject } },   // WI v2 (subjectStore)
-//     charBrowser:{ tagMeta: { "<tagId>": {...} }, pageSize: <n> }  // char browser
+//     charBrowser:{ tagMeta: { "<tagId>": {...} }, pageSize: <n> }, // char browser
+//     customTopbarIcons:{ sets: { [id]: { name, baseSet, slots } } } // named custom icon sets
 //   }
 // Top-level keys are SECTIONS owned by their feature module. This module knows
 // nothing about their inner shape — it just loads, caches, and persists the
@@ -50,6 +51,7 @@ const FILE_URL = `/user/files/${FILENAME}`;
 const OLD_WI_FILENAME = 'uibedazzler_wi_meta.json';
 const OLD_WI_URL = `/user/files/${OLD_WI_FILENAME}`;
 const DEBOUNCE_MS = 1500;
+const MAX_RETRY_MS = 30000;
 const SCHEMA_VERSION = 2;
 
 // ============================================================
@@ -62,7 +64,10 @@ let loaded = false;
 
 let saveTimer = null;
 let pendingData = null;
+let saveInFlight = null;
+let retryDelayMs = DEBOUNCE_MS;
 let unloadHandler = null;
+const preloadReplacedSections = new Set();
 
 // Subscribers notified when the async load resolves (so a feature that read an
 // empty cache synchronously can repaint once the real data arrives).
@@ -76,7 +81,15 @@ function emitLoaded() { for (const cb of listeners) { try { cb(); } catch (e) { 
 // ============================================================
 
 function emptyDoc() {
-    return { version: SCHEMA_VERSION, lastModified: new Date().toISOString(), subjects: {}, noteTypes: {}, charBrowser: {}, charTitles: {} };
+    return {
+        version: SCHEMA_VERSION,
+        lastModified: new Date().toISOString(),
+        subjects: {},
+        noteTypes: {},
+        charBrowser: {},
+        charTitles: {},
+        customTopbarIcons: {},
+    };
 }
 
 /** Normalize an arbitrary parsed object into a well-formed document, tolerating
@@ -84,6 +97,7 @@ function emptyDoc() {
 function normalizeDoc(raw) {
     const d = (raw && typeof raw === 'object') ? raw : {};
     return {
+        ...d,
         version: SCHEMA_VERSION,
         lastModified: d.lastModified || new Date().toISOString(),
         subjects: (d.subjects && typeof d.subjects === 'object') ? d.subjects : {},
@@ -93,7 +107,54 @@ function normalizeDoc(raw) {
         noteTypes: (d.noteTypes && typeof d.noteTypes === 'object') ? d.noteTypes : {},
         charBrowser: (d.charBrowser && typeof d.charBrowser === 'object') ? d.charBrowser : {},
         charTitles: (d.charTitles && typeof d.charTitles === 'object') ? d.charTitles : {},
+        customTopbarIcons: (d.customTopbarIcons && typeof d.customTopbarIcons === 'object') ? d.customTopbarIcons : {},
     };
+}
+
+function cloneValue(value) {
+    if (Array.isArray(value)) return value.map(cloneValue);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneValue(child)]));
+    }
+    return value;
+}
+
+function mergeMissingValues(live, loadedValue) {
+    for (const [key, value] of Object.entries(loadedValue || {})) {
+        if (!(key in live)) {
+            live[key] = cloneValue(value);
+        } else if (
+            live[key] && typeof live[key] === 'object' && !Array.isArray(live[key])
+            && value && typeof value === 'object' && !Array.isArray(value)
+        ) {
+            mergeMissingValues(live[key], value);
+        }
+    }
+}
+
+/** Hydrate a cache that may already have live section handles. Local values win;
+ * downloaded values fill only missing keys, so an early edit cannot erase disk
+ * data and callers do not lose the object references returned by getSection(). */
+function mergeLoadedDocument(raw) {
+    const loadedDoc = normalizeDoc(raw);
+    if (!doc) {
+        doc = loadedDoc;
+        return;
+    }
+
+    const hadPendingWrite = Boolean(pendingData);
+    for (const [key, value] of Object.entries(loadedDoc)) {
+        if (key === 'version' || key === 'lastModified') continue;
+        if (preloadReplacedSections.has(key)) continue;
+        if (!doc[key] || typeof doc[key] !== 'object' || Array.isArray(doc[key])) {
+            doc[key] = cloneValue(value);
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+            mergeMissingValues(doc[key], value);
+        }
+    }
+    doc.version = SCHEMA_VERSION;
+    if (!hadPendingWrite) doc.lastModified = loadedDoc.lastModified;
+    if (pendingData) pendingData = doc;
 }
 
 // ============================================================
@@ -180,12 +241,12 @@ export function ensureSidecarLoaded() {
         try {
             const fresh = await downloadJSON(FILE_URL);
             if (fresh) {
-                doc = normalizeDoc(fresh);
+                mergeLoadedDocument(fresh);
             } else {
                 // New file absent — try migrating the old WI sidecar.
                 const old = await downloadJSON(OLD_WI_URL).catch(() => null);
                 if (old && old.subjects && typeof old.subjects === 'object') {
-                    doc = normalizeDoc({ subjects: old.subjects });
+                    mergeLoadedDocument({ subjects: old.subjects });
                     // Persist under the new name, then remove the old file so we
                     // never migrate twice.
                     try {
@@ -196,15 +257,20 @@ export function ensureSidecarLoaded() {
                         logError('WI migration persist failed', e?.message);
                     }
                 } else {
-                    doc = emptyDoc();
+                    mergeLoadedDocument(emptyDoc());
                 }
             }
         } catch (e) {
             logError('load', e?.message);
-            doc = emptyDoc();
+            mergeLoadedDocument(emptyDoc());
         } finally {
             loaded = true;
+            preloadReplacedSections.clear();
             armUnloadFlush();
+            if (pendingData) {
+                pendingData = doc;
+                queueSave();
+            }
             emitLoaded();
         }
         return doc;
@@ -237,6 +303,7 @@ export function getSection(key) {
 export function setSection(key, value) {
     if (!doc) doc = emptyDoc();
     doc[key] = value;
+    if (!loaded) preloadReplacedSections.add(key);
     scheduleSave();
 }
 
@@ -244,30 +311,65 @@ export function setSection(key, value) {
 // Debounced persistence
 // ============================================================
 
-/** Schedule a debounced write of the whole document. Safe to call before the
- *  load resolves: it stamps lastModified and coalesces rapid writes; the actual
- *  upload carries whatever the cache holds when the timer fires. */
+function queueSave(delay = DEBOUNCE_MS) {
+    if (!loaded || !pendingData) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        void persistPending();
+    }, delay);
+}
+
+async function persistPending() {
+    if (!loaded || !pendingData) return saveInFlight || undefined;
+    if (saveInFlight) {
+        try { await saveInFlight; } catch { /* the owning save path schedules retry */ }
+        return pendingData ? persistPending() : undefined;
+    }
+
+    const data = pendingData;
+    pendingData = null;
+    let failed = false;
+    saveInFlight = uploadJSON(FILENAME, data);
+    try {
+        await saveInFlight;
+        retryDelayMs = DEBOUNCE_MS;
+    } catch (e) {
+        failed = true;
+        logError('save', e?.message);
+        if (!pendingData) pendingData = data;
+    } finally {
+        saveInFlight = null;
+    }
+
+    if (pendingData) {
+        const delay = failed ? retryDelayMs : DEBOUNCE_MS;
+        if (failed) retryDelayMs = Math.min(retryDelayMs * 2, MAX_RETRY_MS);
+        queueSave(delay);
+    }
+}
+
+/** Schedule a debounced write of the whole document. Calls made during startup
+ * remain pending until the initial load has merged in all existing sections. */
 export function scheduleSave() {
     if (!doc) return;
     doc.lastModified = new Date().toISOString();
     pendingData = doc;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-        saveTimer = null;
-        const data = pendingData;
-        pendingData = null;
-        try { await uploadJSON(FILENAME, data); }
-        catch (e) { logError('debounced save', e?.message); pendingData = data; }
-    }, DEBOUNCE_MS);
+    if (!loaded) {
+        void ensureSidecarLoaded();
+        return;
+    }
+    queueSave();
 }
 
 /** Flush a pending save immediately (best-effort, async). Used by feature
  *  teardowns that want their write on disk without waiting out the debounce. */
 export function flushSidecar() {
-    if (!saveTimer || !pendingData) return;
-    clearTimeout(saveTimer); saveTimer = null;
-    const data = pendingData; pendingData = null;
-    return uploadJSON(FILENAME, data).catch(e => logError('flush', e?.message));
+    if (!pendingData) return saveInFlight?.catch(() => undefined);
+    if (!loaded) return ensureSidecarLoaded().then(() => flushSidecar());
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    return persistPending();
 }
 
 function armUnloadFlush() {

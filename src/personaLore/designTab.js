@@ -1,7 +1,7 @@
 // src/personaLore/designTab.js
 // Design tab UI and logic — per-persona color styling, banner images, avatar color extraction
 //
-// Storage: extension_settings.WhiteLotus.personaDesigns[avatarId]
+// Storage: extension_settings.UIBedazzler.personaDesigns[avatarId]
 //   { personaName, nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition }
 //
 // CSS injected via <style id="wl-persona-design-styles"> targeting
@@ -14,6 +14,7 @@ import {
     hexToRgb, rgbToHex, parseRgba,
     extractColorsFromImage, uploadBannerImage,
     escapeCSSName, injectStyleElement, clearStyleElement,
+    normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { refreshChatDesignCSSDebounced } from '../chatDesign/index.js';
 
@@ -57,9 +58,7 @@ function getDesignData() {
  * Update design data for the current persona and save.
  * @param {object} updates — key/value pairs to merge into the persona's design
  */
-function updatePersonaDesign(updates) {
-    const avatar = getCurrentPersonaAvatar();
-    const name = getCurrentPersonaName();
+function updatePersonaDesignForAvatar(avatar, name, updates) {
     if (!avatar) return;
 
     const settings = extension_settings[MODULE_NAME];
@@ -118,8 +117,11 @@ export function renderDesignTab(pane) {
         return;
     }
 
-    const design = getDesignData();
+    const design = { ...getDesignData() };
+    design.bannerUrl = normalizeBannerUrl(design.bannerUrl);
     const personaName = getCurrentPersonaName();
+    const isStillCurrent = () => pane.isConnected && getCurrentPersonaAvatar() === avatar;
+    const updateRenderedPersona = updates => updatePersonaDesignForAvatar(avatar, personaName, updates);
 
     const boxParsed = parseRgba(design.boxColor) || (design.boxColor?.startsWith('#') ? { ...hexToRgb(design.boxColor), a: 0.5 } : null);
     const boxHex = boxParsed ? rgbToHex(boxParsed.r, boxParsed.g, boxParsed.b) : '#4a4441';
@@ -196,7 +198,7 @@ export function renderDesignTab(pane) {
                             <i class="fa-solid fa-upload"></i> Upload Image
                         </button>
                         <span class="wl-cd-banner-or">or</span>
-                        <input type="text" id="wl-pd-banner-url" class="text_pole" placeholder="Paste image URL" value="${design.bannerUrl || ''}" />
+                        <input type="text" id="wl-pd-banner-url" class="text_pole" placeholder="Paste image URL" />
                     </div>
                     <input type="file" id="wl-pd-banner-file-input" accept="image/*" style="display:none" />
                 </div>
@@ -226,19 +228,21 @@ export function renderDesignTab(pane) {
     const dialogueColorInput = pane.querySelector('#wl-pd-dialogue-color');
     const boxColorInput = pane.querySelector('#wl-pd-box-color');
     const boxOpacityInput = pane.querySelector('#wl-pd-box-opacity');
+    const bannerUrlInput = pane.querySelector('#wl-pd-banner-url');
+    if (bannerUrlInput) bannerUrlInput.value = design.bannerUrl || '';
 
     // Name color
     nameColorInput?.addEventListener('input', () => {
         const val = nameColorInput.value;
         pane.querySelector('#wl-pd-name-color + .wl-cd-color-hex').textContent = val;
-        updatePersonaDesign({ nameColor: val });
+        updateRenderedPersona({ nameColor: val });
     });
 
     // Dialogue color
     dialogueColorInput?.addEventListener('input', () => {
         const val = dialogueColorInput.value;
         pane.querySelector('#wl-pd-dialogue-color + .wl-cd-color-hex').textContent = val;
-        updatePersonaDesign({ dialogueColor: val });
+        updateRenderedPersona({ dialogueColor: val });
     });
 
     // Box color + opacity
@@ -247,7 +251,7 @@ export function renderDesignTab(pane) {
         const opacity = parseFloat(boxOpacityInput.value);
         const rgb = hexToRgb(hex);
         pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round(opacity * 100)}%`;
-        updatePersonaDesign({ boxColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})` });
+        updateRenderedPersona({ boxColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})` });
     };
     boxColorInput?.addEventListener('input', syncBoxColor);
     boxOpacityInput?.addEventListener('input', syncBoxColor);
@@ -267,8 +271,9 @@ export function renderDesignTab(pane) {
         try {
             const imgSrc = `/User Avatars/${encodeURIComponent(avatarFile)}`;
             const [nameColor, dialogueColor, boxColor] = await extractColorsFromImage(imgSrc);
+            if (!isStillCurrent()) return;
 
-            updatePersonaDesign({ nameColor, dialogueColor, boxColor });
+            updatePersonaDesignForAvatar(avatarFile, personaName, { nameColor, dialogueColor, boxColor });
 
             // Update UI
             nameColorInput.value = nameColor;
@@ -302,13 +307,17 @@ export function renderDesignTab(pane) {
             pane.querySelectorAll('.wl-cd-banner-mode label').forEach(l => l.classList.remove('wl-cd-radio-active'));
             radio.closest('label')?.classList.add('wl-cd-radio-active');
 
-            updatePersonaDesign({ bannerMode: mode });
+            updateRenderedPersona({ bannerMode: mode });
         });
     });
 
     // Banner custom URL
-    pane.querySelector('#wl-pd-banner-url')?.addEventListener('change', function () {
-        updatePersonaDesign({ bannerUrl: this.value || null });
+    bannerUrlInput?.addEventListener('change', function () {
+        const raw = this.value.trim();
+        const safeUrl = normalizeBannerUrl(raw);
+        if (raw && !safeUrl) toastr.warning('Use an http(s) or relative image URL.', 'Design');
+        this.value = safeUrl;
+        updateRenderedPersona({ bannerUrl: safeUrl || null });
     });
 
     // Banner file upload
@@ -323,11 +332,11 @@ export function renderDesignTab(pane) {
         uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
 
         try {
-            const name = getCurrentPersonaName() || 'persona';
-            const uploadedFilename = await uploadBannerImage(file, name);
+            const uploadedFilename = await uploadBannerImage(file, personaName || 'persona');
             const displayUrl = `user/images/banners/${uploadedFilename}`;
+            if (!isStillCurrent()) return;
 
-            updatePersonaDesign({ bannerUrl: displayUrl });
+            updatePersonaDesignForAvatar(avatar, personaName, { bannerUrl: displayUrl });
 
             const urlInput = pane.querySelector('#wl-pd-banner-url');
             if (urlInput) urlInput.value = displayUrl;
@@ -348,12 +357,12 @@ export function renderDesignTab(pane) {
     posSlider?.addEventListener('input', () => {
         const val = parseInt(posSlider.value);
         pane.querySelector('.wl-cd-pos-value').textContent = `${val}%`;
-        updatePersonaDesign({ bannerPosition: val });
+        updateRenderedPersona({ bannerPosition: val });
     });
 
     // Reset
     pane.querySelector('#wl-pd-reset-design')?.addEventListener('click', () => {
-        const avatarKey = getCurrentPersonaAvatar();
+        const avatarKey = avatar;
         if (avatarKey) {
             const settings = extension_settings[MODULE_NAME];
             if (settings.personaDesigns) {
@@ -362,7 +371,7 @@ export function renderDesignTab(pane) {
             }
         }
         removeDesignCSS();
-        renderDesignTab(pane);
+        if (isStillCurrent()) renderDesignTab(pane);
         // Also refresh Chat Design so its persona banner rule drops the
         // just-removed position/image immediately.
         refreshChatDesignCSSDebounced();
@@ -405,6 +414,10 @@ function buildPersonaCSS(personaName, design, avatarFile) {
 
     const escapedName = escapeCSSName(personaName);
     const selector = `.mes[ch_name="${escapedName}"][is_user="true"]`;
+    // Extensions such as SimpleSummarizer mark ordinary hidden persona rows as
+    // is_system=true. They are still persona messages and must retain the same
+    // banner geometry as their visible neighbors.
+    const bannerSelector = selector;
     const pos = bannerPosition ?? 25;
     const rules = [];
 
@@ -423,31 +436,33 @@ function buildPersonaCSS(personaName, design, avatarFile) {
         if (bannerMode === 'avatar' && avatarFile) {
             bannerImageUrl = `/User Avatars/${encodeURIComponent(avatarFile)}`;
         } else if (bannerMode === 'custom' && bannerUrl) {
-            bannerImageUrl = bannerUrl;
+            bannerImageUrl = normalizeBannerUrl(bannerUrl);
         }
 
         if (bannerImageUrl) {
-            rules.push(`#chat ${selector} {
+            rules.push(`#chat ${bannerSelector} {
+    --wl-cdm-banner-image: ${serializeCssUrl(bannerImageUrl)};
+    --wl-cdm-banner-position: ${pos}%;
     position: relative !important;
     padding-top: 140px !important;
     overflow: visible !important;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
 }`);
-            rules.push(`#chat ${selector}::before {
+            rules.push(`#chat ${bannerSelector}::before {
     content: "";
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 140px;
-    background: url('${bannerImageUrl}') center ${pos}% / cover no-repeat;
+    background: ${serializeCssUrl(bannerImageUrl)} center ${pos}% / cover no-repeat;
     z-index: 1;
     pointer-events: none;
     -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 30%, transparent 100%);
     mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 30%, transparent 100%);
 }`);
-            rules.push(`${selector} .mes_block,
-${selector} .mes_text,
-${selector} .ch_name,
-${selector} .mesAvatarWrapper {
+            rules.push(`${bannerSelector} .mes_block,
+${bannerSelector} .mes_text,
+${bannerSelector} .ch_name,
+${bannerSelector} .mesAvatarWrapper {
     position: relative;
     z-index: 3;
 }`);

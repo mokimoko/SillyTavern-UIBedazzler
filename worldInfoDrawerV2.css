@@ -166,9 +166,10 @@
     --text: var(--bd-text);
     --muted: var(--bd-text-dim);
     --faint: var(--bd-text-faint);
-    --gold: var(--bd-accent);
-    --gold-dim: var(--bd-accent-dim);
-    --sage: #8fae7d;
+    --gold: var(--wi2-accent, var(--bd-accent));
+    --gold-dim: color-mix(in srgb, var(--gold) 72%, var(--text) 28%);
+    --sage: var(--wi2-complement, #8fae7d);
+    --danger: var(--wi2-danger, #c4877d);
     --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
 
@@ -253,7 +254,7 @@
 .wl-wi2-book:hover { color: var(--text); background: color-mix(in srgb, var(--bd-text) 2%, transparent); }
 .wl-wi2-book.sel { color: var(--text); background: color-mix(in srgb, var(--bd-accent) 5%, transparent); }
 .wl-wi2-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
-.wl-wi2-dot.lit { background: var(--sage); box-shadow: 0 0 5px rgba(143, 174, 125, 0.6); }
+.wl-wi2-dot.lit { background: var(--sage); box-shadow: 0 0 5px color-mix(in srgb, var(--sage) 60%, transparent); }
 /* Read-but-not-ours: the ROW says "read" via border + hollow ring on the dot */
 .wl-wi2-book.on:not(.ours) { border-left-color: var(--sage); }
 .wl-wi2-book.on:not(.ours) .wl-wi2-dot { box-shadow: inset 0 0 0 1px var(--sage); background: transparent; }
@@ -276,7 +277,7 @@
 }
 .wl-wi2-bind-n {
     width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
-    background: rgba(143, 174, 125, 0.18); color: var(--sage);
+    background: color-mix(in srgb, var(--sage) 18%, transparent); color: var(--sage);
     font-family: var(--mono); font-size: 9px;
     display: flex; align-items: center; justify-content: center;
 }
@@ -287,7 +288,7 @@
 .wl-wi2-bind-group .wl-wi2-book { padding-left: 32px; }
 .wl-wi2-strat-btn {
     font-size: 11px; color: var(--sage); background: transparent; cursor: pointer;
-    border: none; border-bottom: 1px dotted rgba(143, 174, 125, 0.5);
+    border: none; border-bottom: 1px dotted color-mix(in srgb, var(--sage) 50%, transparent);
     padding: 0; text-align: left;
 }
 .wl-wi2-strat-btn:hover { color: var(--text); }
@@ -319,7 +320,7 @@
 #wl-wi2-root {
     --line: var(--border-soft);
     --dim: var(--muted);
-    --violet: #a795c8;
+    --violet: color-mix(in srgb, var(--gold) 68%, var(--sage) 32%);
     /* Match the Character Browser / Character Drawer: they set no custom
        font stacks and simply inherit SillyTavern's theme UI font. Neutralizing
        --serif/--sans here flips every entry name, editor title, and content
@@ -376,9 +377,9 @@
 /* Danger variant — the editor's per-note Delete. Neutral until hovered, then
    it reads red, so a destructive control looks destructive only on intent. */
 #wl-wi2-root .wl-wi2-iconbtn-danger:hover {
-    border-color: color-mix(in srgb, #e5484d 55%, var(--line));
-    color: #e5484d;
-    background: color-mix(in srgb, #e5484d 8%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
 /* + New keeps its gold accent — the column's primary action. */
@@ -478,7 +479,7 @@
 .wl-wi2-bulkact:disabled { opacity: 0.35; cursor: default; }
 /* Danger red is hardcoded, per §9.19: semantic colors signal MEANING, not
    surface, so they must not follow the theme accent. */
-.wl-wi2-bulkact.danger:hover:not(:disabled) { border-color: #c4877d; color: #c4877d; }
+.wl-wi2-bulkact.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
 /* Not-wired-yet actions: dashed hairline, disabled, titles say why. The
    dash only needs to say "not wired yet" — marked, not faked (§9.33). */
 .wl-wi2-bulkact.wl-wi2-inert {
@@ -498,7 +499,7 @@
 /* ============================================================
    Editor pane — the sentence view (editor pour, 2026-07-18)
    Port of the mock's editor CSS (~534-840) with wl-wi2- prefixes.
-   #c4877d literals are the §9.19 danger tone (matches listcol's).
+   Semantic tones are contrast-corrected for the active theme.
    ============================================================ */
 
 #wl-wi2-root .wl-wi2-editor {
@@ -705,48 +706,48 @@
 /* §9.5 — "By meaning" must never silently fall back to keyword behaviour. */
 #wl-wi2-root .wl-wi2-mode-opt.off { opacity: .55; }
 #wl-wi2-root .wl-wi2-mode-opt.off:hover { background: none; color: var(--muted); cursor: not-allowed; }
-#wl-wi2-root .wl-wi2-mode-warn { color: #c4877d; font-size: 10.5px; font-style: italic; }
+#wl-wi2-root .wl-wi2-mode-warn { color: var(--danger); font-size: 10.5px; font-style: italic; }
 
 /* ---------------- Chips ---------------- */
 #wl-wi2-root .wl-wi2-chip {
-    display: inline-block; background: rgba(143, 174, 125, 0.12); color: var(--sage);
-    border: 1px solid rgba(143, 174, 125, 0.3); border-radius: 4px; padding: 0 7px;
+    display: inline-block; background: color-mix(in srgb, var(--sage) 12%, transparent); color: var(--sage);
+    border: 1px solid color-mix(in srgb, var(--sage) 30%, transparent); border-radius: 4px; padding: 0 7px;
     font-size: 12.5px; margin: 0 2px;
 }
-#wl-wi2-root .wl-wi2-chip.neg { background: rgba(196, 120, 110, 0.1); color: #c4877d; border-color: rgba(196, 120, 110, 0.3); }
-#wl-wi2-root .wl-wi2-chip.cast { background: rgba(167, 149, 200, 0.1); color: var(--violet); border-color: rgba(167, 149, 200, 0.3); }
+#wl-wi2-root .wl-wi2-chip.neg { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+#wl-wi2-root .wl-wi2-chip.cast { background: color-mix(in srgb, var(--violet) 10%, transparent); color: var(--violet); border-color: color-mix(in srgb, var(--violet) 30%, transparent); }
 #wl-wi2-root .wl-wi2-chip.alt { background: color-mix(in srgb, var(--bd-accent) 10%, transparent); color: var(--gold); border-color: color-mix(in srgb, var(--bd-accent) 30%, transparent); }
 #wl-wi2-root .wl-wi2-chip.out {
-    background: rgba(167, 149, 200, 0.1); color: var(--violet);
-    border-color: rgba(167, 149, 200, 0.3); font-family: var(--mono); font-size: 11px;
+    background: color-mix(in srgb, var(--violet) 10%, transparent); color: var(--violet);
+    border-color: color-mix(in srgb, var(--violet) 30%, transparent); font-family: var(--mono); font-size: 11px;
 }
 #wl-wi2-root .wl-wi2-chip-x {
     font-size: 9px; opacity: 0; margin-left: 4px; padding: 0; transition: opacity .15s;
     background: none; border: none; color: inherit; cursor: pointer;
 }
 #wl-wi2-root .wl-wi2-s-line:hover .wl-wi2-chip-x { opacity: .6; }
-#wl-wi2-root .wl-wi2-chip-x:hover { opacity: 1; color: #c4877d; }
+#wl-wi2-root .wl-wi2-chip-x:hover { opacity: 1; color: var(--danger); }
 /* Editable chips: the body renames on click, so cue it; the ✕ removes.
    chip-ph is a fresh condition's '…' seed — muted so it reads "fill me in". */
 #wl-wi2-root .wl-wi2-chip-edit { cursor: text; }
 #wl-wi2-root .wl-wi2-chip-edit:hover { border-color: var(--sage); }
-#wl-wi2-root .wl-wi2-chip-edit.neg:hover { border-color: #c4877d; }
+#wl-wi2-root .wl-wi2-chip-edit.neg:hover { border-color: var(--danger); }
 #wl-wi2-root .wl-wi2-chip-ph { opacity: .5; font-style: italic; }
 /* Inline add-input: reads as a ghost chip until focused. Type + Enter (or
    comma) commits; it grows a little on focus so there's room to type. */
 #wl-wi2-root .wl-wi2-chip-input {
     display: inline-block; width: 8.5em; max-width: 100%;
     background: transparent; color: var(--sage);
-    border: 1px dashed rgba(143, 174, 125, 0.35); border-radius: 4px;
+    border: 1px dashed color-mix(in srgb, var(--sage) 35%, transparent); border-radius: 4px;
     padding: 0 7px; font-size: 12.5px; font-family: inherit; margin: 0 2px;
     vertical-align: baseline; transition: border-color .15s, width .15s;
 }
 #wl-wi2-root .wl-wi2-chip-input::placeholder { color: var(--faint); font-style: italic; }
-#wl-wi2-root .wl-wi2-chip-input:hover { border-color: rgba(143, 174, 125, 0.6); }
+#wl-wi2-root .wl-wi2-chip-input:hover { border-color: color-mix(in srgb, var(--sage) 60%, transparent); }
 #wl-wi2-root .wl-wi2-chip-input:focus {
     outline: none; width: 11em;
     border-style: solid; border-color: var(--sage);
-    background: rgba(143, 174, 125, 0.08);
+    background: color-mix(in srgb, var(--sage) 8%, transparent);
 }
 #wl-wi2-root .wl-wi2-s-line.s-sub { margin-top: -8px; padding-left: 4px; }
 #wl-wi2-root .wl-wi2-s-remove {
@@ -754,7 +755,7 @@
     transition: opacity .15s; background: none; border: none; cursor: pointer;
 }
 #wl-wi2-root .wl-wi2-s-line:hover .wl-wi2-s-remove { opacity: 1; }
-#wl-wi2-root .wl-wi2-s-remove:hover { color: #c4877d; }
+#wl-wi2-root .wl-wi2-s-remove:hover { color: var(--danger); }
 
 /* ---------------- Add row + menus ---------------- */
 #wl-wi2-root .wl-wi2-addrow {
@@ -835,7 +836,7 @@
 #wl-wi2-root .wl-wi2-mech-bool input { accent-color: var(--gold); cursor: pointer; }
 #wl-wi2-root .wl-wi2-mech-ro { color: var(--faint); }
 #wl-wi2-root .wl-wi2-mech-hint { color: var(--faint); font-family: var(--sans); font-style: italic; font-size: 9.5px; }
-#wl-wi2-root .wl-wi2-mech-hint.wl-wi2-sp-danger { color: #c4877d; }
+#wl-wi2-root .wl-wi2-mech-hint.wl-wi2-sp-danger { color: var(--danger); }
 
 /* ---------------- Placement picker (direction chosen at open time) ---------------- */
 #wl-wi2-root .wl-wi2-placement-pop {
@@ -922,14 +923,14 @@
     background: none; cursor: pointer;
 }
 #wl-wi2-root .wl-wi2-pp-out:hover { border-color: var(--violet); color: var(--text); }
-#wl-wi2-root .wl-wi2-pp-out.on { border-color: var(--violet); background: rgba(167, 149, 200, 0.14); color: var(--violet); }
+#wl-wi2-root .wl-wi2-pp-out.on { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); color: var(--violet); }
 #wl-wi2-root .wl-wi2-pp-out-n { font-family: var(--mono); font-size: 9px; opacity: .7; }
 #wl-wi2-root .wl-wi2-pp-out-new { border-style: dashed; }
 #wl-wi2-root .wl-wi2-pp-macro { font-size: 10.5px; color: var(--faint); }
 #wl-wi2-root .wl-wi2-pp-macro-hint { color: var(--faint); }
 #wl-wi2-root .wl-wi2-pp-macro code {
     font-family: var(--mono); font-size: 11px; color: var(--violet);
-    background: rgba(167, 149, 200, 0.1); border: 1px solid rgba(167, 149, 200, 0.25);
+    background: color-mix(in srgb, var(--violet) 10%, transparent); border: 1px solid color-mix(in srgb, var(--violet) 25%, transparent);
     border-radius: 3px; padding: 1px 5px;
 }
 
@@ -944,11 +945,23 @@
 #wl-wi2-root *:hover > .wl-wi2-eng { display: inline; }
 body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-eng { display: inline; }
 
+/* Slot hints act like tooltips while engine terms are collapsed. Keeping them
+   out of flow prevents long labels (especially Placement) from wrapping the
+   sentence row, leaving :hover, and entering a reflow loop. */
+body:not(.wl-wi2-show-eng) #wl-wi2-root .wl-wi2-slot { position: relative; }
+body:not(.wl-wi2-show-eng) #wl-wi2-root .wl-wi2-slot:hover > .wl-wi2-eng {
+    position: absolute; left: 50%; top: calc(100% + 5px); z-index: 70;
+    display: block; width: max-content; max-width: min(320px, 80vw);
+    margin: 0; padding: 2px 6px; transform: translateX(-50%);
+    white-space: nowrap; line-height: 1.35; pointer-events: none;
+    background: var(--panel-2); border: 1px solid var(--border-soft);
+    border-radius: 3px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+
 
 /* ============================================================
    Topbar — budget meter · scan · engine terms (topbar pour, 2026-07-18)
    Port of the mock's topbar CSS (~194-210, ~362-430) with wl-wi2- prefixes.
-   #c4877d literals are the §9.19 danger tone (matches the editor's).
    ============================================================ */
 
 #wl-wi2-root .wl-wi2-meter-wrap {
@@ -1054,7 +1067,7 @@ body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-eng { display: inline; }
    the control must never let you set without saying so. Standalone rule:
    the editor's variant is scoped to .wl-wi2-mech-hint, this one is the
    topbar's own. Hardcoded red per §9.19 (meaning, not surface). */
-#wl-wi2-root .wl-wi2-sp-danger { color: #c4877d; font-style: italic; }
+#wl-wi2-root .wl-wi2-sp-danger { color: var(--danger); font-style: italic; }
 
 /* Engine-terms toggle — flips body.wl-wi2-show-eng (the editor pour's
    class contract; its .wl-wi2-eng rules already listen for it). */
@@ -1263,7 +1276,7 @@ body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-scan-pop .wl-wi2-eng,
 .wl-wi2-tnote.chain .wl-wi2-mark { color: var(--sage); }
 .wl-wi2-tnote.always .wl-wi2-mark { color: var(--gold); }
 .wl-wi2-tnote.dropped { opacity: .65; border-style: dashed; }
-.wl-wi2-tnote.dropped .wl-wi2-mark { color: #c4877d; }
+.wl-wi2-tnote.dropped .wl-wi2-mark { color: var(--danger); }
 .wl-wi2-tnote.waitish { opacity: .65; }
 .wl-wi2-tnote.waitish .wl-wi2-mark { color: var(--faint); }
 
@@ -1355,8 +1368,8 @@ body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-scan-pop .wl-wi2-eng,
 /* Delete reads red on hover, flagging destructiveness (matches the rail menu). */
 #wl-wi2-root .wl-wi2-ba-danger:hover:not(:disabled) {
     color: #fff;
-    background: color-mix(in srgb, #e06c6c 32%, transparent);
-    border-color: color-mix(in srgb, #e06c6c 55%, transparent);
+    background: color-mix(in srgb, var(--danger) 32%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 55%, transparent);
 }
 
 /* ============================================================
@@ -1429,7 +1442,7 @@ body.wl-wi2-show-eng #wl-wi2-root .wl-wi2-scan-pop .wl-wi2-eng,
 .wl-wi2-bookmenu-danger { color: #e88; }
 .wl-wi2-bookmenu-danger i { color: #e88; }
 .wl-wi2-bookmenu-danger:hover {
-    background: color-mix(in srgb, #e06c6c 30%, transparent);
+    background: color-mix(in srgb, var(--danger) 30%, transparent);
     color: #fff;
 }
 .wl-wi2-bookmenu-danger:hover i { color: #fff; }

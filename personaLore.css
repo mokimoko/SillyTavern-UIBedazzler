@@ -87,12 +87,15 @@
 
 #wl-pl-top-bar #persona_controls .persona_name {
     flex: 1;
+    min-width: 0;
     margin: 0;
     font-size: 1.1em;
 }
 
 #wl-pl-top-bar .persona_controls_buttons_block {
     display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     gap: 2px;
 }
 
@@ -100,12 +103,72 @@
    Tab Bar
    ============================================ */
 
+#wl-pl-tab-strip {
+    display: grid;
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+    align-items: stretch;
+    min-width: 0;
+    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    transition: grid-template-columns 0.15s ease;
+}
+
+#wl-pl-tab-strip.wl-pl-tab-overflow {
+    grid-template-columns: 24px minmax(0, 1fr) 24px;
+}
+
 #wl-pl-tab-bar {
     display: flex;
     gap: 2px;
-    border-bottom: 2px solid var(--SmartThemeBorderColor, #444);
+    flex-wrap: nowrap;
+    min-width: 0;
     padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+
+#wl-pl-tab-bar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.wl-pl-tab-scroll {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    color: var(--SmartThemeBodyColor, #ccc);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.wl-pl-tab-overflow .wl-pl-tab-scroll {
+    opacity: 0.52;
+    pointer-events: auto;
+}
+
+.wl-pl-tab-overflow .wl-pl-tab-scroll:hover:not(:disabled) {
+    opacity: 0.9;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #7b68ee) 10%, transparent);
+}
+
+.wl-pl-tab-overflow .wl-pl-tab-scroll:disabled {
+    opacity: 0.16;
+    cursor: default;
+}
+
+.wl-pl-tab-scroll i { font-size: 0.68em; }
 
 .wl-pl-tab {
     background: none;
@@ -121,6 +184,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
+    flex: 0 0 auto;
     white-space: nowrap;
 }
 
@@ -184,6 +248,227 @@
 
 .wl-pl-tab-pane[data-tab="description"] .flex-container {
     margin-top: 4px;
+}
+
+/* A:E hides the native Persona Description while Dynamic Fields is enabled.
+   The integration has its own tab here, so Description stays useful without
+   changing which prompt A:E injects during generation. */
+.wl-pl-tab-pane[data-tab="description"] [data-dsf-persona-native-region="true"] {
+    display: revert !important;
+}
+
+.wl-pl-tab-pane[data-tab="description"] #persona_description {
+    display: block !important;
+}
+
+.wl-pl-tab-pane[data-tab="description"] .flex-container {
+    display: flex !important;
+}
+
+/* ============================================
+   Integrations — Aspect: Evolutia
+   ============================================ */
+
+.wl-pl-tab-pane[data-tab="integrations"] {
+    --wl-pl-ae-accent: #b76e79;
+}
+
+.wl-pl-ae-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.wl-pl-ae-hero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid color-mix(in srgb, var(--wl-pl-ae-accent) 48%, var(--SmartThemeBorderColor, transparent));
+    border-radius: 11px;
+    background:
+        linear-gradient(110deg, color-mix(in srgb, var(--wl-pl-ae-accent) 18%, transparent), transparent 52%),
+        color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 88%, var(--SmartThemeBodyColor, #e8e6f0) 12%);
+}
+
+.wl-pl-ae-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.wl-pl-ae-eyebrow {
+    margin-bottom: 2px;
+    color: color-mix(in srgb, var(--wl-pl-ae-accent) 78%, white 22%);
+    font-size: 0.68em;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.wl-pl-ae-heading h3,
+.wl-pl-ae-section-head h4 {
+    margin: 0;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+}
+
+.wl-pl-ae-heading h3 { font-size: 1.08em; }
+
+.wl-pl-ae-heading p,
+.wl-pl-ae-section-head p {
+    margin: 3px 0 0;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: 0.8em;
+    line-height: 1.35;
+    opacity: 0.68;
+}
+
+.wl-pl-ae-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--wl-pl-ae-accent) 44%, transparent);
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--wl-pl-ae-accent) 72%, white 28%);
+    background: color-mix(in srgb, var(--wl-pl-ae-accent) 10%, transparent);
+    font-size: 0.7em;
+    white-space: nowrap;
+    cursor: default;
+}
+.wl-pl-ae-status * {
+    cursor: default !important;
+}
+
+.wl-pl-ae-section {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.12));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 94%, var(--SmartThemeBodyColor, #e8e6f0) 6%);
+    overflow: visible;
+}
+
+.wl-pl-ae-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.1));
+}
+
+.wl-pl-ae-section-head h4 { font-size: 0.9em; }
+
+.wl-pl-ae-section-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    color: color-mix(in srgb, var(--wl-pl-ae-accent) 74%, white 26%);
+    background: color-mix(in srgb, var(--wl-pl-ae-accent) 15%, transparent);
+}
+
+.wl-pl-ae-waiting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 18px;
+    color: var(--SmartThemeBodyColor, #e8e6f0);
+    font-size: 0.82em;
+    opacity: 0.65;
+}
+
+.wl-pl-ae-waiting[hidden] { display: none; }
+
+#wl-pl-ae-alter-slot #dsf_persona_alter_ego_row,
+#wl-pl-ae-fields-slot #dsf_persona_swap_bar {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0 0 11px 11px;
+    background: transparent;
+    box-shadow: none;
+}
+
+#wl-pl-ae-alter-slot #dsf_persona_alter_ego_row {
+    padding: 0;
+    overflow: visible;
+}
+
+#wl-pl-ae-alter-slot .dsf-alter-ego-header { display: none; }
+
+#wl-pl-ae-alter-slot .dsf-alter-ego-body {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    padding: 12px;
+}
+
+#wl-pl-ae-alter-slot .dsf-alter-ego-preview {
+    width: 92px;
+    height: 120px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+#wl-pl-ae-alter-slot .dsf-alter-ego-control-stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    align-items: stretch;
+    gap: 9px;
+}
+
+#wl-pl-ae-alter-slot :is(.dsf-alter-ego-current-group, .dsf-alter-ego-image-group) {
+    align-content: start;
+    padding: 10px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, rgba(255,255,255,.12)) 72%, transparent);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 82%, transparent);
+}
+
+#wl-pl-ae-fields-slot #dsf_persona_swap_bar {
+    padding: 12px;
+}
+
+#wl-pl-ae-fields-slot #dsf_persona_swap_bar .dsf-top-controls {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,.1));
+}
+
+#wl-pl-ae-fields-slot #dsf_persona_panel .dsf-field {
+    margin: 11px 0 0;
+    padding: 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #1c1927) 82%, transparent);
+}
+
+#wl-pl-ae-fields-slot #dsf_persona_panel .dsf-content {
+    min-height: 140px;
+}
+
+.wl-pl-tab-pane[data-tab="integrations"] textarea {
+    flex: 0 0 auto;
+    resize: vertical;
+}
+
+@media (max-width: 800px) {
+    .wl-pl-ae-hero {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    #wl-pl-ae-alter-slot .dsf-alter-ego-body {
+        grid-template-columns: 1fr;
+    }
+
+    #wl-pl-ae-alter-slot .dsf-alter-ego-preview {
+        width: 82px;
+        height: 82px;
+    }
 }
 
 /* ============================================

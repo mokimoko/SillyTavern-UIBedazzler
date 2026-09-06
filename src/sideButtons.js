@@ -8,8 +8,23 @@ import { getSetting } from './settings.js';
 import { openChatDesignModal } from './chatDesign/modalLoader.js';
 import { openAuthorsNoteModal } from './authorsNote/index.js';
 import { attachSAFlyout, destroySAFlyout } from './saFlyout.js';
+import {
+    attachWeatherCyclePanel,
+    destroyWeatherCyclePanel,
+    isWeatherCycleControlEnabled,
+    toggleWeatherCyclePanel,
+} from './weatherCycleAdapter.js';
+import {
+    isMemoryBooksJumpAvailable,
+    jumpToFirstUnprocessedMessage,
+} from './memoryBooksAdapter.js';
 import { makeDebug } from './debug.js';
 import { subscribeBodyMutations } from './bodyMutationHub.js';
+import { attachSideButtonDrag } from './sideButtonDrag.js';
+import {
+    hasActiveChatContext,
+    WEATHER_CHAT_VISIBILITY_EVENT,
+} from './weatherCycleVisibility.js';
 
 const log = makeDebug('[UIBedazzler:SideButtons]');
 
@@ -61,6 +76,19 @@ const BUTTON_REGISTRY = [
         trigger: () => window.SuperAgents?.ui?.openModal(),
         hideOriginal: null,
         wandMenuLabel: 'SuperAgents',
+    },
+    {
+        id: 'weather-cycle',
+        label: 'Weather Cycle',
+        icon: '<i class="fa-solid fa-cloud-sun"></i>',
+        // Weather Cycle creates this control only after it mounts. Its inline
+        // display value mirrors the extension's own "Show Weather Button"
+        // setting, including changes made through /wc showbutton.
+        detect: () => hasActiveChatContext() && isWeatherCycleControlEnabled(),
+        trigger: () => toggleWeatherCyclePanel(),
+        hideOriginal: '#st-weather-cycle-toggle',
+        // Weather Cycle has no Extensions/wand-menu entry.
+        wandMenuLabel: null,
     },
     {
         id: 'dynamic-events',
@@ -128,22 +156,37 @@ const BUTTON_REGISTRY = [
         // No wandMenuLabel — AN's native entry is the send-form link, not a
         // wand-menu item, so there's nothing to hide there.
     },
+    {
+        id: 'memory-books-jump',
+        label: 'Memory Books: Jump to first unprocessed message',
+        icon: '<i class="fa-solid fa-angles-up"></i>',
+        // Memory Books creates or removes this control according to its own
+        // Memory boundary indicator setting. Keep that setting authoritative.
+        detect: () => isMemoryBooksJumpAvailable(),
+        trigger: () => jumpToFirstUnprocessedMessage(),
+        hideOriginal: '#stmb-memory-boundary-jump',
+        // This navigation action does not replace Memory Books' full settings
+        // entry in the Extensions menu.
+        wandMenuLabel: null,
+    },
 ];
 
 let isActive = false;
 let observers = [];
+let detachSideButtonDrag = null;
 
 // Startup reconciliation state. Extensions boot on their own async schedules
 // (each exposes its global / DOM trigger whenever it finishes), so a single
 // timed build inevitably races some of them — that's the "only ~5 buttons
-// until I toggle off/on" bug. Re-detect for the full startup window, then keep
-// a cheap DOM observer for extensions that add or replace triggers even later.
+// until I toggle off/on" bug. Re-detect with widening delays through the
+// startup window, then keep a cheap DOM observer for later trigger changes.
 let startupPollTimer = null;
+let startupPollIndex = 0;
 let detectedSignature = '';
 let lateExtensionScanFrame = null;
-const POLL_MS = 500;        // how often to re-check globals during extension boot
-const MAX_POLL_MS = 60000;  // cover slow sequential extension initialization
-const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #audio_open_modal_btn, #scp-dock-icon, #extensionsMenu';
+let chatVisibilityListenerInstalled = false;
+const STARTUP_POLL_DELAYS = [250, 500, 1000, 2000, 4000, 8000, 16000, 30000];
+const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #st-weather-cycle-toggle, #stmb-memory-boundary-jump, #audio_open_modal_btn, #scp-dock-icon, #extensionsMenu';
 
 /** Return a stable key for the registry entries currently available. */
 function getDetectedSignature() {
@@ -177,32 +220,29 @@ function mutationTouchesExtensionTriggers(mutation) {
 }
 
 /**
- * Build the strip now, then keep re-checking throughout the startup window.
- * A short "stable" period is not enough: extensions with async initialization
- * can expose their globals several seconds after APP_READY. Idempotent — safe
- * to call repeatedly; it replaces any in-flight startup poll.
+ * Build now, then re-check with exponential-ish backoff for about one minute.
+ * This still catches slow global-only extensions without waking twice a second
+ * for the entire startup window. Idempotent; replaces any in-flight schedule.
  */
 function scheduleStartupBuilds() {
     if (startupPollTimer) {
-        clearInterval(startupPollTimer);
+        clearTimeout(startupPollTimer);
         startupPollTimer = null;
     }
     if (!isActive) return;
 
     buildButtonStrip();
-    const started = Date.now();
+    startupPollIndex = 0;
 
-    startupPollTimer = setInterval(() => {
-        if (!isActive || Date.now() - started >= MAX_POLL_MS) {
-            clearInterval(startupPollTimer);
-            startupPollTimer = null;
-            log(`Startup scan finished after ${Date.now() - started}ms`);
-            return;
-        }
-
+    const scan = () => {
+        startupPollTimer = null;
+        if (!isActive) return;
         const nextSignature = getDetectedSignature();
         if (nextSignature !== detectedSignature) buildButtonStrip();
-    }, POLL_MS);
+        if (startupPollIndex >= STARTUP_POLL_DELAYS.length) return;
+        startupPollTimer = setTimeout(scan, STARTUP_POLL_DELAYS[startupPollIndex++]);
+    };
+    startupPollTimer = setTimeout(scan, STARTUP_POLL_DELAYS[startupPollIndex++]);
 }
 
 // ── Build / Destroy ──────────────────────────────────────
@@ -213,8 +253,22 @@ function buildButtonStrip() {
 
     const container = document.createElement('div');
     container.id = CONTAINER_ID;
+    const dragHandles = ['top', 'bottom'].map(edge => {
+        const handle = document.createElement('button');
+        handle.type = 'button';
+        handle.className = `bd-side-buttons-drag-handle bd-side-buttons-drag-handle-${edge}`;
+        handle.title = 'Drag side buttons · Double-click to reset position';
+        handle.setAttribute('aria-label', handle.title);
+        handle.innerHTML = '<i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>';
+        container.appendChild(handle);
+        return handle;
+    });
+    const scroller = document.createElement('div');
+    scroller.className = 'bd-side-buttons-scroll';
+    container.appendChild(scroller);
 
     let count = 0;
+    let weatherButton = null;
 
     for (const def of BUTTON_REGISTRY) {
         if (!def.detect()) continue;
@@ -229,7 +283,7 @@ function buildButtonStrip() {
             def.trigger();
         });
 
-        container.appendChild(btn);
+        scroller.appendChild(btn);
         count++;
 
         // Hide extension's own floating trigger when we provide one
@@ -249,10 +303,20 @@ function buildButtonStrip() {
         if (def.id === 'super-agents') {
             attachSAFlyout(btn);
         }
+
+        // Weather Cycle: retain its own panel and event handlers, but anchor
+        // that panel to the left of our replacement side button.
+        if (def.id === 'weather-cycle') {
+            weatherButton = btn;
+        }
     }
 
     if (count > 0) {
         document.body.appendChild(container);
+        detachSideButtonDrag = attachSideButtonDrag(container, dragHandles);
+        // The anchor must be mounted before the adapter measures its viewport
+        // rect. This matters when the strip rebuilds while the panel is open.
+        if (weatherButton) attachWeatherCyclePanel(weatherButton);
         log(`Built strip: ${count} button(s)`);
     }
 
@@ -262,6 +326,7 @@ function buildButtonStrip() {
     hideWandMenuItems();
     observeWandMenu();
     observeLateExtensions();
+    observeWeatherCycleSetting();
 }
 
 /**
@@ -356,14 +421,32 @@ function observeLateExtensions() {
     observers.push(obs);
 }
 
+/**
+ * Weather Cycle keeps its settings in localStorage and reflects the
+ * showWeatherButton value through the native toggle's inline display style.
+ * Observe that one attribute so both its settings checkbox and slash command
+ * add/remove our replacement button immediately.
+ */
+function observeWeatherCycleSetting() {
+    const toggle = document.getElementById('st-weather-cycle-toggle');
+    if (!toggle) return;
+
+    const obs = new MutationObserver(queueLateExtensionScan);
+    obs.observe(toggle, { attributes: true, attributeFilter: ['style'] });
+    observers.push(obs);
+}
+
 function destroy() {
     // Do not clear startupPollTimer here: buildButtonStrip() calls destroy()
     // during normal refreshes and the startup scan must survive those rebuilds.
+    detachSideButtonDrag?.();
+    detachSideButtonDrag = null;
     const container = document.getElementById(CONTAINER_ID);
     if (container) container.remove();
 
     // Tear down the Super Agents hover flyout (panel + timers)
     destroySAFlyout();
+    destroyWeatherCyclePanel();
 
     // Restore any hidden original triggers
     document.querySelectorAll('.bd-side-btn-hidden').forEach(el => {
@@ -393,7 +476,7 @@ export function onSideButtonsToggleChanged(enabled) {
         scheduleStartupBuilds();
     } else {
         if (startupPollTimer) {
-            clearInterval(startupPollTimer);
+            clearTimeout(startupPollTimer);
             startupPollTimer = null;
         }
         destroy();
@@ -405,6 +488,11 @@ export function onSideButtonsToggleChanged(enabled) {
  * Builds immediately and restarts its reconciliation window at APP_READY.
  */
 export function initSideButtons() {
+    if (!chatVisibilityListenerInstalled) {
+        window.addEventListener(WEATHER_CHAT_VISIBILITY_EVENT, queueLateExtensionScan);
+        chatVisibilityListenerInstalled = true;
+    }
+
     isActive = !!getSetting('sideButtons');
     if (!isActive) return;
 

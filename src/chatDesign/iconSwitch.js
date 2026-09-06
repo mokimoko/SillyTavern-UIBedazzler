@@ -1,12 +1,16 @@
 // src/chatDesign/iconSwitch.js
 // Per-character General + Top Bar icon-set switching.
 
-import { getContext } from '../../../../../extensions.js';
 import { getSetting, setSetting } from '../settings.js';
 import { applyIconSetSelection, getIconSetChoices, isKnownIconSet } from '../cuteLoader.js';
 import { getChatDesignSettings } from './storage.js';
 import { cleanAvatar } from '../design/designUtils.js';
 import { saveSettingsDebounced } from '../../../../../../script.js';
+import { getAppearanceAvatar } from './chatScope.js';
+import {
+    getFirstCustomTopbarSetId,
+    isCustomTopbarSetId,
+} from '../customTopbarIcons.js';
 
 export const ICON_AXES = Object.freeze(['general', 'topbar']);
 
@@ -21,14 +25,6 @@ function ensureIconShape() {
         cd.iconAssignments = {};
     }
     return cd;
-}
-
-function getActiveCharacterAvatar() {
-    const ctx = getContext();
-    if (ctx.groupId) return null;
-    const chid = ctx.characterId;
-    if (chid == null) return null;
-    return cleanAvatar(ctx.characters?.[chid]?.avatar || '');
 }
 
 export function getIconChoices(axis) {
@@ -48,6 +44,18 @@ export function setDefaultIconSet(axis, setId) {
     // Keep the original extension-drawer controls truthful when defaults are
     // changed from Chat Design.
     const drawerSelect = document.querySelector(`#bd-iconset-${axis}`);
+    if (drawerSelect) drawerSelect.value = normalized;
+}
+
+export function getDefaultCustomTopbarSetId() {
+    const saved = getSetting('topbarCustomSetId') || '';
+    return isCustomTopbarSetId(saved) ? saved : getFirstCustomTopbarSetId();
+}
+
+export function setDefaultCustomTopbarSetId(setId) {
+    const normalized = isCustomTopbarSetId(setId) ? setId : getFirstCustomTopbarSetId();
+    setSetting('topbarCustomSetId', normalized);
+    const drawerSelect = document.querySelector('#bd-custom-icon-set');
     if (drawerSelect) drawerSelect.value = normalized;
 }
 
@@ -74,19 +82,46 @@ export function setIconSetForCharacter(charAvatar, axis, setId) {
     saveSettingsDebounced();
 }
 
+export function getCustomTopbarSetForCharacter(charAvatar) {
+    const key = cleanAvatar(charAvatar);
+    const assigned = ensureIconShape().iconAssignments[key]?.topbarCustomSetId;
+    return isCustomTopbarSetId(assigned) ? assigned : '';
+}
+
+export function setCustomTopbarSetForCharacter(charAvatar, setId) {
+    const key = cleanAvatar(charAvatar);
+    if (!key) return;
+    const cd = ensureIconShape();
+    const current = cd.iconAssignments[key] || {};
+    if (isCustomTopbarSetId(setId)) current.topbarCustomSetId = setId;
+    else delete current.topbarCustomSetId;
+    if (Object.keys(current).length > 0) cd.iconAssignments[key] = current;
+    else delete cd.iconAssignments[key];
+    saveSettingsDebounced();
+}
+
 export function resolveIconSetsForCurrentChat() {
-    const avatar = getActiveCharacterAvatar();
+    const avatar = getAppearanceAvatar();
     const assigned = avatar ? ensureIconShape().iconAssignments[avatar] || {} : {};
-    return Object.fromEntries(ICON_AXES.map(axis => {
+    const resolved = Object.fromEntries(ICON_AXES.map(axis => {
         const override = assigned[axis];
         return [axis, isKnownIconSet(axis, override) ? override : getDefaultIconSet(axis)];
     }));
+    const characterCustom = isCustomTopbarSetId(assigned.topbarCustomSetId) ? assigned.topbarCustomSetId : '';
+    resolved.topbarCustomSetId = resolved.topbar === 'custom'
+        ? characterCustom || getDefaultCustomTopbarSetId()
+        : '';
+    return resolved;
 }
 
 export async function applyIconSetsForActiveChar() {
     const resolved = resolveIconSetsForCurrentChat();
     try {
-        await Promise.all(ICON_AXES.map(axis => applyIconSetSelection(axis, resolved[axis])));
+        await Promise.all(ICON_AXES.map(axis => applyIconSetSelection(
+            axis,
+            resolved[axis],
+            axis === 'topbar' ? resolved.topbarCustomSetId : '',
+        )));
     } catch (error) {
         console.error('[BD] Failed to apply icon sets:', error);
     }

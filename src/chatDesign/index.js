@@ -7,47 +7,99 @@
 //   - Style edit refresh
 
 import { eventSource, event_types } from '../../../../../../script.js';
+import { getContext } from '../../../../../extensions.js';
 import { isChatDesignEnabled } from './storage.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
 import { refreshCursorDiscovery } from './cursors.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
-import { startAvatarStamping, stopAvatarStamping, stampAllMessages } from './avatarStamp.js';
+import { startAvatarStamping, stopAvatarStamping } from './avatarStamp.js';
 import { applyThemeForActiveChar } from './themeSwitch.js';
 import { applyIconSetsForActiveChar } from './iconSwitch.js';
 import { applySideButtonStyleForActiveChar } from './sideButtonStyleSwitch.js';
+import {
+    ensureGroupAnchor,
+    extendChatScope,
+    observeChatAvatar,
+    resetChatScope,
+} from './chatScope.js';
 
 const log = () => {};
+let initialized = false;
+
+function hasActiveChatContext() {
+    const context = getContext();
+    return context?.characterId != null
+        || context?.groupId != null
+        || Boolean(document.querySelector('#chat .mes'));
+}
+
+function injectForCurrentContext(options = {}) {
+    injectChatDesignCSS({
+        includeMessageStyles: hasActiveChatContext(),
+        ...options,
+    });
+}
+
+function applyGlobalAppearance() {
+    applyThemeForActiveChar();
+    void applyIconSetsForActiveChar();
+    applySideButtonStyleForActiveChar();
+}
+
+function discoverCursorsForActiveDesign() {
+    if (!isChatDesignEnabled()) return;
+    refreshCursorDiscovery()
+        .then(() => {
+            if (isChatDesignEnabled()) injectForCurrentContext({ refreshMessageStyles: false });
+        })
+        .catch(() => {});
+}
+
+function scheduleChatDesignInjection(refreshMessageStyles) {
+    if (!isChatDesignEnabled()) return;
+    scheduleCSSRebuild('chatDesign', () => {
+        injectForCurrentContext({ refreshMessageStyles });
+    });
+}
+
+function onAvatarStamped(avatar, messageElement) {
+    const { scopeChanged, anchorChanged } = observeChatAvatar(avatar, messageElement);
+    if (anchorChanged) applyGlobalAppearance();
+    if (scopeChanged || anchorChanged) {
+        scheduleChatDesignInjection(scopeChanged);
+    }
+}
 
 /**
  * Initialize Chat Design.
  * Called once from root index.js during extension startup.
  */
 export function initChatDesign() {
-    applySideButtonStyleForActiveChar();
+    if (initialized) return;
+    initialized = true;
+    resetChatScope();
+    applyGlobalAppearance();
 
-    // Inject CSS if enabled on startup
+    // The welcome screen has no message UI. Keep global choices such as cursor
+    // and interface typography, but defer message CSS, chat observation, and
+    // chat-font loading until a character or group chat actually opens.
     if (isChatDesignEnabled()) {
-        injectChatDesignCSS();
-        startAvatarStamping();
+        if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
+        injectForCurrentContext();
     }
 
-    // Cursor sets are discovered from the server (nebula-loader). Kick off one
-    // scan in the background; when it resolves, re-inject so any active cursor
-    // "set" style can resolve its files. Non-blocking and self-guarding — a
-    // missing plugin resolves to "unavailable" and this becomes a no-op.
-    refreshCursorDiscovery()
-        .then(() => { if (isChatDesignEnabled()) injectChatDesignCSS(); })
-        .catch(() => {});
+    // Cursor discovery can perform a no-cache request. Defer it entirely while
+    // Chat Design is off; enabling the feature below starts the same refresh.
+    discoverCursorsForActiveDesign();
 
     // Re-inject CSS when chat changes (character switch, new chat, etc.)
     // Batched via cssScheduler so all three CSS modules update in one frame
     eventSource.on(event_types.CHAT_CHANGED, () => {
+        resetChatScope();
         if (isChatDesignEnabled()) {
-            scheduleCSSRebuild('chatDesign', () => injectChatDesignCSS());
-            // New chat DOM — make sure messages carry their avatar stamp.
-            // The observer catches incremental adds; this covers the bulk
-            // render that happens on chat load.
-            stampAllMessages();
+            if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
+            else stopAvatarStamping();
+            scheduleChatDesignInjection(true);
         }
 
         // Per-character UI theme switching. Deliberately OUTSIDE the
@@ -57,10 +109,32 @@ export function initChatDesign() {
         // when nothing is assigned and no default is set. This handler only runs
         // once UIBedazzler is loaded, which is what fixes the old quick-reply's
         // boot-time "/split unknown command" race.
-        applyThemeForActiveChar();
-        void applyIconSetsForActiveChar();
-        applySideButtonStyleForActiveChar();
+        applyGlobalAppearance();
     });
+
+    if (event_types.GROUP_UPDATED) {
+        eventSource.on(event_types.GROUP_UPDATED, () => {
+            if (!hasActiveChatContext()) return;
+            resetChatScope();
+            scheduleChatDesignInjection(true);
+            applyGlobalAppearance();
+        });
+    }
+
+    if (event_types.PERSONA_CHANGED) {
+        eventSource.on(event_types.PERSONA_CHANGED, () => {
+            const scopeChanged = extendChatScope();
+            scheduleChatDesignInjection(scopeChanged);
+        });
+    }
+
+    if (event_types.CHARACTER_MESSAGE_RENDERED) {
+        eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, () => {
+            if (!ensureGroupAnchor()) return;
+            applyGlobalAppearance();
+            scheduleChatDesignInjection(false);
+        });
+    }
 
     // cuteLoader resolves its host asynchronously. Once its icon assets and
     // global defaults are ready, re-apply the active character's overrides.
@@ -73,7 +147,7 @@ export function initChatDesign() {
     eventSource.on('VERSE_CHANGED', () => {
         if (isChatDesignEnabled()) {
             // Small delay to let verse character lists update
-            setTimeout(() => injectChatDesignCSS(), 150);
+            setTimeout(injectForCurrentContext, 150);
         }
     });
 
@@ -85,8 +159,10 @@ export function initChatDesign() {
  */
 export function onChatDesignToggleChanged(enabled) {
     if (enabled) {
-        injectChatDesignCSS();
-        startAvatarStamping();
+        resetChatScope();
+        if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
+        injectForCurrentContext();
+        discoverCursorsForActiveDesign();
     } else {
         removeChatDesignCSS();
         stopAvatarStamping();
@@ -99,7 +175,7 @@ export function onChatDesignToggleChanged(enabled) {
  */
 export function refreshChatDesignCSS() {
     if (isChatDesignEnabled()) {
-        injectChatDesignCSS();
+        injectForCurrentContext();
     }
 }
 

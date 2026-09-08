@@ -720,6 +720,8 @@ body.bd-side-buttons-soft-tiles .bd-side-btn:is(:hover, .bd-side-btn-active) {
 /* Halo — airy circles that gain a surface only when emphasized. */
 body.bd-side-buttons-halo .bd-side-buttons-scroll {
     gap: 5px;
+    padding-inline: 7px;
+    margin-inline: -7px;
 }
 
 body.bd-side-buttons-halo .bd-side-btn {

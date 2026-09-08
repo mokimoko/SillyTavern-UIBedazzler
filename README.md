@@ -27,7 +27,7 @@ Tabs in the persona drawer and in the character drawer's Advanced section let yo
 
 ## Chat Design
 
-Open Chat Design from the extension settings or context menu. Make reusable styles for banners, names, messages, fonts, avatars, and the top bar, then assign them to characters or personas. It supports gradients, overlays, blend modes, vignettes, local and system fonts, themes, and icon sets. Reload SillyTavern after installing fonts; local fonts must be installed on every device using the design. Whole-interface theme and icon assignments are character-only.
+Open Chat Design from the extension settings or context menu. Create reusable looks for chat text, containers, banners, avatars, backgrounds, cursors, and the surrounding UI, then assign them to characters or personas. Start with a built-in Style Pack, or import and export your own. Local fonts must be installed on every device and need a reload; themes and icon sets are character-only.
 
 ## Light Theme Compatibility
 

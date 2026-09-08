@@ -10,6 +10,10 @@ const MIN_HEIGHT = 360;
 const RESIZE_DIRECTIONS = ['n', 's', 'e', 'w', 'ne', 'se', 'sw', 'nw'];
 const viewportTrackers = new WeakMap();
 
+function isInteractiveTarget(target) {
+    return Boolean(target?.closest?.('button, input, select, textarea, a, [role="button"], [contenteditable="true"]'));
+}
+
 function readOffset(modal, property) {
     return Number.parseFloat(modal.style.getPropertyValue(property)) || 0;
 }
@@ -222,7 +226,7 @@ export function makeModalDraggable(modal, handle) {
     };
 
     handle.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || event.target.closest('.wl-cdm-close')) return;
+        if (event.button !== 0 || isInteractiveTarget(event.target)) return;
 
         const rect = modal.getBoundingClientRect();
         const startX = readOffset(modal, X_OFFSET);
@@ -254,7 +258,7 @@ export function makeModalDraggable(modal, handle) {
     handle.addEventListener('pointerup', endDrag);
     handle.addEventListener('pointercancel', endDrag);
     handle.addEventListener('dblclick', event => {
-        if (event.target.closest('.wl-cdm-close')) return;
+        if (isInteractiveTarget(event.target)) return;
         setOffset(modal, 0, 0);
     });
     ensureViewportTracking(modal);

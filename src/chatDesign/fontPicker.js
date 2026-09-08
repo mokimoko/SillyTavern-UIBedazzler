@@ -61,7 +61,7 @@ export function renderFontPicker(currentFont, fieldId, options = {}) {
     const displayName = parsed.kind === 'default' ? 'Choose a font…' : parsed.name;
     const sourceLabel = parsed.kind === 'default' ? 'Using theme default' : getFontSourceLabel(parsed.value);
     return `
-        <div class="wl-cdm-field wl-cdm-font-field" data-font-picker
+        <div class="wl-cdm-field wl-cdm-font-field wl-cdm-compact-field" data-font-picker
              data-font-field-id="${esc(fieldId)}" data-font-value="${esc(parsed.value)}"
              ${customKey ? `data-wl-custom-field="${esc(customKey)}"` : ''}>
             <div class="wl-cdm-field-label-row">

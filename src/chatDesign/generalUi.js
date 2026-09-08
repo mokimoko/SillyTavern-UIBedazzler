@@ -47,7 +47,41 @@ function signedPixelTerm(value) {
 
 /** Build interface chrome for one resolved style. */
 export function buildGeneralUiCSS(style) {
-    const p = style.properties || {};
+    const source = style.properties || {};
+    const p = style.uiSection === 'integrations'
+        ? {
+            ...source,
+            topBarPresetUseCustom: false,
+            topBarWidthMode: 'theme',
+            topBarHeightMode: 'theme',
+            topBarTopOffset: 0,
+            chatGapMode: 'theme',
+            topBarSurfaceMode: 'theme',
+            topBarBorderMode: 'theme',
+            iconSizeMode: 'theme',
+            iconSpacingMode: 'theme',
+            iconColorMode: 'theme',
+            iconOpacityMode: 'theme',
+            controlColorsMode: 'theme',
+            inputAreaSurfaceMode: 'theme',
+            inputAreaBorderMode: 'theme',
+            inputAreaLayoutMode: 'theme',
+            inputAreaTextMode: 'theme',
+            inputAreaIconMode: 'theme',
+            qrButtonMode: 'theme',
+            scrollbarMode: 'theme',
+        }
+        : {
+            ...source,
+            weatherBadgeMode: 'extension',
+            chatTopBarSurfaceMode: 'extension',
+            chatTopBarTextMode: 'extension',
+            chatTopBarRadiusMode: 'extension',
+            guidedGenerationsTextMode: 'extension',
+            guidedGenerationsBackgroundMode: 'extension',
+            guidedGenerationsBorderMode: 'extension',
+            guidedGenerationsRadiusMode: 'extension',
+        };
     const sections = [];
     const presetUsesCustom = Object.prototype.hasOwnProperty.call(p, 'topBarPresetUseCustom')
         ? p.topBarPresetUseCustom === true
@@ -216,9 +250,11 @@ body.no-blur #top-bar {
     }
 
     if (p.iconSpacingMode === 'custom') {
-        const gap = clampNumber(p.iconSpacing, 0, 32, 8);
+        const gap = clampNumber(p.iconSpacing, 0, 80, 8);
+        const offsetX = clampNumber(p.iconOffsetX, -240, 240, 0);
+        const offsetRule = offsetX !== 0 ? `\n    left: ${offsetX}px !important;` : '';
         sections.push(`#top-settings-holder {
-    gap: ${gap}px !important;
+    gap: ${gap}px !important;${offsetRule}
 }
 #top-settings-holder > .drawer {
     flex: 0 0 auto !important;
@@ -277,28 +313,39 @@ ${interactiveIcons} {
 
 /** Resolve character-scoped UI chrome; persona changes intentionally do not participate. */
 export function buildActiveGeneralUiCSS(styles) {
-    const candidates = styles.filter(style => style.element === 'generalUi');
-    if (candidates.length === 0) return '';
     const activeChar = getAppearanceAvatar() || null;
+    const resolveWinner = candidates => {
+        let winner = null;
+        let bestScore = -1;
+        for (const style of candidates) {
+            let score = style.isDefault ? 0 : -1;
+            if (activeChar && (style.assignedCharacters || []).some(avatar => cleanAvatar(avatar) === activeChar)) {
+                score = 3;
+            } else if ((style.assignedVerses || []).length > 0) {
+                const inVerse = resolveStyleTargets(style)
+                    .some(target => target.charAvatar && cleanAvatar(target.charAvatar) === activeChar);
+                if (inVerse) score = 1;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                winner = style;
+            }
+        }
+        return winner;
+    };
 
-    let winner = null;
-    let bestScore = -1;
-    for (const style of candidates) {
-        let score = style.isDefault ? 0 : -1;
-        if (activeChar && (style.assignedCharacters || []).some(avatar => cleanAvatar(avatar) === activeChar)) {
-            score = 3;
-        } else if ((style.assignedVerses || []).length > 0) {
-            const inVerse = resolveStyleTargets(style)
-                .some(target => target.charAvatar && cleanAvatar(target.charAvatar) === activeChar);
-            if (inVerse) score = 1;
-        }
-        if (score > bestScore) {
-            bestScore = score;
-            winner = style;
-        }
+    const sections = [];
+    const nativeWinner = resolveWinner(styles.filter(style =>
+        style.element === 'generalUi' && style.uiSection !== 'integrations'));
+    const integrationWinner = resolveWinner(styles.filter(style =>
+        style.element === 'generalUi' && style.uiSection === 'integrations'));
+    if (nativeWinner) {
+        const css = buildGeneralUiCSS(nativeWinner);
+        if (css) sections.push(`/* General UI: ${nativeWinner.name} */\n${css}`);
     }
-
-    if (!winner) return '';
-    const css = buildGeneralUiCSS(winner);
-    return css ? `/* General UI: ${winner.name} */\n${css}` : '';
+    if (integrationWinner) {
+        const css = buildGeneralUiCSS(integrationWinner);
+        if (css) sections.push(`/* Integrations UI: ${integrationWinner.name} */\n${css}`);
+    }
+    return sections.join('\n\n');
 }

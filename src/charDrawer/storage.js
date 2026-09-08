@@ -202,12 +202,17 @@ export function updateCharExtensions(updates) {
 
 /**
  * Get design-specific data from character extensions.
- * @returns {{ nameColor: string|null, dialogueColor: string|null, boxColor: string|null, bannerMode: string|null, bannerUrl: string|null, bannerPosition: number|null }}
+ * @returns {object}
  */
 export function getDesignData() {
     const result = getCharExtensions();
     if (!result) {
-        return { nameColor: null, dialogueColor: null, boxColor: null, bannerMode: null, bannerUrl: null, bannerPosition: null };
+        return {
+            nameColor: null, dialogueColor: null, boxColor: null,
+            nameGradient: null, boxGradient: null,
+            nameOutlineColor: null, nameOutlineWidth: null,
+            bannerMode: null, bannerUrl: null, bannerPosition: null,
+        };
     }
 
     const ext = result.extensions;
@@ -217,6 +222,10 @@ export function getDesignData() {
         nameColor: ext.nameColor || null,
         dialogueColor: ext.dialogueColor || null,
         boxColor: ext.boxColor || null,
+        nameGradient: wld.nameGradient || null,
+        boxGradient: wld.boxGradient || null,
+        nameOutlineColor: wld.nameOutlineColor || null,
+        nameOutlineWidth: wld.nameOutlineWidth ?? null,
         bannerMode: wld.bannerMode || null,
         bannerUrl: wld.bannerUrl || null,
         bannerPosition: wld.bannerPosition ?? null,

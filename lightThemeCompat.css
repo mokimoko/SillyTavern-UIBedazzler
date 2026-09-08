@@ -513,3 +513,26 @@ body.bd-light-theme-compat #wl-xd-notes-slot #spoiler_free_desc .inline-drawer-h
     background: var(--bd-light-ui-button-hover);
     filter: none;
 }
+
+/* Story Manager's display uses theme-relative tag foregrounds that can become
+   too light on a light compatibility surface. Keep the category hues, but
+   provide opaque pale fills, defined borders, and dark readable text. This is
+   limited to the Books/storyline display; Story Manager's other surfaces keep
+   their own token layer. */
+body.bd-light-theme-compat .sm-display {
+    --sm-tag-char-bg: #e1ebf8;
+    --sm-tag-char-bd: #7897c4;
+    --sm-tag-char-fg: #183f71;
+
+    --sm-tag-persona-bg: #eee4f5;
+    --sm-tag-persona-bd: #a27ab8;
+    --sm-tag-persona-fg: #633c7f;
+
+    --sm-tag-npc-bg: #f3ead7;
+    --sm-tag-npc-bd: #b79858;
+    --sm-tag-npc-fg: #6b4d10;
+
+    --sm-tag-free-bg: #dfeee4;
+    --sm-tag-free-bd: #75a783;
+    --sm-tag-free-fg: #245c40;
+}

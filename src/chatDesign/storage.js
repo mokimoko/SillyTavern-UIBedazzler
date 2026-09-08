@@ -67,6 +67,10 @@ export const THINKING_PRESETS = Object.freeze({
         label: 'Quiet Line',
         description: 'Minimal left accent',
     }),
+    custom: Object.freeze({
+        label: 'Custom',
+        description: 'Choose every color and border',
+    }),
 });
 
 /**
@@ -81,9 +85,18 @@ export const NAME_DEFAULTS = Object.freeze({
     textTransform: 'none',
     letterSpacing: '0px',
     textShadow: 'none',
+    textAlign: 'left',
+    noWrap: false,
+    fillMode: 'theme',
+    fillStartColor: '#d49a74',
+    fillEndColor: '#71405b',
+    fillAngle: 90,
     offsetX: 0,
     offsetY: 0,
     backgroundColor: '#000000',
+    backgroundFillMode: 'solid',
+    backgroundSecondaryColor: '#3b2847',
+    backgroundAngle: 90,
     backgroundOpacity: 0,
     backgroundWidth: 0,
     backgroundHeight: 0,
@@ -116,6 +129,9 @@ export const ELEMENT_DEFAULTS = {
         messageFontStyle: 'normal',
         messageLetterSpacing: '0px',
         messageLineHeight: 'normal',
+        nameCustomCss: '',
+        messageCustomCss: '',
+        dialogueCustomCss: '',
         uiFontFamilyUseCustom: false,
         uiFontFamily: 'Default (Theme)',
         uiFontSize: '1em',
@@ -174,6 +190,7 @@ export const ELEMENT_DEFAULTS = {
         boxShadow: 'none',
         marginTop: 0,
         marginBottom: 0,
+        paddingEnabled: null,
         paddingExtra: 0,
         contentAreaEnabled: false,
         contentBackgroundColor: '#000000',
@@ -184,6 +201,7 @@ export const ELEMENT_DEFAULTS = {
         contentBorderRadius: 0,
         contentBoxShadow: 'none',
         contentWidth: 0,
+        contentTextWidth: 0,
         contentMinHeight: 0,
         contentAreaOffsetX: 0,
         contentAreaOffsetY: 0,
@@ -193,6 +211,11 @@ export const ELEMENT_DEFAULTS = {
         thinkingRadius: 5,
         thinkingAccentStrength: 60,
         thinkingBodyEnabled: true,
+        thinkingTextColor: '#f5f2f8',
+        thinkingBackgroundColor: '#242129',
+        thinkingBorderColor: '#8f72bd',
+        thinkingBorderWidth: 1,
+        thinkingBorderStyle: 'solid',
     },
     avatar: {
         size: 0,              // legacy combined size; new styles use width/height
@@ -322,6 +345,7 @@ export const ELEMENT_DEFAULTS = {
         iconSize: 30,
         iconSpacingMode: 'theme',
         iconSpacing: 8,
+        iconOffsetX: 0,
         iconColorMode: 'theme',
         iconColor: '#d8d5df',
         iconHoverColor: '#ffffff',
@@ -346,6 +370,15 @@ export const ELEMENT_DEFAULTS = {
         // Scrollbars remain entirely theme-owned until explicitly enabled.
         // These values cover both Chromium/WebKit and Firefox's supported API.
         scrollbarMode: 'theme',
+        scrollbarThumbFill: 'solid',
+        scrollbarThumbEndColor: '#b48ead',
+        scrollbarThumbAngle: 180,
+        scrollbarThumbHoverFill: 'solid',
+        scrollbarThumbHoverEndColor: '#b48ead',
+        scrollbarThumbHoverAngle: 180,
+        scrollbarTrackFill: 'solid',
+        scrollbarTrackEndColor: '#343b50',
+        scrollbarTrackAngle: 180,
         scrollbarWidth: 10,
         scrollbarRadius: 8,
         scrollbarInset: 2,
@@ -353,6 +386,7 @@ export const ELEMENT_DEFAULTS = {
         scrollbarThumbOpacity: 0.78,
         scrollbarThumbHoverColor: '#a9c1ff',
         scrollbarThumbBorderColor: '#dbe6ff',
+        scrollbarThumbHoverBorderColor: '#ffffff',
         scrollbarTrackColor: '#171a21',
         scrollbarTrackOpacity: 0.28,
 
@@ -1209,6 +1243,7 @@ export function getChatDesignSettings() {
         settings.chatDesign = { enabled: false, styles: [] };
     }
     migrateNameStylesIntoFonts(settings.chatDesign);
+    migrateGeneralUiSections(settings.chatDesign);
     return settings.chatDesign;
 }
 
@@ -1300,6 +1335,54 @@ function migrateNameStylesIntoFonts(chatDesign) {
     saveSettingsDebounced();
 }
 
+const GENERAL_UI_SECTION_SCHEMA_VERSION = 2;
+
+/** Split the formerly shared General/Integrations UI record into independent styles. */
+function migrateGeneralUiSections(chatDesign) {
+    const styles = Array.isArray(chatDesign.styles) ? chatDesign.styles : [];
+    const sharedStyles = styles.filter(style => style?.element === 'generalUi' && !style.uiSection);
+    let changed = false;
+
+    if (sharedStyles.length > 0) {
+        const integrationCopies = sharedStyles.map(style => ({
+            ...JSON.parse(JSON.stringify(style)),
+            id: generateId(),
+            name: style.name || 'General UI',
+            uiSection: 'integrations',
+        }));
+        for (const style of sharedStyles) style.uiSection = 'native';
+        chatDesign.styles = [...styles, ...integrationCopies];
+        changed = true;
+    }
+
+    if ((chatDesign.generalUiSectionSchemaVersion || 1) < GENERAL_UI_SECTION_SCHEMA_VERSION) {
+        const migratedStyles = chatDesign.styles || styles;
+        const nativeNames = new Set(migratedStyles
+            .filter(style => style?.element === 'generalUi' && style.uiSection !== 'integrations')
+            .map(style => String(style.name || '').trim()));
+
+        for (const style of migratedStyles) {
+            if (style?.element !== 'generalUi' || style.uiSection !== 'integrations') continue;
+            if (style.name === 'New Integrations UI style') {
+                style.name = 'New General UI style';
+                changed = true;
+                continue;
+            }
+            const suffix = ' (Integrations)';
+            const name = String(style.name || '');
+            const baseName = name.endsWith(suffix) ? name.slice(0, -suffix.length) : '';
+            if (baseName && nativeNames.has(baseName)) {
+                style.name = baseName;
+                changed = true;
+            }
+        }
+        chatDesign.generalUiSectionSchemaVersion = GENERAL_UI_SECTION_SCHEMA_VERSION;
+        changed = true;
+    }
+
+    if (changed) saveSettingsDebounced();
+}
+
 export function getChatDesignModalSize() {
     const size = getChatDesignSettings().modalSize;
     if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height)) return null;
@@ -1363,7 +1446,7 @@ export function getStyleById(styleId) {
  * @param {string} [name] - Optional display name
  * @returns {object} The created style
  */
-export function createStyle(elementType, name) {
+export function createStyle(elementType, name, { uiSection = 'native' } = {}) {
     const style = {
         id: generateId(),
         name: name || `New ${ELEMENT_LABELS[elementType] || elementType} style`,
@@ -1378,6 +1461,9 @@ export function createStyle(elementType, name) {
         assignedCharacters: [],    // avatar filenames
         assignedPersonas: [],      // avatar filenames
     };
+    if (elementType === 'generalUi') {
+        style.uiSection = uiSection === 'integrations' ? 'integrations' : 'native';
+    }
     getChatDesignSettings().styles.push(style);
     saveSettingsDebounced();
     log('Created style:', style.id, style.name);
@@ -1416,13 +1502,21 @@ export function updateStyleMeta(styleId, updates) {
  * Delete a style by ID.
  */
 export function deleteStyle(styleId) {
+    return deleteStyles([styleId]) === 1;
+}
+
+/** Delete several styles in one settings mutation/save. */
+export function deleteStyles(styleIds) {
     const settings = getChatDesignSettings();
-    const idx = settings.styles.findIndex(s => s.id === styleId);
-    if (idx === -1) return false;
-    settings.styles.splice(idx, 1);
+    const ids = new Set(styleIds || []);
+    if (!ids.size) return 0;
+    const before = settings.styles.length;
+    settings.styles = settings.styles.filter(style => !ids.has(style.id));
+    const deleted = before - settings.styles.length;
+    if (!deleted) return 0;
     saveSettingsDebounced();
-    log('Deleted style:', styleId);
-    return true;
+    log('Deleted styles:', deleted);
+    return deleted;
 }
 
 /**
@@ -1440,6 +1534,40 @@ export function duplicateStyle(styleId) {
     saveSettingsDebounced();
     log('Duplicated style:', original.id, '→', copy.id);
     return copy;
+}
+
+/** Commit a prevalidated group of styles in one settings mutation. */
+export function commitStyleBatch(definitions, { replaceStyleIds = [] } = {}) {
+    const replacements = new Set(replaceStyleIds);
+    const created = definitions.map(definition => {
+        if (!ELEMENT_DEFAULTS[definition.element]) throw new Error(`Unknown style element: ${definition.element}`);
+        const style = {
+            id: generateId(),
+            name: String(definition.name || '').trim(),
+            element: definition.element,
+            enabled: true,
+            properties: JSON.parse(JSON.stringify({
+                ...ELEMENT_DEFAULTS[definition.element],
+                ...(definition.properties || {}),
+            })),
+            isDefault: false,
+            assignedVerses: [],
+            assignedVersesIncludePersonas: false,
+            assignedCharacters: [...new Set(definition.assignedCharacters || [])],
+            assignedPersonas: [...new Set(definition.assignedPersonas || [])],
+        };
+        if (definition.element === 'generalUi') {
+            style.uiSection = definition.uiSection === 'integrations' ? 'integrations' : 'native';
+        }
+        return style;
+    });
+    const settings = getChatDesignSettings();
+    settings.styles = [
+        ...(settings.styles || []).filter(style => !replacements.has(style.id)),
+        ...created,
+    ];
+    saveSettingsDebounced();
+    return created;
 }
 
 // ============================================================

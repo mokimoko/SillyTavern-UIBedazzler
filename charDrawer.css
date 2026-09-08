@@ -217,6 +217,89 @@
     font-style: italic;
 }
 
+.wl-cd-color-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.06));
+}
+
+.wl-cd-color-group:last-child {
+    border-bottom: 0;
+}
+
+.wl-cd-color-group-title {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, #bbb);
+}
+
+/* Optional gradients and name outline shared by character/persona design panes. */
+.wl-cd-effect {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.wl-cd-effect-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.84em;
+    color: var(--SmartThemeBodyColor, #aaa);
+}
+
+.wl-cd-effect-fields,
+.wl-cd-outline-fields {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.wl-cd-effect-fields[hidden] {
+    display: none;
+}
+
+.wl-cd-effect-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.wl-cd-effect-field > label {
+    font-size: 0.75em;
+    color: var(--SmartThemeBodyColor, #888);
+}
+
+.wl-cd-effect-field-color {
+    flex: 0 0 auto;
+}
+
+.wl-cd-effect-field-range {
+    flex: 1 1 135px;
+}
+
+.wl-cd-effect-field input[type="range"] {
+    min-width: 70px;
+    flex: 1;
+}
+
+.wl-cd-effect-field output {
+    min-width: 34px;
+    font-size: 0.92em;
+}
+
+.wl-cd-outline-fields { margin-top: 2px; }
+
+@media (max-width: 420px) {
+    .wl-cd-effect-field-range {
+        flex-basis: 100%;
+    }
+}
+
 /* ============================================
    Design Tab — Opacity Slider
    ============================================ */

@@ -466,7 +466,7 @@ function mountPreview(host) {
     return root;
 }
 
-function updatePreview(host, style) {
+function updatePreviewContent(host, previewStyles) {
     if (!host?.isConnected) return;
     const root = mountPreview(host);
     if (!host.__wlPreviewSample || host.__wlPreviewRole !== previewRole) {
@@ -503,7 +503,6 @@ function updatePreview(host, style) {
         contextStyle.textContent = sample.contextCSS;
     }
     const liveStyle = root.querySelector('[data-preview-live]');
-    const previewStyles = resolveLinkedPreviewStyles(style);
     if (liveStyle) {
         const css = previewStyles.map(previewStyle => buildPreviewCSS(
             previewStyle,
@@ -512,12 +511,25 @@ function updatePreview(host, style) {
         )).filter(Boolean).join('\n\n');
         if (liveStyle.textContent !== css) liveStyle.textContent = css;
     }
+}
+
+function updatePreview(host, style) {
+    const previewStyles = resolveLinkedPreviewStyles(style);
+    updatePreviewContent(host, previewStyles);
     const kind = host.closest?.('[data-wl-cdm-preview]')?.querySelector('.wl-cdm-preview-kind');
     if (kind) {
         const label = ELEMENT_LABELS[style.element] || 'Style';
         const linkedCount = Math.max(0, previewStyles.length - 1);
         kind.textContent = linkedCount ? `${label} · ${linkedCount} linked` : label;
     }
+}
+
+/** Render a bundled pack with the same isolated preview pipeline used by the style editor. */
+export function renderStylePackPreview(host, pack) {
+    const styles = LINKED_PREVIEW_ORDER
+        .map(element => pack?.styles?.find(style => style.element === element))
+        .filter(Boolean);
+    updatePreviewContent(host, styles);
 }
 
 export function renderChatDesignPreview(elementType) {

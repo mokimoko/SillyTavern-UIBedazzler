@@ -17,6 +17,10 @@ import {
     normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { refreshChatDesignCSSDebounced } from '../chatDesign/index.js';
+import {
+    buildDesignEffectsCSS, hasDesignEffects,
+    renderDesignEffects, wireDesignEffects,
+} from '../design/designEffects.js';
 
 const log = () => {};
 
@@ -77,7 +81,8 @@ function updatePersonaDesignForAvatar(avatar, name, updates) {
     }
 
     // Clean up empty design entries
-    const hasDesign = existing.nameColor || existing.dialogueColor || existing.boxColor || existing.bannerMode;
+    const hasDesign = existing.nameColor || existing.dialogueColor || existing.boxColor ||
+        existing.bannerMode || hasDesignEffects(existing);
     if (hasDesign) {
         settings.personaDesigns[avatar] = existing;
     } else {
@@ -136,24 +141,34 @@ export function renderDesignTab(pane) {
                 </div>
 
                 <div class="wl-cd-color-grid">
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Name</div>
                     <div class="wl-cd-color-row">
-                        <label>Name</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-pd-name-color" value="${design.nameColor || '#cccccc'}" />
                             <span class="wl-cd-color-hex">${design.nameColor || 'default'}</span>
                         </div>
                     </div>
 
+                    ${renderDesignEffects(design, 'name')}
+                    </div>
+
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Dialogue</div>
                     <div class="wl-cd-color-row">
-                        <label>Dialogue</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-pd-dialogue-color" value="${design.dialogueColor || '#cccccc'}" />
                             <span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>
                         </div>
                     </div>
+                    </div>
 
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Message Background</div>
                     <div class="wl-cd-color-row">
-                        <label>Box</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-pd-box-color" value="${boxHex}" />
                             <div class="wl-cd-opacity-wrap">
@@ -162,6 +177,8 @@ export function renderDesignTab(pane) {
                             </div>
                             <span class="wl-cd-color-hint">(all chat styles)</span>
                         </div>
+                    </div>
+                    ${renderDesignEffects(design, 'box')}
                     </div>
                 </div>
 
@@ -230,6 +247,8 @@ export function renderDesignTab(pane) {
     const boxOpacityInput = pane.querySelector('#wl-pd-box-opacity');
     const bannerUrlInput = pane.querySelector('#wl-pd-banner-url');
     if (bannerUrlInput) bannerUrlInput.value = design.bannerUrl || '';
+
+    wireDesignEffects(pane, updateRenderedPersona, isStillCurrent);
 
     // Name color
     nameColorInput?.addEventListener('input', () => {
@@ -370,7 +389,7 @@ export function renderDesignTab(pane) {
                 saveSettingsDebounced();
             }
         }
-        removeDesignCSS();
+        rebuildLiveCSS();
         if (isStillCurrent()) renderDesignTab(pane);
         // Also refresh Chat Design so its persona banner rule drops the
         // just-removed position/image immediately.
@@ -408,9 +427,10 @@ function buildPersonaCSS(personaName, design, avatarFile) {
     const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = design;
     const boxRgba = boxColor && (boxColor.startsWith('rgba') || boxColor.startsWith('rgb')) ? boxColor : null;
     const hasAnyColor = nameColor || dialogueColor || boxRgba;
+    const hasEffects = hasDesignEffects(design);
     const hasBanner = bannerMode != null;
 
-    if (!hasAnyColor && !hasBanner) return '';
+    if (!hasAnyColor && !hasBanner && !hasEffects) return '';
 
     const escapedName = escapeCSSName(personaName);
     const selector = `.mes[ch_name="${escapedName}"][is_user="true"]`;
@@ -430,6 +450,8 @@ function buildPersonaCSS(personaName, design, avatarFile) {
     if (boxRgba) {
         rules.push(`#chat ${selector} {\n    background-color: ${boxRgba} !important;\n}`);
     }
+    const effectsCSS = buildDesignEffectsCSS(selector, design);
+    if (effectsCSS) rules.push(effectsCSS);
 
     if (hasBanner) {
         let bannerImageUrl = '';

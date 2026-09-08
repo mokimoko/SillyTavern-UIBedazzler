@@ -18,6 +18,10 @@ import {
     normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { getCharacterAvatarUrl } from '../hostAdapter.js';
+import {
+    buildDesignEffectsCSS, hasDesignEffects, normalizeDesignEffects,
+    renderDesignEffects, wireDesignEffects,
+} from '../design/designEffects.js';
 
 const log = () => {};
 
@@ -63,6 +67,7 @@ function normalizeDesign(design) {
         nameColor: normalizeHexColor(design?.nameColor),
         dialogueColor: normalizeHexColor(design?.dialogueColor),
         boxColor: normalizeBoxColor(design?.boxColor),
+        ...normalizeDesignEffects(design),
         bannerMode,
         bannerUrl: normalizeBannerUrl(design?.bannerUrl),
         bannerPosition: Math.round(clamp(design?.bannerPosition, 0, 100, 25)),
@@ -114,7 +119,9 @@ function buildDesignCache() {
         const raw = char.json_data;
         // Quick substring check before expensive parse
         if (!raw.includes('nameColor') && !raw.includes('dialogueColor') &&
-            !raw.includes('boxColor') && !raw.includes('bannerMode')) {
+            !raw.includes('boxColor') && !raw.includes('bannerMode') &&
+            !raw.includes('nameGradient') && !raw.includes('boxGradient') &&
+            !raw.includes('nameOutlineWidth')) {
             continue;
         }
 
@@ -126,12 +133,17 @@ function buildDesignCache() {
                 nameColor: ext.nameColor || null,
                 dialogueColor: ext.dialogueColor || null,
                 boxColor: ext.boxColor || null,
+                nameGradient: wld.nameGradient || null,
+                boxGradient: wld.boxGradient || null,
+                nameOutlineColor: wld.nameOutlineColor || null,
+                nameOutlineWidth: wld.nameOutlineWidth ?? null,
                 bannerMode: wld.bannerMode || null,
                 bannerUrl: wld.bannerUrl || null,
                 bannerPosition: wld.bannerPosition ?? 25,
             };
 
-            if (design.nameColor || design.dialogueColor || design.boxColor || design.bannerMode) {
+            if (design.nameColor || design.dialogueColor || design.boxColor ||
+                design.bannerMode || hasDesignEffects(design)) {
                 designCache.set(char.avatar, { name: char.name, design });
             }
         } catch (e) {
@@ -186,24 +198,34 @@ export function renderDesignTab(pane) {
                 </div>
 
                 <div class="wl-cd-color-grid">
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Name</div>
                     <div class="wl-cd-color-row">
-                        <label>Name</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-cd-name-color" value="#cccccc" />
                             <span class="wl-cd-color-hex">default</span>
                         </div>
                     </div>
 
+                    ${renderDesignEffects(design, 'name')}
+                    </div>
+
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Dialogue</div>
                     <div class="wl-cd-color-row">
-                        <label>Dialogue</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-cd-dialogue-color" value="#cccccc" />
                             <span class="wl-cd-color-hex">default</span>
                         </div>
                     </div>
+                    </div>
 
+                    <div class="wl-cd-color-group">
+                    <div class="wl-cd-color-group-title">Message Background</div>
                     <div class="wl-cd-color-row">
-                        <label>Box</label>
+                        <label>Solid</label>
                         <div class="wl-cd-color-input-wrap">
                             <input type="color" id="wl-cd-box-color" value="#4a4441" />
                             <div class="wl-cd-opacity-wrap">
@@ -212,6 +234,8 @@ export function renderDesignTab(pane) {
                             </div>
                             <span class="wl-cd-color-hint">(all chat styles)</span>
                         </div>
+                    </div>
+                    ${renderDesignEffects(design, 'box')}
                     </div>
                 </div>
 
@@ -286,6 +310,14 @@ export function renderDesignTab(pane) {
     boxColorInput.value = boxHex;
     boxOpacityInput.value = String(boxOpacity);
     pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round(boxOpacity * 100)}%`;
+
+    wireDesignEffects(pane, updates => {
+        Object.assign(liveDesign, updates);
+        const stored = {};
+        for (const [key, value] of Object.entries(updates)) stored[`wl_design.${key}`] = value;
+        updateCharExtensions(stored);
+        schedulePreview();
+    }, isStillCurrent);
 
     const selectedMode = design.bannerMode || '';
     const selectedRadio = pane.querySelector(`input[name="wl-cd-banner-mode"][value="${selectedMode}"]`);
@@ -456,6 +488,10 @@ export function renderDesignTab(pane) {
             'wl_design.bannerMode': null,
             'wl_design.bannerUrl': null,
             'wl_design.bannerPosition': null,
+            'wl_design.nameGradient': null,
+            'wl_design.boxGradient': null,
+            'wl_design.nameOutlineColor': null,
+            'wl_design.nameOutlineWidth': null,
         });
         Object.assign(liveDesign, normalizeDesign({}));
         schedulePreview();
@@ -487,7 +523,7 @@ function rebuildLiveCSS(designOverride = null, avatarOverride = null) {
         if (!designCache) designCache = new Map();
 
         const hasDesign = design.nameColor || design.dialogueColor ||
-                          design.boxColor || design.bannerMode;
+                          design.boxColor || design.bannerMode || hasDesignEffects(design);
         if (hasDesign) {
             designCache.set(char.avatar, { name: char.name, design });
         } else {
@@ -517,9 +553,10 @@ function buildCharacterCSS(charName, design, avatarFile) {
     const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = safeDesign;
     const boxRgba = boxColor;
     const hasAnyColor = nameColor || dialogueColor || boxRgba;
+    const hasEffects = hasDesignEffects(safeDesign);
     const hasBanner = bannerMode != null;
 
-    if (!hasAnyColor && !hasBanner) return '';
+    if (!hasAnyColor && !hasBanner && !hasEffects) return '';
 
     const escapedName = escapeCSSName(charName);
     // Match Persona Design's role-qualified specificity. Without this,
@@ -538,6 +575,8 @@ function buildCharacterCSS(charName, design, avatarFile) {
     if (boxRgba) {
         rules.push(`#chat ${selector} {\n    background-color: ${boxRgba} !important;\n}`);
     }
+    const effectsCSS = buildDesignEffectsCSS(selector, safeDesign);
+    if (effectsCSS) rules.push(effectsCSS);
 
     if (hasBanner) {
         let bannerImageUrl = '';

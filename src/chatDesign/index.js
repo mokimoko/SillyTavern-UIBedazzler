@@ -16,6 +16,7 @@ import { startAvatarStamping, stopAvatarStamping } from './avatarStamp.js';
 import { applyThemeForActiveChar } from './themeSwitch.js';
 import { applyIconSetsForActiveChar } from './iconSwitch.js';
 import { applySideButtonStyleForActiveChar } from './sideButtonStyleSwitch.js';
+import { refreshWeatherCycleBadgePosition } from '../weatherCycleBadge.js';
 import {
     ensureGroupAnchor,
     extendChatScope,
@@ -38,6 +39,7 @@ function injectForCurrentContext(options = {}) {
         includeMessageStyles: hasActiveChatContext(),
         ...options,
     });
+    refreshWeatherCycleBadgePosition();
 }
 
 function applyGlobalAppearance() {
@@ -165,6 +167,7 @@ export function onChatDesignToggleChanged(enabled) {
         discoverCursorsForActiveDesign();
     } else {
         removeChatDesignCSS();
+        refreshWeatherCycleBadgePosition();
         stopAvatarStamping();
     }
 }

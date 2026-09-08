@@ -1,3 +1,4 @@
+import { resolveScrollbarStyle } from './scrollbarStyle.js';
 // src/chatDesign/modal.js
 // Chat Design — Popup modal UI
 //
@@ -12,7 +13,7 @@ import { getContext } from '../../../../../extensions.js';
 import {
     getChatDesignSettings, isChatDesignEnabled, setChatDesignEnabled,
     getAllStyles, getStylesForElement, getStyleById,
-    createStyle, updateStyleProperties, updateStyleMeta, deleteStyle, duplicateStyle,
+    createStyle, updateStyleProperties, updateStyleMeta, deleteStyle, deleteStyles, duplicateStyle,
     ELEMENT_DEFAULTS, ELEMENT_LABELS, ELEMENT_TYPES, NAME_DEFAULTS, BACKGROUND_PRESETS, BANNER_PRESETS,
     THINKING_PRESETS,
     AVATAR_OVERLAY_PRESETS, MESSAGE_ACTION_PRESETS, WEATHER_BADGE_PRESETS,
@@ -314,7 +315,12 @@ function ensureModalDOM() {
     modal.innerHTML = `
         <div class="wl-cdm-header" title="Drag to move · Double-click to center · Drag an edge or corner to resize">
             <div class="wl-cdm-title" id="wl-cdm-title">Chat Design</div>
-            <button type="button" class="wl-cdm-close" id="wl-cdm-close" aria-label="Close Chat Design">✕</button>
+            <div class="wl-cdm-header-actions">
+                <button type="button" class="wl-cdm-header-action" id="wl-cdm-add-pack" title="Add a built-in Style Pack"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Add Pack</span></button>
+                <button type="button" class="wl-cdm-header-action" id="wl-cdm-import-pack"><i class="fa-solid fa-file-import"></i><span>Import Pack</span></button>
+                <button type="button" class="wl-cdm-header-action" id="wl-cdm-export-pack"><i class="fa-solid fa-file-export"></i><span>Export Pack</span></button>
+                <button type="button" class="wl-cdm-close" id="wl-cdm-close" aria-label="Close Chat Design">✕</button>
+            </div>
         </div>
         <div class="wl-cdm-body">
             <div class="wl-cdm-sidebar" id="wl-cdm-sidebar"></div>
@@ -327,6 +333,34 @@ function ensureModalDOM() {
 
     // Wire persistent events (only once)
     modal.querySelector('#wl-cdm-close')?.addEventListener('click', closeChatDesignModal);
+    const refreshAfterPackApply = () => {
+        refreshChatDesignCSS();
+        renderContent();
+    };
+    modal.querySelector('#wl-cdm-add-pack')?.addEventListener('click', async () => {
+        try {
+            const { addStylePack } = await import('./stylePackUi.js');
+            await addStylePack(refreshAfterPackApply);
+        } catch (error) {
+            globalThis.toastr?.error(error.message || 'Built-in Style Packs could not be opened.', 'Style Packs');
+        }
+    });
+    modal.querySelector('#wl-cdm-import-pack')?.addEventListener('click', async () => {
+        try {
+            const { importStylePack } = await import('./stylePackUi.js');
+            importStylePack(refreshAfterPackApply);
+        } catch (error) {
+            globalThis.toastr?.error(error.message || 'Style Pack import could not start.', 'Style Packs');
+        }
+    });
+    modal.querySelector('#wl-cdm-export-pack')?.addEventListener('click', async () => {
+        try {
+            const { exportStylePack } = await import('./stylePackUi.js');
+            await exportStylePack();
+        } catch (error) {
+            globalThis.toastr?.error(error.message || 'Style Pack export could not start.', 'Style Packs');
+        }
+    });
     document.addEventListener('keydown', handleModalKeydown);
 
     ensureVisibilityToggle();
@@ -795,6 +829,7 @@ function wireGeneralUiSectionTabBar(container) {
     const tabs = [...container.querySelectorAll('[data-general-ui-section-tab]')];
     const activate = tab => {
         if (!tab || tab.dataset.generalUiSectionTab === activeTab) return;
+        cancelEdit();
         activeTab = tab.dataset.generalUiSectionTab;
         renderContent();
     };
@@ -1168,6 +1203,8 @@ function renderCoreView(container) {
                 ${renderOverviewCard('General UI', 'fa-window-maximize', countByElement.generalUi || 0, 'generalUi')}
                 ${renderOverviewCard('Background', 'fa-image', countByElement.background || 0, 'background')}
                 ${renderOverviewCard('Cursor', 'fa-arrow-pointer', countByElement.cursor || 0, 'cursor')}
+            </div>
+            <div class="wl-cdm-overview-grid wl-cdm-configuration-grid" aria-label="Settings configurations">
                 ${renderOverviewCard('Themes', 'fa-palette', null, 'themes', 'Settings')}
                 ${renderOverviewCard('Icons', 'fa-icons', null, 'icons', 'Settings')}
                 ${renderOverviewCard('Side Buttons', 'fa-grip-vertical', null, 'side-buttons', 'Settings')}
@@ -1219,8 +1256,12 @@ function renderElementList(container) {
     const isTopBarIconSection = activeTab === 'icons-top-bar';
     const isGeneralUiIntegrationSection = activeTab === 'generalUi-integrations';
     const elementType = isTopBarIconSection || isGeneralUiIntegrationSection ? 'generalUi' : activeTab;
-    const styles = getStylesForElement(elementType);
-    const label = isTopBarIconSection ? 'Top Bar Icon' : ELEMENT_LABELS[elementType] || elementType;
+    const uiSection = isGeneralUiIntegrationSection ? 'integrations' : 'native';
+    const styles = getStylesForElement(elementType).filter(style =>
+        elementType !== 'generalUi' || style.uiSection === uiSection);
+    const label = isTopBarIconSection
+        ? 'Top Bar Icon'
+        : isGeneralUiIntegrationSection ? 'Integrations UI' : ELEMENT_LABELS[elementType] || elementType;
     const sectionTabs = isTopBarIconSection
         ? renderIconSectionTabBar(activeTab)
         : (activeTab === 'container' || activeTab === 'banner')
@@ -1231,7 +1272,7 @@ function renderElementList(container) {
     const sectionHint = isTopBarIconSection
         ? 'These are the same character-scoped styles used by General UI. Creating, assigning, or deleting one here also updates the matching General UI style.'
         : isGeneralUiIntegrationSection
-            ? 'These shared General UI styles and assignments also contain integration-specific controls. Only detected, enabled integrations appear below.'
+            ? 'Integration styles are independent from Native General UI styles. Only detected, enabled integrations appear below.'
             : '';
 
     container.innerHTML = `
@@ -1257,7 +1298,7 @@ function renderElementList(container) {
 
     // Wire add button
     container.querySelector('#wl-cdm-add-style')?.addEventListener('click', () => {
-        const style = createStyle(elementType);
+        const style = createStyle(elementType, undefined, { uiSection });
         startEdit(style.id);
     });
 
@@ -1288,22 +1329,56 @@ function renderElementList(container) {
         });
         card.querySelector('.wl-cdm-card-del')?.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const styleName = getStyleById(styleId)?.name || 'this style';
+            const selectedStyle = getStyleById(styleId);
+            const styleName = selectedStyle?.name || 'this style';
+            const matchingStyles = selectedStyle
+                ? getAllStyles().filter(style => style.name === selectedStyle.name)
+                : [];
+            let deleted = false;
             try {
-                const { callGenericPopup, POPUP_TYPE } = await import('../../../../../../scripts/popup.js');
-                const result = await callGenericPopup(`Delete style "${styleName}"?`, POPUP_TYPE.CONFIRM);
-                if (result) {
-                    deleteStyle(styleId);
-                    refreshChatDesignCSS();
-                    renderContent();
+                const { callGenericPopup, POPUP_RESULT, POPUP_TYPE } = await import('../../../../../../scripts/popup.js');
+                if (matchingStyles.length > 1) {
+                    const categories = [...new Set(matchingStyles.map(style => ELEMENT_LABELS[style.element] || style.element))].join(', ');
+                    const result = await callGenericPopup(
+                        `There are ${matchingStyles.length} styles named “${esc(styleName)}” across ${esc(categories)}. Delete only this style, or delete the complete same-name set?<br><br>The saved theme and custom icon set are not affected.`,
+                        POPUP_TYPE.CONFIRM,
+                        '',
+                        {
+                            okButton: 'Delete this style',
+                            cancelButton: false,
+                            defaultResult: POPUP_RESULT.CANCELLED,
+                            customButtons: [
+                                { text: `Delete all ${matchingStyles.length} styles`, result: POPUP_RESULT.CUSTOM1, appendAtEnd: true, icon: 'fa-trash' },
+                                { text: 'Cancel', result: POPUP_RESULT.CANCELLED, appendAtEnd: true },
+                            ],
+                        },
+                    );
+                    if (result === POPUP_RESULT.CUSTOM1) deleted = deleteStyles(matchingStyles.map(style => style.id)) > 0;
+                    else if (result === POPUP_RESULT.AFFIRMATIVE) deleted = deleteStyle(styleId);
+                } else {
+                    const result = await callGenericPopup(
+                        `Delete style “${esc(styleName)}”?`,
+                        POPUP_TYPE.CONFIRM,
+                        '',
+                        { okButton: 'Delete', cancelButton: 'Cancel' },
+                    );
+                    if (result === POPUP_RESULT.AFFIRMATIVE) deleted = deleteStyle(styleId);
                 }
             } catch {
                 // Fallback if popup module unavailable
-                if (confirm(`Delete style "${styleName}"?`)) {
-                    deleteStyle(styleId);
-                    refreshChatDesignCSS();
-                    renderContent();
+                if (matchingStyles.length > 1) {
+                    if (confirm(`Delete all ${matchingStyles.length} styles named “${styleName}”?\n\nChoose Cancel to keep the set and decide whether to delete only this style.`)) {
+                        deleted = deleteStyles(matchingStyles.map(style => style.id)) > 0;
+                    } else if (confirm(`Delete only this “${styleName}” style?`)) {
+                        deleted = deleteStyle(styleId);
+                    }
+                } else if (confirm(`Delete style “${styleName}”?`)) {
+                    deleted = deleteStyle(styleId);
                 }
+            }
+            if (deleted) {
+                refreshChatDesignCSS();
+                renderContent();
             }
         });
 
@@ -1383,7 +1458,9 @@ function isTopBarIconEditor(style) {
 }
 
 function isGeneralUiIntegrationEditor(style) {
-    return activeTab === 'generalUi-integrations' && style?.element === 'generalUi';
+    return activeTab === 'generalUi-integrations'
+        && style?.element === 'generalUi'
+        && style.uiSection === 'integrations';
 }
 
 function getEditorPropertyTabsForStyle(style) {
@@ -1440,9 +1517,11 @@ function renderEditor(container) {
 
             <div class="wl-cdm-editor-scroll">
                 <!-- Style Name -->
-                <div class="wl-cdm-field">
-                    <label class="wl-cdm-field-label">Style Name</label>
-                    <input type="text" class="wl-cdm-input" id="wl-cdm-style-name" value="${esc(style.name)}">
+                <div class="wl-cdm-field-grid">
+                    <div class="wl-cdm-field">
+                        <label class="wl-cdm-field-label">Style Name</label>
+                        <input type="text" class="wl-cdm-input" id="wl-cdm-style-name" value="${esc(style.name)}">
+                    </div>
                 </div>
 
                 <div class="wl-cdm-divider"></div>
@@ -1507,7 +1586,7 @@ function renderActivePropertySection(sections, activeId) {
 
 function renderSelectField(label, fieldId, value, options) {
     return `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">${label}</label>
             <select class="wl-cdm-select" id="${fieldId}">
                 ${Object.entries(options).map(([val, text]) =>
@@ -1518,14 +1597,47 @@ function renderSelectField(label, fieldId, value, options) {
     `;
 }
 
-function renderRangeField(label, fieldId, value, min, max, step, unit = '') {
+function renderRangeField(label, fieldId, value, min, max, step, unit = '', hint = '') {
     return `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">${label}</label>
             <div class="wl-cdm-range-row">
                 <input type="range" class="wl-cdm-range" id="${fieldId}" min="${min}" max="${max}" step="${step}" value="${value}">
                 <span class="wl-cdm-range-val" id="${fieldId}-val">${value}${unit}</span>
             </div>
+            ${hint ? `<div class="wl-cdm-field-hint wl-cdm-field-hint-after">${hint}</div>` : ''}
+        </div>
+    `;
+}
+
+function renderWidthField(label, fieldId, value, hint = '') {
+    const fixedWidth = Number(value) > 0;
+    const sliderValue = fixedWidth ? Number(value) : 600;
+    return `
+        <div class="wl-cdm-field wl-cdm-compact-field">
+            <div class="wl-cdm-field-label-row">
+                <label class="wl-cdm-field-label">${label}</label>
+                <label class="wl-cdm-use-custom">
+                    <input type="checkbox" data-wl-width-fill="${fieldId}" ${fixedWidth ? '' : 'checked'}>
+                    <span>Fill available width</span>
+                </label>
+            </div>
+            <div data-wl-width-fixed="${fieldId}" ${fixedWidth ? '' : 'hidden'}>
+                <div class="wl-cdm-range-row">
+                    <input type="range" class="wl-cdm-range" id="${fieldId}" min="100" max="1200" step="10" value="${sliderValue}">
+                    <span class="wl-cdm-range-val" id="${fieldId}-val">${sliderValue}px</span>
+                </div>
+            </div>
+            ${hint ? `<div class="wl-cdm-field-hint wl-cdm-field-hint-after">${hint}</div>` : ''}
+        </div>
+    `;
+}
+
+function renderFieldRow(fields, hint = '') {
+    return `
+        <div class="wl-cdm-field-grid">
+            ${fields.join('')}
+            ${hint ? `<div class="wl-cdm-field-hint wl-cdm-field-grid-hint">${hint}</div>` : ''}
         </div>
     `;
 }
@@ -1555,7 +1667,7 @@ function renderColorField(label, fieldId, value) {
 
 function renderShadowField(label, fieldId, value) {
     return `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">${label}</label>
             <select class="wl-cdm-select wl-cdm-shadow-select" id="${fieldId}">
                 <option value="none" ${value === 'none' || !value ? 'selected' : ''}>None</option>
@@ -1610,36 +1722,67 @@ function renderNameProps(p, prefix = 'name') {
             '2.5em': '2.5em', '3em': '3em', '3.5em': '3.5em', '4em': '4em', '5em': '5em',
             '6em': '6em', '7em': '7em', '8em': '8em',
         })}
-        ${renderSelectField('Font Weight', `wl-cdm-p-${key('fontWeight')}`, p[key('fontWeight')], {
-            '300': 'Light (300)', '400': 'Regular (400)', '500': 'Medium (500)',
-            '600': 'Semi-Bold (600)', '700': 'Bold (700)', '900': 'Black (900)',
-        })}
-        ${renderSelectField('Font Style', `wl-cdm-p-${key('fontStyle')}`, p[key('fontStyle')], {
-            'normal': 'Normal', 'italic': 'Italic',
-        })}
-        ${renderSelectField('Text Transform', `wl-cdm-p-${key('textTransform')}`, p[key('textTransform')], {
-            'none': 'None', 'uppercase': 'UPPERCASE', 'lowercase': 'lowercase',
-            'capitalize': 'Capitalize',
-        })}
-        ${renderSelectField('Letter Spacing', `wl-cdm-p-${key('letterSpacing')}`, p[key('letterSpacing')], {
-            '0px': '0px (default)', '0.5px': '0.5px', '1px': '1px',
-            '2px': '2px', '3px': '3px', '5px': '5px',
-        })}
+        ${renderFieldRow([
+            renderSelectField('Font Weight', `wl-cdm-p-${key('fontWeight')}`, p[key('fontWeight')], {
+                '300': 'Light (300)', '400': 'Regular (400)', '500': 'Medium (500)',
+                '600': 'Semi-Bold (600)', '700': 'Bold (700)', '900': 'Black (900)',
+            }),
+            renderSelectField('Font Style', `wl-cdm-p-${key('fontStyle')}`, p[key('fontStyle')], {
+                'normal': 'Normal', 'italic': 'Italic',
+            }),
+        ])}
+        ${renderFieldRow([
+            renderSelectField('Text Transform', `wl-cdm-p-${key('textTransform')}`, p[key('textTransform')], {
+                'none': 'None', 'uppercase': 'UPPERCASE', 'lowercase': 'lowercase',
+                'capitalize': 'Capitalize',
+            }),
+            renderSelectField('Letter Spacing', `wl-cdm-p-${key('letterSpacing')}`, p[key('letterSpacing')], {
+                '0px': '0px (default)', '0.5px': '0.5px', '1px': '1px',
+                '2px': '2px', '3px': '3px', '5px': '5px',
+            }),
+        ])}
         ${renderShadowField('Text Shadow', `wl-cdm-p-${key('textShadow')}`, p[key('textShadow')])}
-        ${renderRangeField('Horizontal Offset', `wl-cdm-p-${key('offsetX')}`, p[key('offsetX')], -100, 250, 1, 'px')}
-        ${renderRangeField('Vertical Offset', `wl-cdm-p-${key('offsetY')}`, p[key('offsetY')], -60, 60, 1, 'px')}
-        <div class="wl-cdm-field-hint">Moves only the visible name while preserving its place in the message layout</div>
+        <div class="wl-cdm-subsection">Name Text Fill</div>
+        ${renderSelectField('Fill', `wl-cdm-p-${key('fillMode')}`, p[key('fillMode')], {
+            theme: 'Active theme', gradient: 'Two-color gradient',
+        })}
+        <div data-wl-name-fill-conditional="gradient" ${p[key('fillMode')] === 'gradient' ? '' : 'hidden'}>
+            ${renderFieldRow([
+                renderColorField('Start Color', `wl-cdm-p-${key('fillStartColor')}`, p[key('fillStartColor')]),
+                renderColorField('End Color', `wl-cdm-p-${key('fillEndColor')}`, p[key('fillEndColor')]),
+            ], 'The gradient is clipped to the visible speaker-name letters; Name Background remains independent.')}
+            ${renderRangeField('Direction', `wl-cdm-p-${key('fillAngle')}`, p[key('fillAngle')], 0, 360, 1, '°', '0° runs bottom to top; 90° runs left to right.')}
+        </div>
+        ${renderFieldRow([
+            renderSelectField('Alignment', `wl-cdm-p-${key('textAlign')}`, p[key('textAlign')], {
+                left: 'Left', center: 'Center', right: 'Right',
+            }),
+            renderRangeField('Horizontal Offset', `wl-cdm-p-${key('offsetX')}`, p[key('offsetX')], -400, 800, 1, 'px'),
+            renderRangeField('Vertical Offset', `wl-cdm-p-${key('offsetY')}`, p[key('offsetY')], -250, 250, 1, 'px'),
+        ], 'Alignment positions the name cluster within its header row; offsets fine-tune it from that anchor')}
+        ${renderCheckboxField('Keep name on one line', `wl-cdm-p-${key('noWrap')}`, p[key('noWrap')], 'Prevents long names from wrapping; they extend away from the selected alignment anchor instead.')}
         <div class="wl-cdm-subsection">Name Background</div>
-        ${renderColorField('Background Color', `wl-cdm-p-${key('backgroundColor')}`, p[key('backgroundColor')])}
-        ${renderRangeField('Background Opacity', `wl-cdm-p-${key('backgroundOpacity')}`, p[key('backgroundOpacity')], 0, 1, 0.05, '')}
-        ${renderRangeField('Background Width', `wl-cdm-p-${key('backgroundWidth')}`, p[key('backgroundWidth')], 0, 400, 5, 'px')}
-        <div class="wl-cdm-field-hint">0 = fit the name automatically</div>
-        ${renderRangeField('Background Height', `wl-cdm-p-${key('backgroundHeight')}`, p[key('backgroundHeight')], 0, 120, 2, 'px')}
-        <div class="wl-cdm-field-hint">0 = fit the name automatically</div>
-        ${renderRangeField('Text Horizontal Offset', `wl-cdm-p-${key('backgroundTextOffsetX')}`, p[key('backgroundTextOffsetX')], -40, 40, 1, 'px')}
-        <div class="wl-cdm-field-hint">Moves the text left or right without moving the background itself</div>
-        ${renderRangeField('Text Vertical Offset', `wl-cdm-p-${key('backgroundTextOffsetY')}`, p[key('backgroundTextOffsetY')], -20, 20, 1, 'px')}
-        <div class="wl-cdm-field-hint">Moves the text up or down without moving the background itself</div>
+        ${renderSelectField('Fill', `wl-cdm-p-${key('backgroundFillMode')}`, p[key('backgroundFillMode')], {
+            solid: 'Solid color', gradient: 'Two-color gradient',
+        })}
+        ${renderFieldRow([
+            renderColorField('Primary Color', `wl-cdm-p-${key('backgroundColor')}`, p[key('backgroundColor')]),
+            renderRangeField('Background Opacity', `wl-cdm-p-${key('backgroundOpacity')}`, p[key('backgroundOpacity')], 0, 1, 0.05, ''),
+        ])}
+        <div data-wl-name-background-conditional="gradient" ${p[key('backgroundFillMode')] === 'gradient' ? '' : 'hidden'}>
+            ${renderFieldRow([
+                renderColorField('Secondary Color', `wl-cdm-p-${key('backgroundSecondaryColor')}`, p[key('backgroundSecondaryColor')]),
+                renderRangeField('Gradient Direction', `wl-cdm-p-${key('backgroundAngle')}`, p[key('backgroundAngle')], 0, 360, 1, '°'),
+            ])}
+        </div>
+        ${renderFieldRow([
+            renderRangeField('Background Width', `wl-cdm-p-${key('backgroundWidth')}`, p[key('backgroundWidth')], 0, 400, 5, 'px'),
+            renderRangeField('Background Height', `wl-cdm-p-${key('backgroundHeight')}`, p[key('backgroundHeight')], 0, 120, 2, 'px'),
+        ], '0 = fit the name automatically on that axis')}
+        ${renderFieldRow([
+            renderRangeField('Text Horizontal Offset', `wl-cdm-p-${key('backgroundTextOffsetX')}`, p[key('backgroundTextOffsetX')], -40, 40, 1, 'px'),
+            renderRangeField('Text Vertical Offset', `wl-cdm-p-${key('backgroundTextOffsetY')}`, p[key('backgroundTextOffsetY')], -20, 20, 1, 'px'),
+        ], 'Moves the text within the background without moving the background itself')}
         ${renderSelectField('Background Shape', `wl-cdm-p-${key('backgroundShape')}`, p[key('backgroundShape')], {
             square: 'Square', rounded: 'Rounded', pill: 'Pill',
         })}
@@ -1651,7 +1794,7 @@ function renderThemeSelectField(label, fieldId, toggleFieldId, enabled, value, o
     const selectedValue = Object.hasOwn(options, String(value)) ? String(value) : entries[0]?.[0] || '';
     const customKey = toggleFieldId.replace('wl-cdm-p-', '');
     return `
-        <div class="wl-cdm-field" data-wl-custom-field="${customKey}">
+        <div class="wl-cdm-field wl-cdm-compact-field" data-wl-custom-field="${customKey}">
             <div class="wl-cdm-field-label-row">
                 <label class="wl-cdm-field-label" for="${fieldId}">${label}</label>
                 <label class="wl-cdm-use-custom">
@@ -1763,21 +1906,41 @@ function renderFontFields(p, prefix = '') {
         ${renderSelectField('Font Size', `wl-cdm-p-${key('fontSize')}`, p[key('fontSize')], {
             '0.8em': '0.8em', '0.9em': '0.9em', '1em': '1em (default)', '1.05em': '1.05em',
             '1.1em': '1.1em', '1.15em': '1.15em', '1.2em': '1.2em', '1.3em': '1.3em',
+            '1.4em': '1.4em', '1.5em': '1.5em',
         })}
-        ${renderSelectField('Font Weight', `wl-cdm-p-${key('fontWeight')}`, p[key('fontWeight')], {
-            '300': 'Light (300)', '400': 'Regular (400)', '500': 'Medium (500)',
-            '600': 'Semi-Bold (600)', '700': 'Bold (700)',
-        })}
-        ${renderSelectField('Font Style', `wl-cdm-p-${key('fontStyle')}`, p[key('fontStyle')], {
-            'normal': 'Normal', 'italic': 'Italic',
-        })}
-        ${renderSelectField('Letter Spacing', `wl-cdm-p-${key('letterSpacing')}`, p[key('letterSpacing')], {
-            '0px': '0px (default)', '0.3px': '0.3px', '0.5px': '0.5px', '1px': '1px', '2px': '2px',
-        })}
-        ${renderSelectField('Line Height', `wl-cdm-p-${key('lineHeight')}`, p[key('lineHeight')], {
-            'normal': 'Normal', '1.2': '1.2 (tight)', '1.4': '1.4', '1.6': '1.6',
-            '1.8': '1.8 (spacious)', '2': '2.0',
-        })}
+        ${renderFieldRow([
+            renderSelectField('Font Weight', `wl-cdm-p-${key('fontWeight')}`, p[key('fontWeight')], {
+                '300': 'Light (300)', '400': 'Regular (400)', '500': 'Medium (500)',
+                '600': 'Semi-Bold (600)', '700': 'Bold (700)',
+            }),
+            renderSelectField('Font Style', `wl-cdm-p-${key('fontStyle')}`, p[key('fontStyle')], {
+                'normal': 'Normal', 'italic': 'Italic',
+            }),
+        ])}
+        ${renderFieldRow([
+            renderSelectField('Letter Spacing', `wl-cdm-p-${key('letterSpacing')}`, p[key('letterSpacing')], {
+                '0px': '0px (default)', '0.3px': '0.3px', '0.5px': '0.5px', '1px': '1px', '2px': '2px',
+            }),
+            renderSelectField('Line Height', `wl-cdm-p-${key('lineHeight')}`, p[key('lineHeight')], {
+                'normal': 'Normal', '1.2': '1.2 (tight)', '1.4': '1.4', '1.6': '1.6',
+                '1.8': '1.8 (spacious)', '2': '2.0',
+            }),
+        ])}
+    `;
+}
+
+function renderAdvancedCssField(p, prefix = '') {
+    const property = `${prefix || 'dialogue'}CustomCss`;
+    const target = prefix === 'name' ? 'speaker name' : prefix === 'message' ? 'message text' : 'quoted dialogue';
+    return `
+        <div class="wl-cdm-subsection">Advanced CSS</div>
+        <div class="wl-cdm-field">
+            <label class="wl-cdm-field-label" for="wl-cdm-p-${property}">Custom declarations</label>
+            <textarea class="wl-cdm-input wl-cdm-css-input" id="wl-cdm-p-${property}"
+                maxlength="4000" spellcheck="false"
+                placeholder="color: white;&#10;text-shadow: -3px 3px 5px rgba(255, 255, 255, 0.7);">${esc(p[property] || '')}</textarea>
+        </div>
+        <div class="wl-cdm-field-hint">Applied only to this style's ${target}. Paste declarations without a selector or braces. External URLs and at-rules are ignored.</div>
     `;
 }
 
@@ -1797,15 +1960,15 @@ function renderFontsProps(p, activeSection) {
 
     return renderActivePropertySection({
         name: {
-            content: renderNameProps(p),
+            content: `${renderNameProps(p)}${renderAdvancedCssField(p, 'name')}`,
             hint: 'Typography, position, and optional background for the visible speaker name.',
         },
         'message-text': {
-            content: renderFontFields(p, 'message'),
+            content: `${renderFontFields(p, 'message')}${renderAdvancedCssField(p, 'message')}`,
             hint: 'Base typography for user and assistant message text. Dialogue settings can override quoted text.',
         },
         dialogue: {
-            content: renderFontFields(p),
+            content: `${renderFontFields(p)}${renderAdvancedCssField(p)}`,
             hint: 'Typography for text rendered inside dialogue/quote tags.',
         },
         'sillytavern-ui': {
@@ -1832,12 +1995,16 @@ function renderBannerBorderFields(p, side, label) {
     const prefix = `border${side}`;
     return `
         <div class="wl-cdm-field-label">${label}</div>
-        ${renderRangeField('Border Width', `wl-cdm-p-${prefix}Width`, p[`${prefix}Width`], 0, 8, 1, 'px')}
-        ${renderSelectField('Border Style', `wl-cdm-p-${prefix}Style`, p[`${prefix}Style`], {
-            'none': 'None', 'solid': 'Solid', 'dashed': 'Dashed', 'dotted': 'Dotted', 'double': 'Double',
-        })}
-        ${renderColorField('Border Color', `wl-cdm-p-${prefix}Color`, p[`${prefix}Color`])}
-        ${renderRangeField('Border Opacity', `wl-cdm-p-${prefix}Opacity`, p[`${prefix}Opacity`], 0, 1, 0.1, '')}
+        ${renderFieldRow([
+            renderRangeField('Border Width', `wl-cdm-p-${prefix}Width`, p[`${prefix}Width`], 0, 8, 1, 'px'),
+            renderSelectField('Border Style', `wl-cdm-p-${prefix}Style`, p[`${prefix}Style`], {
+                'none': 'None', 'solid': 'Solid', 'dashed': 'Dashed', 'dotted': 'Dotted', 'double': 'Double',
+            }),
+        ])}
+        ${renderFieldRow([
+            renderColorField('Border Color', `wl-cdm-p-${prefix}Color`, p[`${prefix}Color`]),
+            renderRangeField('Border Opacity', `wl-cdm-p-${prefix}Opacity`, p[`${prefix}Opacity`], 0, 1, 0.1, ''),
+        ])}
     `;
 }
 
@@ -1850,7 +2017,7 @@ function renderBannerProps(p) {
     }
     const overlayGradientHidden = p.overlayType === 'gradient' ? '' : ' hidden';
     return `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">Preset</label>
             <select class="wl-cdm-select" id="wl-cdm-banner-preset">
                 <option value="">— Load a preset —</option>
@@ -1862,15 +2029,20 @@ function renderBannerProps(p) {
         <div class="wl-cdm-field-hint">Fills every field below with a curated look — tweak freely afterward, or leave it and build your own.</div>
 
         <div class="wl-cdm-subsection">Banner Geometry</div>
-        ${renderRangeField('Height', 'wl-cdm-p-height', p.height, 60, 300, 10, 'px')}
-        ${renderRangeField('Width', 'wl-cdm-p-width', p.width, 10, 200, 1, '%')}
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-offsetX', p.offsetX, -400, 400, 1, 'px')}
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-offsetY', p.offsetY, -250, 250, 1, 'px')}
-        <div class="wl-cdm-field-hint">Width stays responsive · offsets move the artwork without moving message content · negative values move left/up</div>
+        ${renderFieldRow([
+            renderRangeField('Width', 'wl-cdm-p-width', p.width, 10, 200, 1, '%'),
+            renderRangeField('Height', 'wl-cdm-p-height', p.height, 60, 300, 10, 'px'),
+        ], 'Width stays responsive')}
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-offsetX', p.offsetX, -400, 400, 1, 'px'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-offsetY', p.offsetY, -250, 250, 1, 'px'),
+        ], 'Offsets move the artwork without moving message content · negative values move left/up')}
         ${renderRangeField('Content Padding Top', 'wl-cdm-p-paddingTop', p.paddingTop, 60, 350, 10, 'px')}
         <div class="wl-cdm-field-hint">Reserves vertical space for the message content independently of the artwork position.</div>
-        ${renderRangeField('Image Position', 'wl-cdm-p-bannerPosition', p.bannerPosition, 0, 100, 5, '%')}
-        ${renderRangeField('Border Radius', 'wl-cdm-p-borderRadius', p.borderRadius, 0, 24, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Image Position', 'wl-cdm-p-bannerPosition', p.bannerPosition, 0, 100, 5, '%'),
+            renderRangeField('Border Radius', 'wl-cdm-p-borderRadius', p.borderRadius, 0, 24, 1, 'px'),
+        ])}
 
         <div class="wl-cdm-subsection">Bottom Fade</div>
         ${renderColorField('Fade Color', 'wl-cdm-p-bottomFadeColor', p.bottomFadeColor)}
@@ -1885,19 +2057,23 @@ function renderBannerProps(p) {
             ${renderColorField('Secondary Color', 'wl-cdm-p-overlaySecondaryColor', p.overlaySecondaryColor)}
             ${renderRangeField('Gradient Direction', 'wl-cdm-p-overlayAngle', p.overlayAngle, 0, 360, 5, '°')}
         </div>
-        ${renderRangeField('Overlay Opacity', 'wl-cdm-p-overlayOpacity', p.overlayOpacity, 0, 1, 0.05, '')}
-        ${renderSelectField('Blend Mode', 'wl-cdm-p-overlayBlendMode', p.overlayBlendMode, {
-            normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay',
-            'soft-light': 'Soft Light', color: 'Color',
-        })}
+        ${renderFieldRow([
+            renderRangeField('Overlay Opacity', 'wl-cdm-p-overlayOpacity', p.overlayOpacity, 0, 1, 0.05, ''),
+            renderSelectField('Blend Mode', 'wl-cdm-p-overlayBlendMode', p.overlayBlendMode, {
+                normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay',
+                'soft-light': 'Soft Light', color: 'Color',
+            }),
+        ])}
         ${renderRangeField('Vignette', 'wl-cdm-p-overlayVignette', p.overlayVignette, 0, 0.85, 0.05, '')}
         <div class="wl-cdm-field-hint">Blend modes color-treat the artwork; vignette shades its edges. Both follow the banner fade and slant while frame borders remain crisp.</div>
 
         <div class="wl-cdm-subsection">Slant</div>
-        ${renderRangeField('Slant Depth', 'wl-cdm-p-slant', p.slant, 0, 40, 1, 'px')}
-        ${renderSelectField('Slant Direction', 'wl-cdm-p-slantDirection', p.slantDirection, {
-            'right': 'Rises to the right', 'left': 'Rises to the left',
-        })}
+        ${renderFieldRow([
+            renderRangeField('Slant Depth', 'wl-cdm-p-slant', p.slant, 0, 40, 1, 'px'),
+            renderSelectField('Slant Direction', 'wl-cdm-p-slantDirection', p.slantDirection, {
+                'right': 'Rises to the right', 'left': 'Rises to the left',
+            }),
+        ])}
         <div class="wl-cdm-field-hint">Cuts the band's bottom on a diagonal. When on, the Bottom Border becomes a solid accent bar riding the slant; its style and radius are ignored. Top and side borders still frame the banner body.</div>
 
         <div class="wl-cdm-subsection">Banner Frame</div>
@@ -1937,6 +2113,7 @@ function renderThinkingPresetPicker(p) {
 function renderContainerProps(p, activeSection) {
     // Backfill layout controls into container styles created before they existed.
     if (!('contentOffsetX' in p)) p.contentOffsetX = Number(p.contentIndent) || 0;
+    if (p.paddingEnabled == null) p.paddingEnabled = Number(p.paddingExtra) > 0;
     for (const [k, v] of Object.entries(ELEMENT_DEFAULTS.container)) {
         if (!(k in p)) p[k] = v;
     }
@@ -1948,14 +2125,21 @@ function renderContainerProps(p, activeSection) {
         container: {
             hint: 'Outer message shell only. Content-area and text-position controls keep their existing behavior under Content.',
             content: `
-                ${renderRangeField('Border Width', 'wl-cdm-p-borderWidth', p.borderWidth, 0, 8, 1, 'px')}
-                ${renderSelectField('Border Style', 'wl-cdm-p-borderStyle', p.borderStyle, borderStyles)}
+                ${renderFieldRow([
+                    renderRangeField('Border Width', 'wl-cdm-p-borderWidth', p.borderWidth, 0, 8, 1, 'px'),
+                    renderSelectField('Border Style', 'wl-cdm-p-borderStyle', p.borderStyle, borderStyles),
+                ])}
                 ${renderColorField('Border Color', 'wl-cdm-p-borderColor', p.borderColor)}
                 ${renderRangeField('Border Radius', 'wl-cdm-p-borderRadius', p.borderRadius, 0, 24, 1, 'px')}
                 ${renderShadowField('Box Shadow', 'wl-cdm-p-boxShadow', p.boxShadow)}
-                ${renderRangeField('Margin Top', 'wl-cdm-p-marginTop', p.marginTop, 0, 40, 2, 'px')}
-                ${renderRangeField('Margin Bottom', 'wl-cdm-p-marginBottom', p.marginBottom, 0, 40, 2, 'px')}
-                ${renderRangeField('Extra Padding', 'wl-cdm-p-paddingExtra', p.paddingExtra, 0, 200, 5, 'px')}
+                ${renderFieldRow([
+                    renderRangeField('Margin Top', 'wl-cdm-p-marginTop', p.marginTop, 0, 40, 2, 'px'),
+                    renderRangeField('Margin Bottom', 'wl-cdm-p-marginBottom', p.marginBottom, 0, 40, 2, 'px'),
+                ])}
+                ${renderCheckboxField('Use custom padding', 'wl-cdm-p-paddingEnabled', p.paddingEnabled, 'Off follows the active theme. Turn it on to set exact spacing around the whole message.')}
+                <div data-wl-custom-region="paddingEnabled"${p.paddingEnabled ? '' : ' class="wl-cdm-custom-disabled"'}>
+                    ${renderRangeField('Padding', 'wl-cdm-p-paddingExtra', p.paddingExtra, 0, 200, 1, 'px', '0 removes the message padding; higher values add equal spacing on every side.')}
+                </div>
             `,
         },
         content: {
@@ -1964,25 +2148,30 @@ function renderContainerProps(p, activeSection) {
                 ${renderCheckboxField('Style content area', 'wl-cdm-p-contentAreaEnabled', p.contentAreaEnabled, 'Gives the text and reasoning column its own surface, independent of the full message row.')}
                 ${renderColorField('Background Color', 'wl-cdm-p-contentBackgroundColor', p.contentBackgroundColor)}
                 ${renderRangeField('Background Opacity', 'wl-cdm-p-contentBackgroundOpacity', p.contentBackgroundOpacity, 0, 1, 0.05, '')}
-                ${renderRangeField('Border Width', 'wl-cdm-p-contentBorderWidth', p.contentBorderWidth, 0, 8, 1, 'px')}
-                ${renderSelectField('Border Style', 'wl-cdm-p-contentBorderStyle', p.contentBorderStyle, borderStyles)}
+                ${renderFieldRow([
+                    renderRangeField('Border Width', 'wl-cdm-p-contentBorderWidth', p.contentBorderWidth, 0, 8, 1, 'px'),
+                    renderSelectField('Border Style', 'wl-cdm-p-contentBorderStyle', p.contentBorderStyle, borderStyles),
+                ])}
                 ${renderColorField('Border Color', 'wl-cdm-p-contentBorderColor', p.contentBorderColor)}
                 ${renderRangeField('Border Radius', 'wl-cdm-p-contentBorderRadius', p.contentBorderRadius, 0, 60, 1, 'px')}
                 ${renderShadowField('Box Shadow', 'wl-cdm-p-contentBoxShadow', p.contentBoxShadow)}
-                ${renderRangeField('Width', 'wl-cdm-p-contentWidth', p.contentWidth, 0, 1200, 10, 'px')}
-                <div class="wl-cdm-field-hint">0 = fill the available width. A fixed width remains responsive and shrinks on narrow screens.</div>
-                ${renderRangeField('Minimum Height', 'wl-cdm-p-contentMinHeight', p.contentMinHeight, 0, 300, 1, 'px')}
-                <div class="wl-cdm-field-hint">0 = fit the content automatically</div>
+                ${renderFieldRow([
+                    renderWidthField('Content Width', 'wl-cdm-p-contentWidth', p.contentWidth, 'Fill uses every available pixel; fixed widths still shrink on narrow screens.'),
+                    renderRangeField('Minimum Height', 'wl-cdm-p-contentMinHeight', p.contentMinHeight, 0, 300, 1, 'px', '0 = fit the content automatically.'),
+                ])}
 
                 <div class="wl-cdm-subsection">Content Area Position</div>
-                ${renderRangeField('Area Horizontal Offset', 'wl-cdm-p-contentAreaOffsetX', p.contentAreaOffsetX, -600, 600, 1, 'px')}
-                ${renderRangeField('Area Vertical Offset', 'wl-cdm-p-contentAreaOffsetY', p.contentAreaOffsetY, -300, 300, 1, 'px')}
-                <div class="wl-cdm-field-hint">Moves the entire styled area—surface, border, text, and reasoning—without moving the name, details, or action buttons · − left/up · + right/down</div>
+                ${renderFieldRow([
+                    renderRangeField('Area Horizontal Offset', 'wl-cdm-p-contentAreaOffsetX', p.contentAreaOffsetX, -600, 600, 1, 'px'),
+                    renderRangeField('Area Vertical Offset', 'wl-cdm-p-contentAreaOffsetY', p.contentAreaOffsetY, -300, 300, 1, 'px'),
+                ], 'Moves the entire styled area—surface, border, text, and reasoning—without moving the name, details, or action buttons · − left/up · + right/down')}
 
-                <div class="wl-cdm-subsection">Inner Text Position</div>
-                ${renderRangeField('Text Horizontal Offset', 'wl-cdm-p-contentOffsetX', p.contentOffsetX, -240, 240, 1, 'px')}
-                ${renderRangeField('Text Vertical Offset', 'wl-cdm-p-contentOffsetY', p.contentOffsetY, -120, 120, 1, 'px')}
-                <div class="wl-cdm-field-hint">Moves message text and reasoning inside the content area while its surface stays fixed · − left/up · + right/down</div>
+                <div class="wl-cdm-subsection">Inner Text Layout</div>
+                ${renderFieldRow([
+                    renderWidthField('Text Width', 'wl-cdm-p-contentTextWidth', p.contentTextWidth, 'Fill uses the full content width inside the message padding.'),
+                    renderRangeField('Text Horizontal Offset', 'wl-cdm-p-contentOffsetX', p.contentOffsetX, -240, 240, 1, 'px'),
+                    renderRangeField('Text Vertical Offset', 'wl-cdm-p-contentOffsetY', p.contentOffsetY, -120, 120, 1, 'px'),
+                ], 'Moves message text and reasoning inside the content area while its surface stays fixed · − left/up · + right/down')}
             `,
         },
         thinking: {
@@ -1992,8 +2181,24 @@ function renderContainerProps(p, activeSection) {
                 <div class="wl-cdm-thinking-native-note">Native keeps the active theme’s shape; Light Theme Compatibility still corrects its resting and hover surfaces.</div>
                 <div data-wl-thinking-custom ${p.thinkingPreset === 'native' ? 'hidden' : ''}>
                     <div class="wl-cdm-subsection">Fine Tuning</div>
-                    ${renderRangeField('Summary Radius', 'wl-cdm-p-thinkingRadius', p.thinkingRadius, 0, 24, 1, 'px')}
-                    ${renderRangeField('Accent Strength', 'wl-cdm-p-thinkingAccentStrength', p.thinkingAccentStrength, 0, 100, 5, '%')}
+                    ${renderFieldRow([
+                        renderRangeField('Summary Radius', 'wl-cdm-p-thinkingRadius', p.thinkingRadius, 0, 24, 1, 'px'),
+                        renderRangeField('Accent Strength', 'wl-cdm-p-thinkingAccentStrength', p.thinkingAccentStrength, 0, 100, 5, '%'),
+                    ])}
+                    <div data-wl-thinking-custom-appearance ${p.thinkingPreset === 'custom' ? '' : 'hidden'}>
+                        ${renderFieldRow([
+                            renderColorField('Text Color', 'wl-cdm-p-thinkingTextColor', p.thinkingTextColor),
+                            renderColorField('Background Color', 'wl-cdm-p-thinkingBackgroundColor', p.thinkingBackgroundColor),
+                        ], 'Custom colors apply to the compact reasoning summary only.')}
+                        ${renderFieldRow([
+                            renderColorField('Border Color', 'wl-cdm-p-thinkingBorderColor', p.thinkingBorderColor),
+                            renderRangeField('Border Width', 'wl-cdm-p-thinkingBorderWidth', p.thinkingBorderWidth, 1, 8, 1, 'px'),
+                        ])}
+                        ${renderSelectField('Border Style', 'wl-cdm-p-thinkingBorderStyle', p.thinkingBorderStyle, {
+                            solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', double: 'Double',
+                        })}
+                        <div class="wl-cdm-field-hint">Custom always keeps a visible border so its chosen border color is reflected in the preview and chat.</div>
+                    </div>
                     ${renderCheckboxField('Style expanded reasoning body', 'wl-cdm-p-thinkingBodyEnabled', p.thinkingBodyEnabled, 'Applies the matching theme accent to the native 2px left rule.')}
                 </div>
             `,
@@ -2019,56 +2224,67 @@ function renderMessageElementsProps(p, activeSection) {
     }
     const avatarFields = `
         <div class="wl-cdm-subsection">Avatar Frame</div>
-        ${renderRangeField('Frame Width', 'wl-cdm-p-width', p.width, 0, 300, 1, 'px')}
-        ${renderRangeField('Frame Height', 'wl-cdm-p-height', p.height, 0, 400, 1, 'px')}
-        <div class="wl-cdm-field-hint">Set both dimensions to shape the frame independently · 0 = use the theme default for that axis</div>
+        ${renderFieldRow([
+            renderRangeField('Frame Width', 'wl-cdm-p-width', p.width, 0, 300, 1, 'px'),
+            renderRangeField('Frame Height', 'wl-cdm-p-height', p.height, 0, 400, 1, 'px'),
+        ], 'Set both dimensions to shape the frame independently · 0 = use the theme default for that axis')}
         ${renderThemeSelectField('Image Fit', 'wl-cdm-p-objectFit', 'wl-cdm-p-objectFitUseCustom', p.objectFitUseCustom, p.objectFit, {
             'cover': 'Cover (fill + crop)',
             'contain': 'Contain (show entire image)', 'fill': 'Fill (stretch)',
         }, 'Off follows the active theme’s image fit.')}
         <div data-wl-custom-region="objectFitUseCustom"${p.objectFitUseCustom ? '' : ' class="wl-cdm-custom-disabled"'}>
-            ${renderRangeField('Image Position Horizontal', 'wl-cdm-p-objectPositionX', p.objectPositionX, 0, 100, 1, '%')}
-            ${renderRangeField('Image Position Vertical', 'wl-cdm-p-objectPositionY', p.objectPositionY, 0, 100, 1, '%')}
-            <div class="wl-cdm-field-hint">Choose which part of the image stays visible when Cover crops it · 0 = left/top · 100 = right/bottom</div>
+            ${renderFieldRow([
+                renderRangeField('Image Position Horizontal', 'wl-cdm-p-objectPositionX', p.objectPositionX, 0, 100, 1, '%'),
+                renderRangeField('Image Position Vertical', 'wl-cdm-p-objectPositionY', p.objectPositionY, 0, 100, 1, '%'),
+            ], 'Choose which part of the image stays visible when Cover crops it · 0 = left/top · 100 = right/bottom')}
         </div>
 
         <div class="wl-cdm-subsection">Avatar Position</div>
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-offsetX', p.offsetX ?? 0, -50, 800, 1, 'px')}
-        <div class="wl-cdm-field-hint">0 = default (left) · − peeks off-edge · + moves right across the banner</div>
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-offsetY', p.offsetY ?? 0, -200, 100, 1, 'px')}
-        <div class="wl-cdm-field-hint">− up into banner / + down · needs a banner style on this character</div>
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-offsetX', p.offsetX ?? 0, -50, 800, 1, 'px', '0 = default (left) · − peeks off-edge · + moves right.'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-offsetY', p.offsetY ?? 0, -200, 100, 1, 'px', '− up into banner / + down · needs a banner style.'),
+        ])}
         ${renderCheckboxField('Free avatar from layout', 'wl-cdm-p-detachFromLayout', p.detachFromLayout ?? false, 'Lets message text fill the space the avatar used to reserve. Use when the avatar sits in the banner.')}
         ${renderThemeSelectField('Shape', 'wl-cdm-p-shape', 'wl-cdm-p-shapeUseCustom', p.shapeUseCustom, p.shape, {
             'circle': 'Circle', 'square': 'Square',
             'rounded': 'Rounded (8px)', 'rectangle': 'Portrait Rectangle',
         }, 'Off preserves the active theme’s avatar shape.')}
-        ${renderRangeField('Border Width', 'wl-cdm-p-borderWidth', p.borderWidth, 0, 6, 1, 'px')}
-        ${renderSelectField('Border Style', 'wl-cdm-p-borderStyle', p.borderStyle, {
-            'none': 'None', 'solid': 'Solid', 'dashed': 'Dashed', 'dotted': 'Dotted',
-        })}
+        ${renderFieldRow([
+            renderRangeField('Border Width', 'wl-cdm-p-borderWidth', p.borderWidth, 0, 6, 1, 'px'),
+            renderSelectField('Border Style', 'wl-cdm-p-borderStyle', p.borderStyle, {
+                'none': 'None', 'solid': 'Solid', 'dashed': 'Dashed', 'dotted': 'Dotted',
+            }),
+        ])}
         ${renderColorField('Border Color', 'wl-cdm-p-borderColor', p.borderColor)}
         ${renderShadowField('Box Shadow', 'wl-cdm-p-boxShadow', p.boxShadow)}
-        ${renderRangeField('Opacity', 'wl-cdm-p-opacity', p.opacity, 0, 1, 0.05, '')}
-        ${renderRangeField('Edge Fade', 'wl-cdm-p-edgeFade', p.edgeFade, 0, 80, 5, '%')}
-        <div class="wl-cdm-field-hint">Fades the right and bottom edges into transparency · 0 = off</div>
+        ${renderFieldRow([
+            renderRangeField('Opacity', 'wl-cdm-p-opacity', p.opacity, 0, 1, 0.05, ''),
+            renderRangeField('Edge Fade', 'wl-cdm-p-edgeFade', p.edgeFade, 0, 80, 5, '%'),
+        ], 'Edge Fade softens the right and bottom edges into transparency · 0 = off')}
     `;
     const detailFields = `
         <div class="wl-cdm-subsection">Avatar-Side Details</div>
         ${renderCheckboxField('Follow avatar position', 'wl-cdm-p-detailsFollowAvatar', p.detailsFollowAvatar ?? false, 'Moves Message #, token count, and generation time together with the avatar offsets.')}
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-detailsOffsetX', p.detailsOffsetX ?? 0, -200, 200, 1, 'px')}
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-detailsOffsetY', p.detailsOffsetY ?? 0, -600, 600, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-detailsOffsetX', p.detailsOffsetX ?? 0, -200, 200, 1, 'px'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-detailsOffsetY', p.detailsOffsetY ?? 0, -600, 600, 1, 'px'),
+        ])}
 
         <div class="wl-cdm-subsection">Chat Timestamp</div>
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-timestampOffsetX', p.timestampOffsetX ?? 0, -200, 200, 1, 'px')}
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-timestampOffsetY', p.timestampOffsetY ?? 0, -600, 600, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-timestampOffsetX', p.timestampOffsetX ?? 0, -200, 200, 1, 'px'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-timestampOffsetY', p.timestampOffsetY ?? 0, -600, 600, 1, 'px'),
+        ])}
 
         <div class="wl-cdm-subsection">Model Icon</div>
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-modelIconOffsetX', p.modelIconOffsetX ?? 0, -200, 200, 1, 'px')}
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-modelIconOffsetY', p.modelIconOffsetY ?? 0, -600, 600, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-modelIconOffsetX', p.modelIconOffsetX ?? 0, -200, 200, 1, 'px'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-modelIconOffsetY', p.modelIconOffsetY ?? 0, -600, 600, 1, 'px'),
+        ])}
     `;
     const overlayGradientHidden = p.avatarOverlayType === 'gradient' ? '' : ' hidden';
     const overlayFields = `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">Preset</label>
             <select class="wl-cdm-select" id="wl-cdm-avatar-overlay-preset">
                 <option value="">— Load a preset —</option>
@@ -2087,11 +2303,13 @@ function renderMessageElementsProps(p, activeSection) {
             ${renderColorField('Secondary Color', 'wl-cdm-p-avatarOverlaySecondaryColor', p.avatarOverlaySecondaryColor)}
             ${renderRangeField('Gradient Direction', 'wl-cdm-p-avatarOverlayAngle', p.avatarOverlayAngle, 0, 360, 5, '°')}
         </div>
-        ${renderRangeField('Overlay Opacity', 'wl-cdm-p-avatarOverlayOpacity', p.avatarOverlayOpacity, 0, 1, 0.05, '')}
-        ${renderSelectField('Blend Mode', 'wl-cdm-p-avatarOverlayBlendMode', p.avatarOverlayBlendMode, {
-            normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay',
-            'soft-light': 'Soft Light', color: 'Color',
-        })}
+        ${renderFieldRow([
+            renderRangeField('Overlay Opacity', 'wl-cdm-p-avatarOverlayOpacity', p.avatarOverlayOpacity, 0, 1, 0.05, ''),
+            renderSelectField('Blend Mode', 'wl-cdm-p-avatarOverlayBlendMode', p.avatarOverlayBlendMode, {
+                normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay',
+                'soft-light': 'Soft Light', color: 'Color',
+            }),
+        ])}
         ${renderRangeField('Vignette', 'wl-cdm-p-avatarOverlayVignette', p.avatarOverlayVignette, 0, 0.85, 0.05, '')}
         <div class="wl-cdm-field-hint">The vignette gently shades the avatar edges and follows the overlay blend.</div>
     `;
@@ -2105,10 +2323,14 @@ function renderMessageElementsProps(p, activeSection) {
         <div data-wl-action-conditional="dim"${dimHidden}>
             ${renderRangeField('Resting Opacity', 'wl-cdm-p-actionRestingOpacity', p.actionRestingOpacity, 0.05, 0.95, 0.05, '')}
         </div>
-        ${renderRangeField('Button Size', 'wl-cdm-p-actionButtonSize', p.actionButtonSize, 18, 44, 1, 'px')}
-        ${renderRangeField('Icon Size', 'wl-cdm-p-actionIconSize', p.actionIconSize, 10, 24, 1, 'px')}
-        ${renderRangeField('Button Spacing', 'wl-cdm-p-actionGap', p.actionGap, 0, 16, 1, 'px')}
-        ${renderRangeField('Corner Radius', 'wl-cdm-p-actionRadius', p.actionRadius, 0, 44, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Button Size', 'wl-cdm-p-actionButtonSize', p.actionButtonSize, 18, 44, 1, 'px'),
+            renderRangeField('Icon Size', 'wl-cdm-p-actionIconSize', p.actionIconSize, 10, 24, 1, 'px'),
+        ])}
+        ${renderFieldRow([
+            renderRangeField('Button Spacing', 'wl-cdm-p-actionGap', p.actionGap, 0, 16, 1, 'px'),
+            renderRangeField('Corner Radius', 'wl-cdm-p-actionRadius', p.actionRadius, 0, 44, 1, 'px'),
+        ])}
         ${renderCheckboxField('Reverse action order', 'wl-cdm-p-actionReverse', p.actionReverse ?? false)}
         ${renderSelectField('Surface', 'wl-cdm-p-actionSurface', p.actionSurface, {
             bare: 'Bare', solid: 'Solid', outline: 'Outline', glass: 'Glass',
@@ -2136,7 +2358,7 @@ function renderMessageElementsProps(p, activeSection) {
         </div>
     `;
     const actionFields = `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">Preset</label>
             <select class="wl-cdm-select" id="wl-cdm-action-preset">
                 <option value="">— Load a preset —</option>
@@ -2146,8 +2368,10 @@ function renderMessageElementsProps(p, activeSection) {
             </select>
         </div>
         <div class="wl-cdm-field-hint">Loads a complete starting look. Every setting remains editable.</div>
-        ${renderRangeField('Horizontal Offset', 'wl-cdm-p-actionOffsetX', p.actionOffsetX, -120, 120, 1, 'px')}
-        ${renderRangeField('Vertical Offset', 'wl-cdm-p-actionOffsetY', p.actionOffsetY, -60, 60, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Horizontal Offset', 'wl-cdm-p-actionOffsetX', p.actionOffsetX, -400, 400, 1, 'px'),
+            renderRangeField('Vertical Offset', 'wl-cdm-p-actionOffsetY', p.actionOffsetY, -250, 250, 1, 'px'),
+        ])}
         ${renderPropertyGroup(
             'Customize preset',
             actionCustomizeFields,
@@ -2193,43 +2417,33 @@ function syncScrollbarPreview(props) {
     const preview = props.querySelector('[data-wl-scrollbar-preview]');
     if (!preview) return;
 
-    const numberValue = (id, min, max, fallback) => {
-        const value = Number(props.querySelector(`#${id}`)?.value);
-        return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+    const properties = {};
+    props.querySelectorAll('[id^="wl-cdm-p-scrollbar"]').forEach(input => {
+        properties[input.id.replace('wl-cdm-p-', '')] = input.value;
+    });
+    const resolved = resolveScrollbarStyle(properties);
+    const variables = {
+        width: resolved.width + 'px', radius: resolved.radius + 'px', inset: resolved.inset + 'px',
+        thumb: resolved.thumbSurface, 'thumb-hover': resolved.hoverSurface,
+        'thumb-border': resolved.thumbBorder, 'thumb-hover-border': resolved.thumbHoverBorder,
+        track: resolved.trackSurface,
     };
-    const colorValue = (id, fallback) => normalizeHexColor(props.querySelector(`#${id}`)?.value) || fallback;
-    const rgbaValue = (hex, opacity) => {
-        const channels = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16));
-        return `rgba(${channels.join(', ')}, ${opacity})`;
-    };
+    for (const [key, value] of Object.entries(variables)) {
+        preview.style.setProperty('--wl-cdm-preview-scrollbar-' + key, value);
+    }
 
-    const width = numberValue('wl-cdm-p-scrollbarWidth', 4, 24, 10);
-    const radius = numberValue('wl-cdm-p-scrollbarRadius', 0, 20, 8);
-    const inset = numberValue('wl-cdm-p-scrollbarInset', 0, Math.min(4, Math.max(0, (width - 2) / 2)), 2);
-    const thumbOpacity = numberValue('wl-cdm-p-scrollbarThumbOpacity', 0.1, 1, 0.78);
-    const trackOpacity = numberValue('wl-cdm-p-scrollbarTrackOpacity', 0, 1, 0.28);
-    const thumb = colorValue('wl-cdm-p-scrollbarThumbColor', '#7aa2f7');
-    const thumbHover = colorValue('wl-cdm-p-scrollbarThumbHoverColor', '#a9c1ff');
-    const thumbBorder = colorValue('wl-cdm-p-scrollbarThumbBorderColor', '#dbe6ff');
-    const track = colorValue('wl-cdm-p-scrollbarTrackColor', '#171a21');
-
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-width', `${width}px`);
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-radius', `${radius}px`);
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-inset', `${inset}px`);
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-thumb', rgbaValue(thumb, thumbOpacity));
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-thumb-hover', thumbHover);
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-thumb-border', thumbBorder);
-    preview.style.setProperty('--wl-cdm-preview-scrollbar-track', rgbaValue(track, trackOpacity));
-
-    syncScrollbarPreviewPosition(preview, inset);
+    syncScrollbarPreviewPosition(preview);
 }
 
-function syncScrollbarPreviewPosition(preview, inset = 0) {
+function syncScrollbarPreviewPosition(preview) {
     const viewport = preview.querySelector('.wl-cdm-scrollbar-preview-viewport');
     const rail = preview.querySelector('.wl-cdm-scrollbar-preview-rail');
     if (!viewport || !rail) return;
 
-    const usableHeight = Math.max(0, rail.clientHeight - (inset * 2));
+    // The production thumb occupies the complete track box; its transparent
+    // border creates the visible inset. Mirror that geometry here so both the
+    // thumb radius and its edge spacing match the rendered interface.
+    const usableHeight = Math.max(0, rail.clientHeight);
     const visibleRatio = viewport.scrollHeight > 0 ? viewport.clientHeight / viewport.scrollHeight : 1;
     const thumbHeight = Math.min(usableHeight, Math.max(28, usableHeight * visibleRatio));
     const scrollRange = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -2246,8 +2460,7 @@ function wireScrollbarPreview(props) {
     if (!preview || !viewport) return;
 
     viewport.addEventListener('scroll', () => {
-        const inset = Number.parseFloat(preview.style.getPropertyValue('--wl-cdm-preview-scrollbar-inset')) || 0;
-        syncScrollbarPreviewPosition(preview, inset);
+        syncScrollbarPreviewPosition(preview);
     }, { passive: true });
 }
 
@@ -2268,11 +2481,14 @@ function renderGeneralUiIconProps(p) {
             ${renderRangeField('Size', 'wl-cdm-p-iconSize', p.iconSize, 18, 48, 1, 'px')}
         </div>
 
-        <div class="wl-cdm-subsection">Icon Spacing</div>
-        ${renderCustomModeToggle('Icon Spacing', 'wl-cdm-p-iconSpacingMode', p.iconSpacingMode, 'Off preserves the native icon distribution.')}
+        <div class="wl-cdm-subsection">Icon Layout</div>
+        ${renderCustomModeToggle('Icon Layout', 'wl-cdm-p-iconSpacingMode', p.iconSpacingMode, 'Off preserves the native icon distribution and position.')}
         <div data-wl-general-ui-conditional="spacing"${spacingHidden}>
-            ${renderRangeField('Gap', 'wl-cdm-p-iconSpacing', p.iconSpacing, 0, 32, 1, 'px')}
-            <div class="wl-cdm-field-hint">Custom spacing centers the icon slots without changing the width used to anchor drawer panels.</div>
+            ${renderFieldRow([
+                renderRangeField('Gap', 'wl-cdm-p-iconSpacing', p.iconSpacing, 0, 80, 1, 'px'),
+                renderRangeField('Horizontal Offset', 'wl-cdm-p-iconOffsetX', p.iconOffsetX, -240, 240, 1, 'px'),
+            ])}
+            <div class="wl-cdm-field-hint">The signed offset moves the visible icons and their clickable drawer holders together.</div>
         </div>
 
         <div class="wl-cdm-subsection">Icon Color</div>
@@ -2354,8 +2570,10 @@ function renderGeneralUiProps(p, activeSection) {
             })}
             ${renderColorField('Primary Color', 'wl-cdm-p-topBarSurfaceColor', p.topBarSurfaceColor)}
             <div data-wl-general-ui-conditional="surface-gradient"${surfaceGradientHidden}>
-                ${renderColorField('Secondary Color', 'wl-cdm-p-topBarSurfaceSecondaryColor', p.topBarSurfaceSecondaryColor)}
-                ${renderRangeField('Gradient Direction', 'wl-cdm-p-topBarSurfaceAngle', p.topBarSurfaceAngle, 0, 360, 5, '°')}
+                ${renderFieldRow([
+                    renderColorField('Secondary Color', 'wl-cdm-p-topBarSurfaceSecondaryColor', p.topBarSurfaceSecondaryColor),
+                    renderRangeField('Gradient Direction', 'wl-cdm-p-topBarSurfaceAngle', p.topBarSurfaceAngle, 0, 360, 5, '°'),
+                ])}
             </div>
             ${renderRangeField('Surface Opacity', 'wl-cdm-p-topBarSurfaceOpacity', p.topBarSurfaceOpacity, 0, 1, 0.05, '')}
             <div class="wl-cdm-field-hint">Transparency keeps the existing backdrop blur, if the active theme provides one.</div>
@@ -2364,8 +2582,10 @@ function renderGeneralUiProps(p, activeSection) {
         <div class="wl-cdm-subsection">Border</div>
         ${renderCustomModeToggle('Border', 'wl-cdm-p-topBarBorderMode', p.topBarBorderMode)}
         <div data-wl-general-ui-conditional="border"${borderHidden}>
-            ${renderRangeField('Border Width', 'wl-cdm-p-topBarBorderWidth', p.topBarBorderWidth, 0, 6, 1, 'px')}
-            ${renderColorField('Border Color', 'wl-cdm-p-topBarBorderColor', p.topBarBorderColor)}
+            ${renderFieldRow([
+                renderRangeField('Border Width', 'wl-cdm-p-topBarBorderWidth', p.topBarBorderWidth, 0, 6, 1, 'px'),
+                renderColorField('Border Color', 'wl-cdm-p-topBarBorderColor', p.topBarBorderColor),
+            ])}
             ${renderRangeField('Border Opacity', 'wl-cdm-p-topBarBorderOpacity', p.topBarBorderOpacity, 0, 1, 0.05, '')}
             <div class="wl-cdm-field-hint">Set the width to 0px to explicitly remove a theme border.</div>
         </div>
@@ -2381,50 +2601,65 @@ function renderGeneralUiProps(p, activeSection) {
             })}
             ${renderColorField('Primary Color', 'wl-cdm-p-inputAreaSurfaceColor', p.inputAreaSurfaceColor)}
             <div data-wl-general-ui-conditional="input-surface-gradient"${inputSurfaceGradientHidden}>
-                ${renderColorField('Secondary Color', 'wl-cdm-p-inputAreaSurfaceSecondaryColor', p.inputAreaSurfaceSecondaryColor)}
-                ${renderRangeField('Gradient Direction', 'wl-cdm-p-inputAreaSurfaceAngle', p.inputAreaSurfaceAngle, 0, 360, 5, '°')}
+                ${renderFieldRow([
+                    renderColorField('Secondary Color', 'wl-cdm-p-inputAreaSurfaceSecondaryColor', p.inputAreaSurfaceSecondaryColor),
+                    renderRangeField('Gradient Direction', 'wl-cdm-p-inputAreaSurfaceAngle', p.inputAreaSurfaceAngle, 0, 360, 5, '°'),
+                ])}
             </div>
-            ${renderRangeField('Surface Opacity', 'wl-cdm-p-inputAreaSurfaceOpacity', p.inputAreaSurfaceOpacity, 0, 1, 0.05, '')}
-            ${renderRangeField('Glass Blur', 'wl-cdm-p-inputAreaBlur', p.inputAreaBlur, 0, 24, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Surface Opacity', 'wl-cdm-p-inputAreaSurfaceOpacity', p.inputAreaSurfaceOpacity, 0, 1, 0.05, ''),
+                renderRangeField('Glass Blur', 'wl-cdm-p-inputAreaBlur', p.inputAreaBlur, 0, 24, 1, 'px'),
+            ])}
         </div>
 
         <div class="wl-cdm-subsection">Frame</div>
         ${renderCustomModeToggle('Border & Shape', 'wl-cdm-p-inputAreaBorderMode', p.inputAreaBorderMode, 'Off keeps the theme border, corners, and shadow.')}
         <div data-wl-general-ui-conditional="input-border"${inputBorderHidden}>
-            ${renderRangeField('Border Width', 'wl-cdm-p-inputAreaBorderWidth', p.inputAreaBorderWidth, 0, 6, 1, 'px')}
-            ${renderSelectField('Border Style', 'wl-cdm-p-inputAreaBorderStyle', p.inputAreaBorderStyle, {
-                solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', none: 'None',
-            })}
-            ${renderColorField('Border Color', 'wl-cdm-p-inputAreaBorderColor', p.inputAreaBorderColor)}
-            ${renderRangeField('Border Opacity', 'wl-cdm-p-inputAreaBorderOpacity', p.inputAreaBorderOpacity, 0, 1, 0.05, '')}
-            ${renderRangeField('Corner Radius', 'wl-cdm-p-inputAreaRadius', p.inputAreaRadius, 0, 40, 1, 'px')}
-            ${renderSelectField('Shadow', 'wl-cdm-p-inputAreaShadow', p.inputAreaShadow, {
-                none: 'None', soft: 'Soft', float: 'Floating', glow: 'Glow',
-            })}
-            <div class="wl-cdm-field-hint">A 0px border or None style explicitly removes the theme border.</div>
+            ${renderFieldRow([
+                renderRangeField('Border Width', 'wl-cdm-p-inputAreaBorderWidth', p.inputAreaBorderWidth, 0, 6, 1, 'px'),
+                renderSelectField('Border Style', 'wl-cdm-p-inputAreaBorderStyle', p.inputAreaBorderStyle, {
+                    solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', none: 'None',
+                }),
+            ], 'A 0px border or None style explicitly removes the theme border.')}
+            ${renderFieldRow([
+                renderColorField('Border Color', 'wl-cdm-p-inputAreaBorderColor', p.inputAreaBorderColor),
+                renderRangeField('Border Opacity', 'wl-cdm-p-inputAreaBorderOpacity', p.inputAreaBorderOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Corner Radius', 'wl-cdm-p-inputAreaRadius', p.inputAreaRadius, 0, 40, 1, 'px'),
+                renderSelectField('Shadow', 'wl-cdm-p-inputAreaShadow', p.inputAreaShadow, {
+                    none: 'None', soft: 'Soft', float: 'Floating', glow: 'Glow',
+                }),
+            ])}
         </div>
 
         <div class="wl-cdm-subsection">Input Row Layout</div>
         ${renderCustomModeToggle('Spacing', 'wl-cdm-p-inputAreaLayoutMode', p.inputAreaLayoutMode, 'Only the menu, textarea, and send-side row are affected. Quick Replies keep their own layout.')}
         <div data-wl-general-ui-conditional="input-layout"${inputLayoutHidden}>
-            ${renderRangeField('Horizontal Padding', 'wl-cdm-p-inputAreaPaddingX', p.inputAreaPaddingX, 0, 24, 1, 'px')}
-            ${renderRangeField('Vertical Padding', 'wl-cdm-p-inputAreaPaddingY', p.inputAreaPaddingY, 0, 16, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Horizontal Padding', 'wl-cdm-p-inputAreaPaddingX', p.inputAreaPaddingX, 0, 24, 1, 'px'),
+                renderRangeField('Vertical Padding', 'wl-cdm-p-inputAreaPaddingY', p.inputAreaPaddingY, 0, 16, 1, 'px'),
+            ])}
             ${renderRangeField('Control Gap', 'wl-cdm-p-inputAreaGap', p.inputAreaGap, 0, 24, 1, 'px')}
         </div>
 
         <div class="wl-cdm-subsection">Message Input</div>
         ${renderCustomModeToggle('Input Text', 'wl-cdm-p-inputAreaTextMode', p.inputAreaTextMode, 'Off inherits the active interface typography and colors.')}
         <div data-wl-general-ui-conditional="input-text"${inputTextHidden}>
-            ${renderColorField('Text Color', 'wl-cdm-p-inputAreaTextColor', p.inputAreaTextColor)}
-            ${renderColorField('Placeholder Color', 'wl-cdm-p-inputAreaPlaceholderColor', p.inputAreaPlaceholderColor)}
+            ${renderFieldRow([
+                renderColorField('Text Color', 'wl-cdm-p-inputAreaTextColor', p.inputAreaTextColor),
+                renderColorField('Placeholder Color', 'wl-cdm-p-inputAreaPlaceholderColor', p.inputAreaPlaceholderColor),
+            ])}
             ${renderRangeField('Text Size', 'wl-cdm-p-inputAreaFontSize', p.inputAreaFontSize, 10, 28, 1, 'px')}
         </div>
 
         <div class="wl-cdm-subsection">Composer Controls</div>
         ${renderCustomModeToggle('Icon Styling', 'wl-cdm-p-inputAreaIconMode', p.inputAreaIconMode, 'Styles the menu and send-side controls, but never Quick Reply buttons.')}
         <div data-wl-general-ui-conditional="input-icons"${inputIconHidden}>
-            ${renderColorField('Icon Color', 'wl-cdm-p-inputAreaIconColor', p.inputAreaIconColor)}
-            ${renderColorField('Hover Color', 'wl-cdm-p-inputAreaIconHoverColor', p.inputAreaIconHoverColor)}
+            ${renderFieldRow([
+                renderColorField('Icon Color', 'wl-cdm-p-inputAreaIconColor', p.inputAreaIconColor),
+                renderColorField('Hover Color', 'wl-cdm-p-inputAreaIconHoverColor', p.inputAreaIconHoverColor),
+            ])}
             ${renderRangeField('Resting Opacity', 'wl-cdm-p-inputAreaIconOpacity', p.inputAreaIconOpacity, 0.05, 1, 0.05, '')}
         </div>
     `;
@@ -2438,23 +2673,33 @@ function renderGeneralUiProps(p, activeSection) {
             })}
             ${renderColorField('Primary Color', 'wl-cdm-p-qrButtonSurfaceColor', p.qrButtonSurfaceColor)}
             <div data-wl-general-ui-conditional="qr-gradient"${qrGradientHidden}>
-                ${renderColorField('Secondary Color', 'wl-cdm-p-qrButtonSurfaceSecondaryColor', p.qrButtonSurfaceSecondaryColor)}
-                ${renderRangeField('Gradient Direction', 'wl-cdm-p-qrButtonSurfaceAngle', p.qrButtonSurfaceAngle, 0, 360, 5, '°')}
+                ${renderFieldRow([
+                    renderColorField('Secondary Color', 'wl-cdm-p-qrButtonSurfaceSecondaryColor', p.qrButtonSurfaceSecondaryColor),
+                    renderRangeField('Gradient Direction', 'wl-cdm-p-qrButtonSurfaceAngle', p.qrButtonSurfaceAngle, 0, 360, 5, '°'),
+                ])}
             </div>
             ${renderRangeField('Surface Opacity', 'wl-cdm-p-qrButtonSurfaceOpacity', p.qrButtonSurfaceOpacity, 0, 1, 0.05, '')}
             ${renderColorField('Text & Icon Color', 'wl-cdm-p-qrButtonTextColor', p.qrButtonTextColor)}
 
             <div class="wl-cdm-subsection">Shape & Spacing</div>
-            ${renderRangeField('Horizontal Padding', 'wl-cdm-p-qrButtonPaddingX', p.qrButtonPaddingX, 0, 24, 1, 'px')}
-            ${renderRangeField('Vertical Padding', 'wl-cdm-p-qrButtonPaddingY', p.qrButtonPaddingY, 0, 16, 1, 'px')}
-            ${renderRangeField('Button Gap', 'wl-cdm-p-qrButtonGap', p.qrButtonGap, 0, 24, 1, 'px')}
-            ${renderRangeField('Corner Radius', 'wl-cdm-p-qrButtonRadius', p.qrButtonRadius, 0, 40, 1, 'px')}
-            ${renderRangeField('Border Width', 'wl-cdm-p-qrButtonBorderWidth', p.qrButtonBorderWidth, 0, 6, 1, 'px')}
-            ${renderSelectField('Border Style', 'wl-cdm-p-qrButtonBorderStyle', p.qrButtonBorderStyle, {
-                solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', none: 'None',
-            })}
-            ${renderColorField('Border Color', 'wl-cdm-p-qrButtonBorderColor', p.qrButtonBorderColor)}
-            ${renderRangeField('Border Opacity', 'wl-cdm-p-qrButtonBorderOpacity', p.qrButtonBorderOpacity, 0, 1, 0.05, '')}
+            ${renderFieldRow([
+                renderRangeField('Horizontal Padding', 'wl-cdm-p-qrButtonPaddingX', p.qrButtonPaddingX, 0, 24, 1, 'px'),
+                renderRangeField('Vertical Padding', 'wl-cdm-p-qrButtonPaddingY', p.qrButtonPaddingY, 0, 16, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Button Gap', 'wl-cdm-p-qrButtonGap', p.qrButtonGap, 0, 24, 1, 'px'),
+                renderRangeField('Corner Radius', 'wl-cdm-p-qrButtonRadius', p.qrButtonRadius, 0, 40, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Border Width', 'wl-cdm-p-qrButtonBorderWidth', p.qrButtonBorderWidth, 0, 6, 1, 'px'),
+                renderSelectField('Border Style', 'wl-cdm-p-qrButtonBorderStyle', p.qrButtonBorderStyle, {
+                    solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', none: 'None',
+                }),
+            ])}
+            ${renderFieldRow([
+                renderColorField('Border Color', 'wl-cdm-p-qrButtonBorderColor', p.qrButtonBorderColor),
+                renderRangeField('Border Opacity', 'wl-cdm-p-qrButtonBorderOpacity', p.qrButtonBorderOpacity, 0, 1, 0.05, ''),
+            ])}
             ${renderSelectField('Shadow', 'wl-cdm-p-qrButtonShadow', p.qrButtonShadow, {
                 none: 'None', soft: 'Soft', float: 'Floating', glow: 'Glow',
             })}
@@ -2465,14 +2710,18 @@ function renderGeneralUiProps(p, activeSection) {
                 useCustomFieldId: 'wl-cdm-p-qrButtonFontFamilyUseCustom',
                 hideWhenDisabled: true,
             })}
-            ${renderRangeField('Text Size', 'wl-cdm-p-qrButtonFontSize', p.qrButtonFontSize, 9, 24, 1, 'px')}
-            ${renderRangeField('Weight', 'wl-cdm-p-qrButtonFontWeight', p.qrButtonFontWeight, 300, 800, 100, '')}
-            ${renderSelectField('Font Style', 'wl-cdm-p-qrButtonFontStyle', p.qrButtonFontStyle, {
-                normal: 'Normal', italic: 'Italic',
-            })}
-            ${renderSelectField('Text Transform', 'wl-cdm-p-qrButtonTextTransform', p.qrButtonTextTransform, {
-                none: 'None', uppercase: 'UPPERCASE', lowercase: 'lowercase', capitalize: 'Capitalize',
-            })}
+            ${renderFieldRow([
+                renderRangeField('Text Size', 'wl-cdm-p-qrButtonFontSize', p.qrButtonFontSize, 9, 24, 1, 'px'),
+                renderRangeField('Weight', 'wl-cdm-p-qrButtonFontWeight', p.qrButtonFontWeight, 300, 800, 100, ''),
+            ])}
+            ${renderFieldRow([
+                renderSelectField('Font Style', 'wl-cdm-p-qrButtonFontStyle', p.qrButtonFontStyle, {
+                    normal: 'Normal', italic: 'Italic',
+                }),
+                renderSelectField('Text Transform', 'wl-cdm-p-qrButtonTextTransform', p.qrButtonTextTransform, {
+                    none: 'None', uppercase: 'UPPERCASE', lowercase: 'lowercase', capitalize: 'Capitalize',
+                }),
+            ])}
             ${renderSelectField('Letter Spacing', 'wl-cdm-p-qrButtonLetterSpacing', p.qrButtonLetterSpacing, {
                 '0px': '0px (default)', '0.5px': '0.5px', '1px': '1px',
                 '2px': '2px', '3px': '3px', '5px': '5px',
@@ -2494,7 +2743,7 @@ function renderGeneralUiProps(p, activeSection) {
     const weatherBadgeFields = `
         ${renderCustomModeToggle('Weather Badge Styling', 'wl-cdm-p-weatherBadgeMode', p.weatherBadgeMode, 'Off leaves the extension’s presentation untouched.', 'extension')}
         <div data-wl-general-ui-conditional="weather-custom"${weatherCustomHidden}>
-            <div class="wl-cdm-field">
+            <div class="wl-cdm-field wl-cdm-compact-field">
                 <label class="wl-cdm-field-label">Preset</label>
                 <select class="wl-cdm-select" id="wl-cdm-weather-badge-preset">
                     <option value="">— Load a preset —</option>
@@ -2509,27 +2758,39 @@ function renderGeneralUiProps(p, activeSection) {
             ${renderThemeSelectField('Font', 'wl-cdm-p-weatherBadgeFont', 'wl-cdm-p-weatherBadgeFontUseCustom', p.weatherBadgeFontUseCustom, p.weatherBadgeFont, {
                 mono: 'Monospace',
             }, 'Off inherits the active interface font.')}
-            ${renderRangeField('Text Size', 'wl-cdm-p-weatherBadgeFontSize', p.weatherBadgeFontSize, 10, 24, 1, 'px')}
-            ${renderRangeField('Weight', 'wl-cdm-p-weatherBadgeFontWeight', p.weatherBadgeFontWeight, 300, 800, 100, '')}
+            ${renderFieldRow([
+                renderRangeField('Text Size', 'wl-cdm-p-weatherBadgeFontSize', p.weatherBadgeFontSize, 10, 24, 1, 'px'),
+                renderRangeField('Weight', 'wl-cdm-p-weatherBadgeFontWeight', p.weatherBadgeFontWeight, 300, 800, 100, ''),
+            ])}
             ${renderRangeField('Letter Spacing', 'wl-cdm-p-weatherBadgeLetterSpacing', p.weatherBadgeLetterSpacing, -0.5, 2, 0.1, 'px')}
 
             <div class="wl-cdm-subsection">Shape & Surface</div>
-            ${renderRangeField('Horizontal Padding', 'wl-cdm-p-weatherBadgePaddingX', p.weatherBadgePaddingX, 0, 28, 1, 'px')}
-            ${renderRangeField('Vertical Padding', 'wl-cdm-p-weatherBadgePaddingY', p.weatherBadgePaddingY, 0, 20, 1, 'px')}
-            ${renderRangeField('Corner Radius', 'wl-cdm-p-weatherBadgeRadius', p.weatherBadgeRadius, 0, 40, 1, 'px')}
-            ${renderRangeField('Border Width', 'wl-cdm-p-weatherBadgeBorderWidth', p.weatherBadgeBorderWidth, 0, 4, 1, 'px')}
-            ${renderRangeField('Background Opacity', 'wl-cdm-p-weatherBadgeBackgroundOpacity', p.weatherBadgeBackgroundOpacity, 0, 1, 0.05, '')}
-            ${renderRangeField('Border Opacity', 'wl-cdm-p-weatherBadgeBorderOpacity', p.weatherBadgeBorderOpacity, 0, 1, 0.05, '')}
-            ${renderRangeField('Glass Blur', 'wl-cdm-p-weatherBadgeBlur', p.weatherBadgeBlur, 0, 24, 1, 'px')}
-            ${renderSelectField('Shadow', 'wl-cdm-p-weatherBadgeShadow', p.weatherBadgeShadow, {
-                none: 'None', soft: 'Soft', float: 'Floating', glow: 'Glow',
-            })}
+            ${renderFieldRow([
+                renderRangeField('Horizontal Padding', 'wl-cdm-p-weatherBadgePaddingX', p.weatherBadgePaddingX, 0, 28, 1, 'px'),
+                renderRangeField('Vertical Padding', 'wl-cdm-p-weatherBadgePaddingY', p.weatherBadgePaddingY, 0, 20, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Corner Radius', 'wl-cdm-p-weatherBadgeRadius', p.weatherBadgeRadius, 0, 40, 1, 'px'),
+                renderRangeField('Border Width', 'wl-cdm-p-weatherBadgeBorderWidth', p.weatherBadgeBorderWidth, 0, 4, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Background Opacity', 'wl-cdm-p-weatherBadgeBackgroundOpacity', p.weatherBadgeBackgroundOpacity, 0, 1, 0.05, ''),
+                renderRangeField('Border Opacity', 'wl-cdm-p-weatherBadgeBorderOpacity', p.weatherBadgeBorderOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Glass Blur', 'wl-cdm-p-weatherBadgeBlur', p.weatherBadgeBlur, 0, 24, 1, 'px'),
+                renderSelectField('Shadow', 'wl-cdm-p-weatherBadgeShadow', p.weatherBadgeShadow, {
+                    none: 'None', soft: 'Soft', float: 'Floating', glow: 'Glow',
+                }),
+            ])}
 
             <div class="wl-cdm-subsection">Colors</div>
             ${renderCustomModeToggle('Colors', 'wl-cdm-p-weatherBadgePalette', p.weatherBadgePalette, 'Off derives the palette from the active theme.')}
             <div data-wl-general-ui-conditional="weather-colors"${weatherColorsHidden}>
-                ${renderColorField('Background', 'wl-cdm-p-weatherBadgeBackgroundColor', p.weatherBadgeBackgroundColor)}
-                ${renderColorField('Text', 'wl-cdm-p-weatherBadgeTextColor', p.weatherBadgeTextColor)}
+                ${renderFieldRow([
+                    renderColorField('Background', 'wl-cdm-p-weatherBadgeBackgroundColor', p.weatherBadgeBackgroundColor),
+                    renderColorField('Text', 'wl-cdm-p-weatherBadgeTextColor', p.weatherBadgeTextColor),
+                ])}
                 ${renderColorField('Border', 'wl-cdm-p-weatherBadgeBorderColor', p.weatherBadgeBorderColor)}
             </div>
         </div>
@@ -2539,8 +2800,10 @@ function renderGeneralUiProps(p, activeSection) {
         <div class="wl-cdm-subsection">Surface</div>
         ${renderCustomModeToggle('Background Color', 'wl-cdm-p-chatTopBarSurfaceMode', p.chatTopBarSurfaceMode, 'Off leaves Chat Top Bar’s theme background untouched.', 'extension')}
         <div data-wl-general-ui-conditional="chat-top-bar-surface"${chatTopBarSurfaceHidden}>
-            ${renderColorField('Background', 'wl-cdm-p-chatTopBarBackgroundColor', p.chatTopBarBackgroundColor)}
-            ${renderRangeField('Background Opacity', 'wl-cdm-p-chatTopBarBackgroundOpacity', p.chatTopBarBackgroundOpacity, 0, 1, 0.05, '')}
+            ${renderFieldRow([
+                renderColorField('Background', 'wl-cdm-p-chatTopBarBackgroundColor', p.chatTopBarBackgroundColor),
+                renderRangeField('Background Opacity', 'wl-cdm-p-chatTopBarBackgroundOpacity', p.chatTopBarBackgroundOpacity, 0, 1, 0.05, ''),
+            ])}
         </div>
 
         <div class="wl-cdm-subsection">Typography & Icons</div>
@@ -2552,8 +2815,10 @@ function renderGeneralUiProps(p, activeSection) {
         <div class="wl-cdm-subsection">Corners</div>
         ${renderCustomModeToggle('Corner Rounding', 'wl-cdm-p-chatTopBarRadiusMode', p.chatTopBarRadiusMode, 'Off keeps Chat Top Bar’s native 10px top corners and straight bottom edge.', 'extension')}
         <div data-wl-general-ui-conditional="chat-top-bar-radius"${chatTopBarRadiusHidden}>
-            ${renderRangeField('Top Corner Radius', 'wl-cdm-p-chatTopBarTopRadius', p.chatTopBarTopRadius, 0, 40, 1, 'px')}
-            ${renderRangeField('Bottom Corner Radius', 'wl-cdm-p-chatTopBarBottomRadius', p.chatTopBarBottomRadius, 0, 40, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Top Corner Radius', 'wl-cdm-p-chatTopBarTopRadius', p.chatTopBarTopRadius, 0, 40, 1, 'px'),
+                renderRangeField('Bottom Corner Radius', 'wl-cdm-p-chatTopBarBottomRadius', p.chatTopBarBottomRadius, 0, 40, 1, 'px'),
+            ])}
         </div>
     `;
 
@@ -2571,10 +2836,12 @@ function renderGeneralUiProps(p, activeSection) {
         <div class="wl-cdm-subsection">Border</div>
         ${renderCustomModeToggle('Border Styling', 'wl-cdm-p-guidedGenerationsBorderMode', p.guidedGenerationsBorderMode, 'Off preserves the extension’s border.', 'extension')}
         <div data-wl-general-ui-conditional="guided-generations-border"${guidedGenerationsBorderHidden}>
-            ${renderRangeField('Border Width', 'wl-cdm-p-guidedGenerationsBorderWidth', p.guidedGenerationsBorderWidth, 0, 6, 1, 'px')}
-            ${renderSelectField('Border Style', 'wl-cdm-p-guidedGenerationsBorderStyle', p.guidedGenerationsBorderStyle, {
-                solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', double: 'Double', none: 'None',
-            })}
+            ${renderFieldRow([
+                renderRangeField('Border Width', 'wl-cdm-p-guidedGenerationsBorderWidth', p.guidedGenerationsBorderWidth, 0, 6, 1, 'px'),
+                renderSelectField('Border Style', 'wl-cdm-p-guidedGenerationsBorderStyle', p.guidedGenerationsBorderStyle, {
+                    solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', double: 'Double', none: 'None',
+                }),
+            ])}
             ${renderColorField('Border Color', 'wl-cdm-p-guidedGenerationsBorderColor', p.guidedGenerationsBorderColor)}
         </div>
 
@@ -2606,6 +2873,11 @@ function renderGeneralUiProps(p, activeSection) {
             <div class="wl-cdm-subsection">Sliders</div>
             ${renderColorField('Track', 'wl-cdm-p-sliderTrackColor', p.sliderTrackColor)}
             ${renderColorField('Thumb', 'wl-cdm-p-sliderThumbColor', p.sliderThumbColor)}
+            ${renderFieldRow([
+                renderSelectField('Thumb Fill', 'wl-cdm-p-scrollbarThumbFill', p.scrollbarThumbFill, { solid: 'Solid', gradient: 'Gradient' }),
+                renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbEndColor', p.scrollbarThumbEndColor),
+                renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbAngle', p.scrollbarThumbAngle, 0, 360, 1, '°'),
+            ])}
             ${renderColorField('Thumb Border', 'wl-cdm-p-sliderThumbBorderColor', p.sliderThumbBorderColor)}
         </div>
     `;
@@ -2634,20 +2906,40 @@ function renderGeneralUiProps(p, activeSection) {
             </div>
 
             <div class="wl-cdm-subsection">Shape</div>
-            ${renderRangeField('Thickness', 'wl-cdm-p-scrollbarWidth', p.scrollbarWidth, 4, 24, 1, 'px')}
-            ${renderRangeField('Corner Radius', 'wl-cdm-p-scrollbarRadius', p.scrollbarRadius, 0, 20, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Thickness', 'wl-cdm-p-scrollbarWidth', p.scrollbarWidth, 4, 24, 1, 'px'),
+                renderRangeField('Corner Radius', 'wl-cdm-p-scrollbarRadius', p.scrollbarRadius, 0, 20, 1, 'px'),
+            ])}
             ${renderRangeField('Thumb Inset', 'wl-cdm-p-scrollbarInset', p.scrollbarInset, 0, 4, 1, 'px')}
             <div class="wl-cdm-field-hint">Inset adds transparent breathing room around the draggable thumb without widening the scrollbar.</div>
 
             <div class="wl-cdm-subsection">Thumb</div>
-            ${renderColorField('Thumb Color', 'wl-cdm-p-scrollbarThumbColor', p.scrollbarThumbColor)}
-            ${renderRangeField('Thumb Opacity', 'wl-cdm-p-scrollbarThumbOpacity', p.scrollbarThumbOpacity, 0.1, 1, 0.05, '')}
-            ${renderColorField('Hover Color', 'wl-cdm-p-scrollbarThumbHoverColor', p.scrollbarThumbHoverColor)}
+            ${renderFieldRow([
+                renderColorField('Thumb Color', 'wl-cdm-p-scrollbarThumbColor', p.scrollbarThumbColor),
+                renderRangeField('Thumb Opacity', 'wl-cdm-p-scrollbarThumbOpacity', p.scrollbarThumbOpacity, 0.1, 1, 0.05, ''),
+            ])}
             ${renderColorField('Thumb Border', 'wl-cdm-p-scrollbarThumbBorderColor', p.scrollbarThumbBorderColor)}
+            ${renderFieldRow([
+                renderColorField('Hover Color', 'wl-cdm-p-scrollbarThumbHoverColor', p.scrollbarThumbHoverColor),
+                renderColorField('Hover Border', 'wl-cdm-p-scrollbarThumbHoverBorderColor', p.scrollbarThumbHoverBorderColor),
+            ])}
 
+            ${renderFieldRow([
+                renderSelectField('Hover Fill', 'wl-cdm-p-scrollbarThumbHoverFill', p.scrollbarThumbHoverFill, { solid: 'Solid', gradient: 'Gradient' }),
+                renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbHoverEndColor', p.scrollbarThumbHoverEndColor),
+                renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbHoverAngle', p.scrollbarThumbHoverAngle, 0, 360, 1, '°'),
+            ])}
             <div class="wl-cdm-subsection">Track</div>
-            ${renderColorField('Track Color', 'wl-cdm-p-scrollbarTrackColor', p.scrollbarTrackColor)}
-            ${renderRangeField('Track Opacity', 'wl-cdm-p-scrollbarTrackOpacity', p.scrollbarTrackOpacity, 0, 1, 0.05, '')}
+            ${renderFieldRow([
+                renderColorField('Track Color', 'wl-cdm-p-scrollbarTrackColor', p.scrollbarTrackColor),
+                renderRangeField('Track Opacity', 'wl-cdm-p-scrollbarTrackOpacity', p.scrollbarTrackOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderFieldRow([
+                renderSelectField('Track Fill', 'wl-cdm-p-scrollbarTrackFill', p.scrollbarTrackFill, { solid: 'Solid', gradient: 'Gradient' }),
+                renderColorField('Gradient End', 'wl-cdm-p-scrollbarTrackEndColor', p.scrollbarTrackEndColor),
+                renderRangeField('Direction', 'wl-cdm-p-scrollbarTrackAngle', p.scrollbarTrackAngle, 0, 360, 1, '°'),
+            ])}
+
         </div>
     `;
 
@@ -2705,7 +2997,7 @@ function renderBackgroundProps(p) {
         if (!(k in p)) p[k] = v;
     }
     return `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">Preset</label>
             <select class="wl-cdm-select" id="wl-cdm-bg-preset">
                 <option value="">— Load a preset —</option>
@@ -2718,34 +3010,47 @@ function renderBackgroundProps(p) {
 
         <div class="wl-cdm-subsection">Image Adjustments</div>
         <div class="wl-cdm-field-hint">Filters applied to the background image itself.</div>
-        ${renderRangeField('Blur', 'wl-cdm-p-blur', p.blur ?? 0, 0, 30, 0.5, 'px')}
-        ${renderRangeField('Brightness', 'wl-cdm-p-brightness', p.brightness ?? 100, 0, 200, 5, '%')}
-        ${renderRangeField('Contrast', 'wl-cdm-p-contrast', p.contrast ?? 100, 0, 200, 5, '%')}
-        ${renderRangeField('Saturation', 'wl-cdm-p-saturate', p.saturate ?? 100, 0, 200, 5, '%')}
-        ${renderRangeField('Grayscale', 'wl-cdm-p-grayscale', p.grayscale ?? 0, 0, 100, 5, '%')}
-        ${renderRangeField('Sepia', 'wl-cdm-p-sepia', p.sepia ?? 0, 0, 100, 5, '%')}
-        ${renderRangeField('Hue Rotate', 'wl-cdm-p-hueRotate', p.hueRotate ?? 0, 0, 360, 5, 'deg')}
-        ${renderRangeField('Zoom', 'wl-cdm-p-zoom', p.zoom ?? 100, 100, 200, 1, '%')}
-        <div class="wl-cdm-field-hint">Zoom crops in (overscan is clipped). 100% = no zoom.</div>
+        ${renderFieldRow([
+            renderRangeField('Blur', 'wl-cdm-p-blur', p.blur ?? 0, 0, 30, 0.5, 'px'),
+            renderRangeField('Brightness', 'wl-cdm-p-brightness', p.brightness ?? 100, 0, 200, 5, '%'),
+        ])}
+        ${renderFieldRow([
+            renderRangeField('Contrast', 'wl-cdm-p-contrast', p.contrast ?? 100, 0, 200, 5, '%'),
+            renderRangeField('Saturation', 'wl-cdm-p-saturate', p.saturate ?? 100, 0, 200, 5, '%'),
+        ])}
+        ${renderFieldRow([
+            renderRangeField('Grayscale', 'wl-cdm-p-grayscale', p.grayscale ?? 0, 0, 100, 5, '%'),
+            renderRangeField('Sepia', 'wl-cdm-p-sepia', p.sepia ?? 0, 0, 100, 5, '%'),
+        ])}
+        ${renderFieldRow([
+            renderRangeField('Hue Rotate', 'wl-cdm-p-hueRotate', p.hueRotate ?? 0, 0, 360, 5, 'deg'),
+            renderRangeField('Zoom', 'wl-cdm-p-zoom', p.zoom ?? 100, 100, 200, 1, '%', 'Zoom crops in; 100% = no zoom.'),
+        ])}
 
         <div class="wl-cdm-subsection">Base Tint</div>
         <div class="wl-cdm-field-hint">Linear wash over the image — darkens so text pops.</div>
         ${renderColorField('Tint Color', 'wl-cdm-p-tintColor', p.tintColor)}
-        ${renderRangeField('Top Opacity', 'wl-cdm-p-tintTopOpacity', p.tintTopOpacity ?? 0, 0, 1, 0.02, '')}
-        ${renderRangeField('Bottom Opacity', 'wl-cdm-p-tintBottomOpacity', p.tintBottomOpacity ?? 0, 0, 1, 0.02, '')}
+        ${renderFieldRow([
+            renderRangeField('Top Opacity', 'wl-cdm-p-tintTopOpacity', p.tintTopOpacity ?? 0, 0, 1, 0.02, ''),
+            renderRangeField('Bottom Opacity', 'wl-cdm-p-tintBottomOpacity', p.tintBottomOpacity ?? 0, 0, 1, 0.02, ''),
+        ])}
         ${renderRangeField('Angle', 'wl-cdm-p-tintAngle', p.tintAngle ?? 180, 0, 360, 5, 'deg')}
 
         <div class="wl-cdm-subsection">Center Highlight</div>
         <div class="wl-cdm-field-hint">Soft radial glow at the center of the screen.</div>
         ${renderColorField('Highlight Color', 'wl-cdm-p-highlightColor', p.highlightColor)}
-        ${renderRangeField('Highlight Opacity', 'wl-cdm-p-highlightOpacity', p.highlightOpacity ?? 0, 0, 1, 0.02, '')}
-        ${renderRangeField('Highlight Size', 'wl-cdm-p-highlightSize', p.highlightSize ?? 40, 5, 100, 1, '%')}
+        ${renderFieldRow([
+            renderRangeField('Highlight Opacity', 'wl-cdm-p-highlightOpacity', p.highlightOpacity ?? 0, 0, 1, 0.02, ''),
+            renderRangeField('Highlight Size', 'wl-cdm-p-highlightSize', p.highlightSize ?? 40, 5, 100, 1, '%'),
+        ])}
 
         <div class="wl-cdm-subsection">Accent Glow</div>
         <div class="wl-cdm-field-hint">A colored radial you can anchor to any corner or edge.</div>
         ${renderColorField('Accent Color', 'wl-cdm-p-accentColor', p.accentColor)}
-        ${renderRangeField('Accent Opacity', 'wl-cdm-p-accentOpacity', p.accentOpacity ?? 0, 0, 1, 0.02, '')}
-        ${renderRangeField('Accent Size', 'wl-cdm-p-accentSize', p.accentSize ?? 42, 5, 100, 1, '%')}
+        ${renderFieldRow([
+            renderRangeField('Accent Opacity', 'wl-cdm-p-accentOpacity', p.accentOpacity ?? 0, 0, 1, 0.02, ''),
+            renderRangeField('Accent Size', 'wl-cdm-p-accentSize', p.accentSize ?? 42, 5, 100, 1, '%'),
+        ])}
         ${renderSelectField('Accent Position', 'wl-cdm-p-accentPosition', p.accentPosition, {
             'center': 'Center',
             'top': 'Top', 'bottom': 'Bottom', 'left': 'Left', 'right': 'Right',
@@ -2756,9 +3061,10 @@ function renderBackgroundProps(p) {
         <div class="wl-cdm-subsection">Vignette</div>
         <div class="wl-cdm-field-hint">Darkens the edges, keeping the center clear.</div>
         ${renderColorField('Vignette Color', 'wl-cdm-p-vignetteColor', p.vignetteColor)}
-        ${renderRangeField('Vignette Opacity', 'wl-cdm-p-vignetteOpacity', p.vignetteOpacity ?? 0, 0, 1, 0.02, '')}
-        ${renderRangeField('Vignette Start', 'wl-cdm-p-vignetteSize', p.vignetteSize ?? 60, 0, 100, 1, '%')}
-        <div class="wl-cdm-field-hint">Lower = darkening reaches further toward the center.</div>
+        ${renderFieldRow([
+            renderRangeField('Vignette Opacity', 'wl-cdm-p-vignetteOpacity', p.vignetteOpacity ?? 0, 0, 1, 0.02, ''),
+            renderRangeField('Vignette Start', 'wl-cdm-p-vignetteSize', p.vignetteSize ?? 60, 0, 100, 1, '%'),
+        ], 'Lower start values bring the darkening further toward the center.')}
 
         <div class="wl-cdm-subsection">Texture</div>
         <div class="wl-cdm-field-hint">A repeating line pattern over everything. Cheap to render — keep opacity low.</div>
@@ -2766,8 +3072,10 @@ function renderBackgroundProps(p) {
             'none': 'None', 'scanlines': 'Scanlines', 'grid': 'Grid',
         })}
         ${renderColorField('Texture Color', 'wl-cdm-p-textureColor', p.textureColor)}
-        ${renderRangeField('Texture Opacity', 'wl-cdm-p-textureOpacity', p.textureOpacity ?? 0, 0, 0.5, 0.01, '')}
-        ${renderRangeField('Line Spacing', 'wl-cdm-p-textureScale', p.textureScale ?? 3, 2, 12, 1, 'px')}
+        ${renderFieldRow([
+            renderRangeField('Texture Opacity', 'wl-cdm-p-textureOpacity', p.textureOpacity ?? 0, 0, 0.5, 0.01, ''),
+            renderRangeField('Line Spacing', 'wl-cdm-p-textureScale', p.textureScale ?? 3, 2, 12, 1, 'px'),
+        ])}
 
         <div class="wl-cdm-subsection">Blend</div>
         ${renderSelectField('Overlay Blend Mode', 'wl-cdm-p-blendMode', p.blendMode, {
@@ -2853,7 +3161,7 @@ function buildCursorPanelHTML(style, disc) {
     const datalist = buildCursorDatalist(disc);
 
     const modeSelect = `
-        <div class="wl-cdm-field">
+        <div class="wl-cdm-field wl-cdm-compact-field">
             <label class="wl-cdm-field-label">Cursor Source</label>
             <select class="wl-cdm-select" id="wl-cdm-cur-mode">
                 <option value="set" ${mode === 'set' ? 'selected' : ''}>Cursor set + per-type overrides</option>
@@ -2918,7 +3226,7 @@ function buildCursorSetMode(cur, disc) {
             : '';
         setBlock = `
             <div class="wl-cdm-subsection">Cursor Set</div>
-            <div class="wl-cdm-field">
+            <div class="wl-cdm-field wl-cdm-compact-field">
                 <label class="wl-cdm-field-label">Set</label>
                 <div class="wl-cdm-cur-setrow">
                     <select class="wl-cdm-select" id="wl-cdm-cur-set">${options}</select>
@@ -3408,6 +3716,45 @@ function syncBannerOverlayConditionalFields(props) {
     });
 }
 
+function syncNameFillConditionalFields(props) {
+    const mode = props.querySelector('#wl-cdm-p-nameFillMode')?.value;
+    props.querySelectorAll('[data-wl-name-fill-conditional="gradient"]').forEach(field => {
+        field.hidden = mode !== 'gradient';
+    });
+    const backgroundMode = props.querySelector('#wl-cdm-p-nameBackgroundFillMode')?.value;
+    props.querySelectorAll('[data-wl-name-background-conditional="gradient"]').forEach(field => {
+        field.hidden = backgroundMode !== 'gradient';
+    });
+}
+
+function compactPropertyFields(props) {
+    const parents = new Set(
+        [...props.querySelectorAll('.wl-cdm-compact-field')]
+            .filter(field => !field.parentElement?.classList.contains('wl-cdm-field-grid'))
+            .map(field => field.parentElement)
+            .filter(Boolean),
+    );
+
+    for (const parent of parents) {
+        let child = parent.firstElementChild;
+        while (child) {
+            if (!child.classList.contains('wl-cdm-compact-field')) {
+                child = child.nextElementSibling;
+                continue;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'wl-cdm-field-grid wl-cdm-auto-field-grid';
+            parent.insertBefore(grid, child);
+            while (child?.classList.contains('wl-cdm-compact-field')) {
+                const next = child.nextElementSibling;
+                grid.append(child);
+                child = next;
+            }
+        }
+    }
+}
+
 function syncGeneralUiConditionalFields(props) {
     const mode = id => {
         const control = props.querySelector(`#${id}`);
@@ -3572,6 +3919,9 @@ function syncThinkingConditionalFields(props) {
     props.querySelectorAll('[data-wl-thinking-custom]').forEach(field => {
         field.hidden = preset === 'native';
     });
+    props.querySelectorAll('[data-wl-thinking-custom-appearance]').forEach(field => {
+        field.hidden = preset !== 'custom';
+    });
 }
 
 function wireThinkingPresetPicker(props, style) {
@@ -3609,9 +3959,31 @@ function updateEditorProperty(style, propKey, value) {
     updateStyleProperties(style.id, updates);
 }
 
+function wireWidthFields(props, style) {
+    props.querySelectorAll('[data-wl-width-fill]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const fieldId = checkbox.dataset.wlWidthFill;
+            const range = props.querySelector(`#${fieldId}`);
+            const fixedControls = props.querySelector(`[data-wl-width-fixed="${fieldId}"]`);
+            const propKey = fieldId?.replace('wl-cdm-p-', '');
+            if (!range || !fixedControls || !propKey) return;
+
+            fixedControls.hidden = checkbox.checked;
+            if (checkbox.checked) {
+                updateEditorProperty(style, propKey, 0);
+            } else {
+                const fixedWidth = Number(range.value) || 600;
+                updateEditorProperty(style, propKey, fixedWidth);
+            }
+            refreshChatDesignCSSDebounced();
+        });
+    });
+}
+
 function wirePropertyInputs(container, style) {
     const props = container.querySelector('#wl-cdm-props');
     if (!props) return;
+    compactPropertyFields(props);
 
     if (style.element === 'container') wireThinkingPresetPicker(props, style);
 
@@ -3632,6 +4004,7 @@ function wirePropertyInputs(container, style) {
         updateEditorProperty(style, propKey, value);
         refreshChatDesignCSSDebounced();
     });
+    wireWidthFields(props, style);
 
     // Selects (fontSize, fontWeight, etc.)
     props.querySelectorAll('.wl-cdm-select').forEach(select => {
@@ -3642,6 +4015,8 @@ function wirePropertyInputs(container, style) {
                 syncMessageActionConditionalFields(props);
                 syncAvatarOverlayConditionalFields(props);
                 syncBannerOverlayConditionalFields(props);
+                syncNameFillConditionalFields(props);
+                syncScrollbarPreview(props);
                 syncGeneralUiConditionalFields(props);
                 refreshChatDesignCSSDebounced();
             }
@@ -3778,6 +4153,7 @@ function wirePropertyInputs(container, style) {
     syncMessageActionConditionalFields(props);
     syncAvatarOverlayConditionalFields(props);
     syncBannerOverlayConditionalFields(props);
+    syncNameFillConditionalFields(props);
     syncGeneralUiConditionalFields(props);
     syncScrollbarPreview(props);
     wireScrollbarPreview(props);
@@ -4116,12 +4492,17 @@ function wireAssignmentInputs(container, style) {
         refreshChatDesignCSS();
     };
     const toggleAllCharacters = container.querySelector('#wl-cdm-a-chars-toggle-all');
+    const visibleCharacterCheckboxes = () => characterCheckboxes.filter(checkbox => {
+        const row = checkbox.closest('.wl-cdm-pickrow');
+        return row && !row.hidden && row.style.display !== 'none';
+    });
     const syncToggleAllCharacters = () => {
         if (!toggleAllCharacters) return;
-        const allChecked = characterCheckboxes.length > 0
-            && characterCheckboxes.every(checkbox => checkbox.checked);
+        const visible = visibleCharacterCheckboxes();
+        const allChecked = visible.length > 0 && visible.every(checkbox => checkbox.checked);
+        toggleAllCharacters.disabled = visible.length === 0;
         toggleAllCharacters.setAttribute('aria-pressed', String(allChecked));
-        toggleAllCharacters.title = allChecked ? 'Clear every character' : 'Select every character';
+        toggleAllCharacters.title = allChecked ? 'Clear visible characters' : 'Select visible characters';
     };
     characterCheckboxes.forEach(cb => {
         cb.addEventListener('change', () => {
@@ -4130,8 +4511,10 @@ function wireAssignmentInputs(container, style) {
         });
     });
     toggleAllCharacters?.addEventListener('click', () => {
-        const shouldCheck = !characterCheckboxes.every(checkbox => checkbox.checked);
-        characterCheckboxes.forEach(checkbox => { checkbox.checked = shouldCheck; });
+        const visible = visibleCharacterCheckboxes();
+        if (visible.length === 0) return;
+        const shouldCheck = !visible.every(checkbox => checkbox.checked);
+        visible.forEach(checkbox => { checkbox.checked = shouldCheck; });
         persistCharacters();
         syncToggleAllCharacters();
     });
@@ -4161,7 +4544,7 @@ function wireAssignmentInputs(container, style) {
         refreshChatDesignCSS();
     });
 
-    wirePickerFilter(container);
+    wirePickerFilter(container, syncToggleAllCharacters);
 }
 
 /**
@@ -4175,7 +4558,7 @@ function wireAssignmentInputs(container, style) {
  * Tag chips only apply to character rows (personas have no tags); when a tag
  * filter is active, the persona group is hidden entirely.
  */
-function wirePickerFilter(container) {
+function wirePickerFilter(container, onApply = null) {
     const searchInput = container.querySelector('#wl-cdm-pick-search');
     const chips = [...container.querySelectorAll('.wl-cdm-tag-chip')];
     const charRows = [...container.querySelectorAll('#wl-cdm-a-chars .wl-cdm-pickrow')];
@@ -4216,6 +4599,7 @@ function wirePickerFilter(container) {
             }
             if (personasNoMatch) personasNoMatch.style.display = pVisible === 0 ? '' : 'none';
         }
+        onApply?.();
     };
 
     searchInput?.addEventListener('input', apply);

@@ -5,10 +5,12 @@ import { subscribeBodyMutations } from './bodyMutationHub.js';
 
 const BADGE_ID = 'st-weather-cycle-badge';
 const MOVE_THRESHOLD = 4;
+const TOP_BAR_GAP = 8;
 
 let badgeEl = null;
 let detachBadge = null;
 let initialized = false;
+let positionFrame = null;
 
 export function clampWeatherBadgePosition(x, y, width, height, viewportWidth, viewportHeight) {
     return {
@@ -25,7 +27,7 @@ function readPosition() {
 
 function clampToViewport(x, y, badge) {
     const rect = badge.getBoundingClientRect();
-    return clampWeatherBadgePosition(
+    const position = clampWeatherBadgePosition(
         x,
         y,
         rect.width || badge.offsetWidth || 120,
@@ -33,6 +35,21 @@ function clampToViewport(x, y, badge) {
         window.innerWidth,
         window.innerHeight,
     );
+    const topBar = document.getElementById('top-bar');
+    const topBarRect = topBar?.getBoundingClientRect();
+    if (!topBarRect || topBarRect.width <= 0 || topBarRect.height <= 0) return position;
+
+    const overlaps = position.x < topBarRect.right
+        && position.x + (rect.width || badge.offsetWidth || 120) > topBarRect.left
+        && position.y < topBarRect.bottom
+        && position.y + (rect.height || badge.offsetHeight || 36) > topBarRect.top;
+    if (!overlaps) return position;
+
+    const below = Math.ceil(topBarRect.bottom + TOP_BAR_GAP);
+    if (below + (rect.height || badge.offsetHeight || 36) <= window.innerHeight) {
+        position.y = below;
+    }
+    return position;
 }
 
 function applyPosition() {
@@ -51,6 +68,15 @@ function applyPosition() {
     badgeEl.style.top = `${position.y}px`;
     badgeEl.style.right = 'auto';
     badgeEl.style.bottom = 'auto';
+}
+
+/** Re-clamp a saved badge position after top-bar styles change. */
+export function refreshWeatherCycleBadgePosition() {
+    if (positionFrame !== null) return;
+    positionFrame = requestAnimationFrame(() => {
+        positionFrame = null;
+        applyPosition();
+    });
 }
 
 export function isWeatherCycleBadgeAvailable() {
@@ -143,6 +169,8 @@ function attachBadge(badge) {
         badge.removeEventListener('pointerup', onPointerUp);
         badge.removeEventListener('pointercancel', onPointerCancel);
         window.removeEventListener('resize', onResize);
+        if (positionFrame !== null) cancelAnimationFrame(positionFrame);
+        positionFrame = null;
         badge.classList.remove(
             'bd-weather-cycle-badge-movable',
             'bd-weather-cycle-badge-dragging',

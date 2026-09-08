@@ -56,6 +56,22 @@ export function buildQuickReplyStyleCSS(properties = {}) {
         .join(',\n');
     const activeButtons = buttonSelectors.map(selector => `${selector}:active`).join(',\n');
     const groups = `${mainBar},\n${mainBar} > .qr--buttons,\n${popoutBody} > .qr--buttons`;
+    const nativeColorGroups = [
+        `${mainBar} .qr--buttons.qr--color`,
+        `${popoutBody} .qr--buttons.qr--color`,
+    ].join(',\n');
+    const nativeBorderGroups = [
+        `${mainBar} .qr--buttons.qr--borderColor`,
+        `${popoutBody} .qr--buttons.qr--borderColor`,
+    ].join(',\n');
+    const nativeGroupBackplates = [
+        `${mainBar} .qr--buttons.qr--color .qr--button::before`,
+        `${popoutBody} .qr--buttons.qr--color .qr--button::before`,
+        `${mainBar} .qr--buttons.qr--borderColor::before`,
+        `${mainBar} .qr--buttons.qr--borderColor::after`,
+        `${popoutBody} .qr--buttons.qr--borderColor::before`,
+        `${popoutBody} .qr--buttons.qr--borderColor::after`,
+    ].join(',\n');
     const background = surfaceBackground(properties);
     const hoverBackground = hexToRgba(properties.qrButtonHoverSurfaceColor, properties.qrButtonHoverSurfaceOpacity, '#65517f');
     const text = safeColor(properties.qrButtonTextColor, '#f5f2f8');
@@ -107,6 +123,17 @@ ${mainBar} {
 }
 ${groups} {
     gap: ${gap}px !important;
+}
+${nativeColorGroups} {
+    background: transparent !important;
+}
+${nativeBorderGroups} {
+    border-left-width: 0 !important;
+    border-right-width: 0 !important;
+}
+${nativeGroupBackplates} {
+    content: none !important;
+    display: none !important;
 }
 ${buttons} {
     margin: 0 !important;

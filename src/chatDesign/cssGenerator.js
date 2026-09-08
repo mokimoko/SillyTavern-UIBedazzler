@@ -23,6 +23,7 @@ import { user_avatar } from '../../../../../personas.js';
 import { extension_settings, getContext } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { getAppearanceAvatar, getChatScope, isGroupContext } from './chatScope.js';
+import { sanitizeCustomCssDeclarations } from './customCss.js';
 
 const log = () => {};
 
@@ -68,6 +69,11 @@ function clampNumber(value, min, max, fallback = min) {
     return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
 
+function safeHexColor(value, fallback) {
+    const color = String(value || '').trim();
+    return /^#[a-f\d]{6}$/i.test(color) ? color : fallback;
+}
+
 /**
  * Check if a fontFamily value represents the theme default (no-op).
  */
@@ -87,6 +93,26 @@ function buildNameCSS(style, selector, properties = style.properties) {
     const p = properties || {};
     const decls = [];
     const rules = [];
+    const alignment = ['center', 'right'].includes(p.textAlign) ? p.textAlign : 'left';
+    const flexAlignment = { left: 'flex-start', center: 'center', right: 'flex-end' }[alignment];
+    const alignmentRule = alignment === 'left'
+        ? `${selector} .ch_name > .flex1 {\n    justify-content: flex-start !important;\n}`
+        : `${selector} .ch_name {\n` +
+            '    display: grid !important;\n' +
+            '    grid-template-columns: minmax(0, 1fr) !important;\n' +
+            '}\n' +
+            `${selector} .ch_name > .flex1,\n` +
+            `${selector} .ch_name > .mes_buttons {\n` +
+            '    grid-column: 1 !important;\n' +
+            '    grid-row: 1 !important;\n' +
+            '}\n' +
+            `${selector} .ch_name > .flex1 {\n` +
+            '    min-width: 0 !important;\n' +
+            `    justify-content: ${flexAlignment} !important;\n` +
+            '}\n' +
+            `${selector} .ch_name > .mes_buttons {\n` +
+            '    justify-self: end !important;\n' +
+            '}';
 
     if (!isDefaultFont(p.fontFamily)) decls.push(`font-family: ${getFontFamilyCSS(p.fontFamily)} !important`);
     if (p.fontSize && p.fontSize !== '1em') decls.push(`font-size: ${p.fontSize} !important`);
@@ -95,8 +121,20 @@ function buildNameCSS(style, selector, properties = style.properties) {
     if (p.textTransform && p.textTransform !== 'none') decls.push(`text-transform: ${p.textTransform} !important`);
     if (p.letterSpacing && p.letterSpacing !== '0px') decls.push(`letter-spacing: ${p.letterSpacing} !important`);
     if (p.textShadow && p.textShadow !== 'none') decls.push(`text-shadow: ${p.textShadow} !important`);
-    const offsetX = Math.min(250, Math.max(-100, Number(p.offsetX) || 0));
-    const offsetY = Math.min(60, Math.max(-60, Number(p.offsetY) || 0));
+    if (p.noWrap === true) decls.push('white-space: nowrap !important');
+    if (p.fillMode === 'gradient') {
+        const startColor = safeHexColor(p.fillStartColor, '#d49a74');
+        const endColor = safeHexColor(p.fillEndColor, '#71405b');
+        const angle = clampNumber(p.fillAngle, 0, 360, 90);
+        decls.push(`background-image: linear-gradient(${angle}deg, ${startColor}, ${endColor}) !important`);
+        decls.push('background-repeat: no-repeat !important');
+        decls.push('-webkit-background-clip: text !important');
+        decls.push('background-clip: text !important');
+        decls.push('color: transparent !important');
+        decls.push('-webkit-text-fill-color: transparent !important');
+    }
+    const offsetX = Math.min(800, Math.max(-400, Number(p.offsetX) || 0));
+    const offsetY = Math.min(250, Math.max(-250, Number(p.offsetY) || 0));
     const backgroundOpacity = Math.min(1, Math.max(0, Number(p.backgroundOpacity) || 0));
     const backgroundWidth = Math.min(400, Math.max(0, Number(p.backgroundWidth) || 0));
     const backgroundHeight = Math.min(120, Math.max(0, Number(p.backgroundHeight) || 0));
@@ -115,35 +153,38 @@ function buildNameCSS(style, selector, properties = style.properties) {
 
         decls.push('display: inline-flex !important');
         decls.push('align-items: center !important');
-        decls.push('justify-content: center !important');
+        decls.push(`justify-content: ${flexAlignment} !important`);
         // Display fonts often ship with generous line-gap metrics. Center a
         // tight line box so the glyphs do not ride high or low in the badge.
         decls.push('line-height: 1 !important');
-        decls.push('text-align: center !important');
+        decls.push(`text-align: ${alignment} !important`);
         decls.push('vertical-align: middle !important');
         decls.push('box-sizing: border-box !important');
         decls.push('padding: 2px 8px !important');
         const backgroundColor = rgbaFromHex(p.backgroundColor || '#000000', backgroundOpacity);
+        const backgroundSurface = p.backgroundFillMode === 'gradient'
+            ? `linear-gradient(${clampNumber(p.backgroundAngle, 0, 360, 90)}deg, ${backgroundColor}, ${rgbaFromHex(p.backgroundSecondaryColor || '#3b2847', backgroundOpacity)})`
+            : backgroundColor;
+        // Keep the badge surface on a pseudo-element in every case. A
+        // character-specific gradient may add background-clip:text after this
+        // rule, and painting the badge on .name_text would then clip its fill
+        // to the glyphs. The pseudo-element remains a stable badge layer.
+        decls.push('position: relative !important');
+        decls.push('isolation: isolate !important');
         if (backgroundTextOffsetX !== 0 || backgroundTextOffsetY !== 0) {
-            // Move the badge element (and its text), then counter-move a
-            // pseudo-element carrying the background so only the glyphs shift.
-            decls.push('position: relative !important');
-            decls.push('isolation: isolate !important');
             decls.push(`transform: translate(${backgroundTextOffsetX}px, ${backgroundTextOffsetY}px) !important`);
-            decls.push('background-color: transparent !important');
-            nameBackgroundRule = `${selector} .name_text::before {\n` +
-                '    content: "" !important;\n' +
-                '    position: absolute !important;\n' +
-                '    inset: 0 !important;\n' +
-                '    z-index: -1 !important;\n' +
-                '    pointer-events: none !important;\n' +
-                `    transform: translate(${-backgroundTextOffsetX}px, ${-backgroundTextOffsetY}px) !important;\n` +
-                `    background-color: ${backgroundColor} !important;\n` +
-                `    border-radius: ${backgroundRadius} !important;\n` +
-                '}';
-        } else {
-            decls.push(`background-color: ${backgroundColor} !important`);
         }
+        decls.push('background-color: transparent !important');
+        nameBackgroundRule = `${selector} .name_text::before {\n` +
+            '    content: "" !important;\n' +
+            '    position: absolute !important;\n' +
+            '    inset: 0 !important;\n' +
+            '    z-index: -1 !important;\n' +
+            '    pointer-events: none !important;\n' +
+            `    transform: translate(${-backgroundTextOffsetX}px, ${-backgroundTextOffsetY}px) !important;\n` +
+            `    background: ${backgroundSurface} !important;\n` +
+            `    border-radius: ${backgroundRadius} !important;\n` +
+            '}';
         decls.push(`border-radius: ${backgroundRadius} !important`);
         if (backgroundWidth > 0) {
             decls.push(`width: ${backgroundWidth}px !important`);
@@ -167,7 +208,7 @@ function buildNameCSS(style, selector, properties = style.properties) {
             `${selector} .timestamp {\n    ${offsetDecls.join(';\n    ')};\n}`;
     }
 
-    if (decls.length === 0 && !nameOffsetRule) return '';
+    rules.push(alignmentRule);
     if (decls.length > 0) rules.push(`${selector} .name_text {\n    ${decls.join(';\n    ')};\n}`);
     if (nameOffsetRule) rules.push(nameOffsetRule);
     if (nameBackgroundRule) rules.push(nameBackgroundRule);
@@ -215,7 +256,9 @@ function buildFontsCSS(style, selector) {
     const rules = [];
     const nameProperties = Object.fromEntries([
         'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textTransform',
-        'letterSpacing', 'textShadow', 'offsetX', 'offsetY', 'backgroundColor',
+        'letterSpacing', 'textShadow', 'textAlign', 'noWrap', 'fillMode', 'fillStartColor', 'fillEndColor',
+        'fillAngle', 'offsetX', 'offsetY', 'backgroundColor', 'backgroundFillMode',
+        'backgroundSecondaryColor', 'backgroundAngle',
         'backgroundOpacity', 'backgroundWidth', 'backgroundHeight',
         'backgroundTextOffsetX', 'backgroundTextOffsetY', 'backgroundShape',
     ].map(property => {
@@ -224,15 +267,21 @@ function buildFontsCSS(style, selector) {
     }));
     const messageDecls = buildFontDeclarations(style.properties, 'message');
     const dialogueDecls = buildFontDeclarations(style.properties);
+    const messageCustomCss = sanitizeCustomCssDeclarations(style.properties.messageCustomCss);
+    const dialogueCustomCss = sanitizeCustomCssDeclarations(style.properties.dialogueCustomCss);
 
+    const nameCustomCss = sanitizeCustomCssDeclarations(style.properties.nameCustomCss);
     const nameCSS = buildNameCSS(style, selector, nameProperties);
     if (nameCSS) rules.push(nameCSS);
+    if (nameCustomCss) rules.push(`${selector} .name_text {\n    ${nameCustomCss};\n}`);
 
-    if (messageDecls.length > 0) {
-        rules.push(`${selector} .mes_text {\n    ${messageDecls.join(';\n    ')};\n}`);
+    const messageRules = [messageDecls.join(';\n    '), messageCustomCss].filter(Boolean);
+    if (messageRules.length > 0) {
+        rules.push(`${selector} .mes_text {\n    ${messageRules.join(';\n    ')};\n}`);
     }
-    if (dialogueDecls.length > 0) {
-        rules.push(`${selector} .mes_text q {\n    ${dialogueDecls.join(';\n    ')};\n}`);
+    const dialogueRules = [dialogueDecls.join(';\n    '), dialogueCustomCss].filter(Boolean);
+    if (dialogueRules.length > 0) {
+        rules.push(`${selector} .mes_text q {\n    ${dialogueRules.join(';\n    ')};\n}`);
     }
 
     return rules.join('\n');
@@ -543,7 +592,7 @@ function buildBannerCSS(style, selector, avatarUrl = null, personaBannerPos = nu
 }
 
 function buildThinkingCSS(properties, selector) {
-    const preset = ['soft', 'outline', 'quiet'].includes(properties.thinkingPreset)
+    const preset = ['soft', 'outline', 'quiet', 'custom'].includes(properties.thinkingPreset)
         ? properties.thinkingPreset
         : 'native';
     if (preset === 'native') return '';
@@ -561,7 +610,22 @@ function buildThinkingCSS(properties, selector) {
     const declarations = [`border-radius: ${radius}px !important`];
     let hoverBackground;
 
-    if (preset === 'soft') {
+    if (preset === 'custom') {
+        const textColor = safeHexColor(properties.thinkingTextColor, '#f5f2f8');
+        const backgroundColor = safeHexColor(properties.thinkingBackgroundColor, '#242129');
+        const borderColor = safeHexColor(properties.thinkingBorderColor, '#8f72bd');
+        const borderWidth = clampNumber(properties.thinkingBorderWidth, 1, 8, 1);
+        const borderStyle = ['solid', 'dashed', 'dotted', 'double'].includes(properties.thinkingBorderStyle)
+            ? properties.thinkingBorderStyle
+            : 'solid';
+        declarations.push(
+            `color: ${textColor} !important`,
+            `background-color: ${backgroundColor} !important`,
+            `border: ${borderWidth}px ${borderStyle} ${borderColor} !important`,
+            'box-shadow: none !important',
+        );
+        hoverBackground = backgroundColor;
+    } else if (preset === 'soft') {
         declarations.push(
             `background-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #97a7c6) ${fillStrength}%, ${nativeSurface}) !important`,
             `box-shadow: inset 3px 0 0 ${accent} !important`,
@@ -602,11 +666,18 @@ function buildContainerCSS(style, selector) {
     const p = style.properties;
     const decls = [];
     const rules = [];
+    const widthForOffset = offset => offset > 0
+        ? `calc(100% - ${offset}px)`
+        : offset < 0 ? `calc(100% + ${Math.abs(offset)}px)` : '100%';
     const extraPadding = clampNumber(p.paddingExtra, 0, 200, 0);
+    // Styles created before paddingEnabled used any positive paddingExtra as an
+    // implicit opt-in. Keep that exact behavior until each style is edited.
+    const hasPaddingOverride = p.paddingEnabled === true
+        || (p.paddingEnabled == null && extraPadding > 0);
 
-    // A positive value becomes Banner's stable top anchor. At zero the custom
+    // An enabled value becomes Banner's stable top anchor. When disabled the
     // property is invalidated so Banner falls back to its own padding setting.
-    decls.push(extraPadding > 0
+    decls.push(hasPaddingOverride
         ? `--wl-cdm-container-extra-padding: ${extraPadding}px`
         : '--wl-cdm-container-extra-padding: initial');
     const hasBorder = p.borderWidth > 0 && p.borderStyle !== 'none';
@@ -619,7 +690,8 @@ function buildContainerCSS(style, selector) {
         : 'box-shadow: none !important');
     if (p.marginTop > 0) decls.push(`margin-top: ${p.marginTop}px !important`);
     if (p.marginBottom > 0) decls.push(`margin-bottom: ${p.marginBottom}px !important`);
-    if (extraPadding > 0) {
+    if (hasPaddingOverride) {
+        decls.push('--mes-right-spacing: 0px');
         decls.push(`padding-right: ${extraPadding}px !important`);
         decls.push(`padding-bottom: ${extraPadding}px !important`);
         decls.push(`padding-left: ${extraPadding}px !important`);
@@ -628,6 +700,15 @@ function buildContainerCSS(style, selector) {
 
     if (decls.length > 0) {
         rules.push(`${chatSel(selector)} {\n    ${decls.join(';\n    ')};\n}`);
+    }
+
+    if (hasPaddingOverride) {
+        const messageSelector = chatSel(selector);
+        // Make the override authoritative across SillyTavern's nested message
+        // insets so 0px truly exposes the full interior of the outer border.
+        rules.push(`${messageSelector} .mes_block {\n    padding-left: 0 !important;\n}`);
+        rules.push(`${messageSelector} .mes_text {\n    padding-right: 0 !important;\n}`);
+        rules.push(`${messageSelector} .mes_reasoning_details {\n    margin-right: 0 !important;\n}`);
     }
 
     if (p.contentAreaEnabled === true) {
@@ -647,16 +728,22 @@ function buildContainerCSS(style, selector) {
             ? `box-shadow: ${p.contentBoxShadow} !important`
             : 'box-shadow: none !important');
 
+        const contentAreaOffsetX = clampNumber(p.contentAreaOffsetX, -600, 600, 0);
+        const contentAreaOffsetY = clampNumber(p.contentAreaOffsetY, -300, 300, 0);
+        const availableContentWidth = widthForOffset(contentAreaOffsetX);
         const contentWidth = clampNumber(p.contentWidth, 0, 1200, 0);
         if (contentWidth > 0) {
-            contentDecls.push(`width: ${contentWidth}px !important`);
+            contentDecls.push(`width: min(${contentWidth}px, ${availableContentWidth}) !important`);
             contentDecls.push(`flex: 0 1 ${contentWidth}px !important`);
-            contentDecls.push('max-width: 100% !important');
+            contentDecls.push(`max-width: ${availableContentWidth} !important`);
+        } else if (contentAreaOffsetX !== 0) {
+            // A negative offset reclaims space on the left, so expand by the
+            // same amount to keep the right edge anchored to the container.
+            contentDecls.push(`width: ${availableContentWidth} !important`);
+            contentDecls.push(`max-width: ${availableContentWidth} !important`);
         }
         const contentMinHeight = clampNumber(p.contentMinHeight, 0, 300, 0);
         contentDecls.push(`min-height: ${contentMinHeight}px !important`);
-        const contentAreaOffsetX = clampNumber(p.contentAreaOffsetX, -600, 600, 0);
-        const contentAreaOffsetY = clampNumber(p.contentAreaOffsetY, -300, 300, 0);
         if (contentAreaOffsetX !== 0 || contentAreaOffsetY !== 0) {
             contentDecls.push('position: relative !important');
             contentDecls.push(`left: ${contentAreaOffsetX}px !important`);
@@ -669,13 +756,28 @@ function buildContainerCSS(style, selector) {
     // horizontal offset until that style is edited, preserving its appearance.
     const contentOffsetX = Math.min(240, Math.max(-240, Number(p.contentOffsetX ?? p.contentIndent) || 0));
     const contentOffsetY = Math.min(120, Math.max(-120, Number(p.contentOffsetY) || 0));
-    if (contentOffsetX !== 0 || contentOffsetY !== 0) {
+    const contentTextWidth = clampNumber(p.contentTextWidth, 0, 1200, 0);
+    if (contentOffsetX !== 0 || contentOffsetY !== 0 || contentTextWidth > 0) {
         const contentSelector = chatSel(selector);
+        const availableTextWidth = widthForOffset(contentOffsetX);
+        const textDecls = [
+            '    box-sizing: border-box !important',
+        ];
+        if (contentTextWidth > 0) {
+            textDecls.push(`    width: min(${contentTextWidth}px, ${availableTextWidth}) !important`);
+            textDecls.push(`    max-width: ${availableTextWidth} !important`);
+        } else if (contentOffsetX !== 0) {
+            textDecls.push(`    width: ${availableTextWidth} !important`);
+            textDecls.push(`    max-width: ${availableTextWidth} !important`);
+        }
+        if (contentOffsetX !== 0 || contentOffsetY !== 0) {
+            textDecls.push('    position: relative !important');
+            textDecls.push(`    left: ${contentOffsetX}px !important`);
+            textDecls.push(`    top: ${contentOffsetY}px !important`);
+        }
         rules.push(`${contentSelector} .mes_reasoning_details,\n` +
             `${contentSelector} .mes_text {\n` +
-            '    position: relative !important;\n' +
-            `    left: ${contentOffsetX}px !important;\n` +
-            `    top: ${contentOffsetY}px !important;\n` +
+            `${textDecls.join(';\n')};\n` +
             '}');
     }
 
@@ -709,8 +811,8 @@ function buildMessageActionCSS(style, selector) {
     const hoverSelector = buttonList.map(item => `${item}:is(:hover, :focus-visible)`).join(',\n');
     const iconSelector = buttonList.map(item => `${item} > :is(svg, i)`).join(',\n');
 
-    const offsetX = clampNumber(p.actionOffsetX, -120, 120, 0);
-    const offsetY = clampNumber(p.actionOffsetY, -60, 60, 0);
+    const offsetX = clampNumber(p.actionOffsetX, -400, 400, 0);
+    const offsetY = clampNumber(p.actionOffsetY, -250, 250, 0);
     const buttonSize = clampNumber(p.actionButtonSize, 18, 44, 26);
     const iconSize = clampNumber(p.actionIconSize, 10, 24, 14);
     const gap = clampNumber(p.actionGap, 0, 16, 4);

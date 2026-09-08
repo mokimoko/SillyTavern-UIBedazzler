@@ -13,6 +13,10 @@ const log = () => {};
 
 let isActive = false;
 let relocatedElements = [];
+let suppressOutsideClick = false;
+let suppressOutsideClickTimer = null;
+
+const NATIVE_POPUP_OPENER_SELECTOR = '#advanced_div, #character_popup_button, #character_popup-button, [data-target="#character_popup"], [aria-controls="character_popup"]';
 
 // ============================================================
 // Takeover
@@ -146,6 +150,7 @@ export function takeoverDrawer() {
     popup.classList.add('wl-cd-active');
 
     isActive = true;
+    setupOutsideClose();
 
     // --- Curtain up: reveal after DOM work is complete ---
     requestAnimationFrame(() => {
@@ -199,6 +204,75 @@ function switchTab(tabName) {
     }
 }
 
+// ============================================================
+// Outside Close
+// ============================================================
+
+function setupOutsideClose() {
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+}
+
+function cleanupOutsideClose() {
+    document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+    clearOutsideClickSuppression();
+}
+
+function clearOutsideClickSuppression() {
+    document.removeEventListener('click', suppressOutsideClickThrough, true);
+    if (suppressOutsideClickTimer) clearTimeout(suppressOutsideClickTimer);
+    suppressOutsideClickTimer = null;
+    suppressOutsideClick = false;
+}
+
+function closeOnOutsidePointer(event) {
+    if (!isActive || document.body.classList.contains('wl-xd-open')) return;
+    const popup = document.getElementById('character_popup');
+    if (!popup || popup.contains(event.target) || event.target.closest(NATIVE_POPUP_OPENER_SELECTOR)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeClassicPopup();
+
+    // Prevent the click synthesized from this pointer press from activating the
+    // control underneath the popup after the native close has completed.
+    document.addEventListener('click', suppressOutsideClickThrough, true);
+    suppressOutsideClick = true;
+    suppressOutsideClickTimer = setTimeout(clearOutsideClickSuppression, 750);
+}
+
+function suppressOutsideClickThrough(event) {
+    if (!suppressOutsideClick) return;
+    clearOutsideClickSuppression();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}
+
+function closeClassicPopup() {
+    const popup = document.getElementById('character_popup');
+    if (!popup) return;
+
+    // #advanced_div owns SillyTavern's private is_advanced_char_open flag.
+    // Restoring first, then using its native non-saving toggle, keeps that flag,
+    // the `open` class, and inline display state synchronized for the next open.
+    const nativeToggle = document.getElementById('advanced_div');
+    restoreDrawer();
+    if (nativeToggle) {
+        nativeToggle.click();
+        return;
+    }
+
+    // Defensive fallback for host variants without #advanced_div. The native
+    // close button also clears the open flag and does not save character data.
+    const nativeClose = document.getElementById('character_cross');
+    if (nativeClose) {
+        nativeClose.click();
+        return;
+    }
+
+    popup.classList.remove('open');
+    popup.style.display = 'none';
+}
+
 /**
  * Get the active tab name.
  * @returns {string}
@@ -220,6 +294,8 @@ export function restoreDrawer() {
 
     const popup = document.getElementById('character_popup');
     const container = document.getElementById('wl-cd-container');
+
+    cleanupOutsideClose();
 
     // Restore in reverse order so sibling anchors and nested style changes are
     // resolved after their containing drawers return home. This also recovers

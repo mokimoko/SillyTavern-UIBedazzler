@@ -1404,14 +1404,15 @@
 .wl-cb-th-color-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 /* Wider, taller swatch so it doesn't read as a thin sliver. Trim the native
    color input's internal padding/border chrome so the color fills the well. */
 .wl-cb-th-color {
     flex: 0 0 auto;
-    width: 64px;
-    height: 40px;
+    width: 48px;
+    height: 34px;
     padding: 0;
     border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 15%, transparent);
     border-radius: 8px;
@@ -1421,19 +1422,32 @@
 .wl-cb-th-color::-webkit-color-swatch-wrapper { padding: 3px; }
 .wl-cb-th-color::-webkit-color-swatch { border: 0; border-radius: 5px; }
 .wl-cb-th-color::-moz-color-swatch { border: 0; border-radius: 5px; }
+.wl-cb-th-color-hex {
+    flex: 1 1 76px;
+    width: 82px;
+    min-width: 64px;
+    max-width: 88px;
+    padding: 7px;
+    font-family: monospace;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+}
+.wl-cb-th-color-hex[aria-invalid="true"] {
+    border-color: var(--warning, #d99042);
+}
 /* Compact clear/"No color" button — override the shared full-width .wl-cb-act
    so it hugs its label instead of crowding the swatch. */
 .wl-cb-th-color-clear {
     flex: 0 0 auto;
     width: auto;
-    padding: 8px 14px;
+    padding: 7px 10px;
     font-size: .84em;
     white-space: nowrap;
 }
 /* Leading label on each colour row ("Background" / "Text") — fixed width so the
    two swatches line up under one another. */
 .wl-cb-th-color-tag {
-    flex: 0 0 84px;
+    flex: 0 0 72px;
     font-size: .82em;
     opacity: .75;
 }

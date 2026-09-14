@@ -149,7 +149,7 @@ export function renderDesignTab(pane) {
                 <div class="wl-cd-color-grid">
                     ${renderNameColorCard({
                         baseId: 'wl-pd-name-color', baseColor: design.nameColor || '#cccccc',
-                        baseText: design.nameColor || 'default', enabled: !!design.nameGradient,
+                        enabled: !!design.nameGradient,
                         end: effects.nameGradient?.end || '#b48ead',
                         angle: effects.nameGradient?.angle ?? 90,
                         outlineColor: effects.nameOutlineColor,
@@ -159,7 +159,6 @@ export function renderDesignTab(pane) {
                     ${renderSharedGradientCard({
                         key: 'dialogueGradient', title: 'Dialogue', enabled: !!design.dialogueGradient,
                         baseId: 'wl-pd-dialogue-color', baseColor: design.dialogueColor || '#cccccc',
-                        baseTrailing: `<span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>`,
                         end: effects.dialogueGradient?.end || '#b48ead',
                         angle: effects.dialogueGradient?.angle ?? 90,
                         outline: {
@@ -248,14 +247,12 @@ export function renderDesignTab(pane) {
     // Name color
     nameColorInput?.addEventListener('input', () => {
         const val = nameColorInput.value;
-        pane.querySelector('#wl-pd-name-color + .wl-cd-color-hex').textContent = val;
         updateRenderedPersona({ nameColor: val });
     });
 
     // Dialogue color
     dialogueColorInput?.addEventListener('input', () => {
         const val = dialogueColorInput.value;
-        pane.querySelector('#wl-pd-dialogue-color + .wl-cd-color-hex').textContent = val;
         updateRenderedPersona({ dialogueColor: val });
     });
 
@@ -291,11 +288,12 @@ export function renderDesignTab(pane) {
 
             // Update UI
             nameColorInput.value = nameColor;
-            pane.querySelector('#wl-pd-name-color + .wl-cd-color-hex').textContent = nameColor;
+            nameColorInput.parentElement.querySelector('[data-wl-color-hex]').value = nameColor;
             dialogueColorInput.value = dialogueColor;
-            pane.querySelector('#wl-pd-dialogue-color + .wl-cd-color-hex').textContent = dialogueColor;
+            dialogueColorInput.parentElement.querySelector('[data-wl-color-hex]').value = dialogueColor;
             const bparsed = parseRgba(boxColor);
             boxColorInput.value = bparsed ? rgbToHex(bparsed.r, bparsed.g, bparsed.b) : '#4a4441';
+            boxColorInput.parentElement.querySelector('[data-wl-color-hex]').value = boxColorInput.value;
             if (boxOpacityInput) {
                 boxOpacityInput.value = bparsed ? bparsed.a : 0.5;
                 pane.querySelector('.wl-cd-opacity-label').textContent = `${Math.round((bparsed?.a ?? 0.5) * 100)}%`;

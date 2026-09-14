@@ -803,6 +803,7 @@ function renderTagEditor(tagId) {
     colorInput.className = 'wl-cb-th-color';
     colorInput.value = normalizeHex(tag?.color) || '#9b8cff';
     colorRow.appendChild(colorInput);
+    colorRow.appendChild(createColorHexInput(colorInput, 'Background HEX color'));
     let colorCleared = !tag?.color;
     const clearColor = document.createElement('button');
     clearColor.className = 'wl-cb-act wl-cb-th-color-clear';
@@ -832,6 +833,7 @@ function renderTagEditor(tagId) {
     textInput.className = 'wl-cb-th-color';
     textInput.value = normalizeHex(tag?.color2) || '#ffffff';
     textRow.appendChild(textInput);
+    textRow.appendChild(createColorHexInput(textInput, 'Text HEX color'));
     let textCleared = !tag?.color2;
     const clearText = document.createElement('button');
     clearText.className = 'wl-cb-act wl-cb-th-color-clear';
@@ -1089,4 +1091,39 @@ function normalizeHex(str) {
     let h = m[1];
     if (h.length === 3) h = h.split('').map(c => c + c).join('');
     return '#' + h.toLowerCase();
+}
+
+function createColorHexInput(colorInput, label) {
+    const hexInput = document.createElement('input');
+    hexInput.type = 'text';
+    hexInput.className = 'wl-cb-th-input wl-cb-th-color-hex';
+    hexInput.value = colorInput.value;
+    hexInput.maxLength = 7;
+    hexInput.spellcheck = false;
+    hexInput.setAttribute('aria-label', label);
+
+    colorInput.addEventListener('input', () => {
+        hexInput.value = colorInput.value;
+        hexInput.removeAttribute('aria-invalid');
+    });
+
+    const applyHexValue = () => {
+        const hex = normalizeHex(hexInput.value.startsWith('#') ? hexInput.value : `#${hexInput.value}`);
+        if (!hex) {
+            hexInput.setAttribute('aria-invalid', 'true');
+            return;
+        }
+        colorInput.value = hex;
+        hexInput.value = hex;
+        hexInput.removeAttribute('aria-invalid');
+        colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    hexInput.addEventListener('change', applyHexValue);
+    hexInput.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        applyHexValue();
+        hexInput.blur();
+    });
+    return hexInput;
 }

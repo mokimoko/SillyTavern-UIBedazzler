@@ -201,7 +201,7 @@ export function buildDesignEffectsCSS(selector, design) {
 
 /** Compact shared-base editor used by Dialogue and Message Background cards. */
 export function renderSharedGradientCard({
-    key, title, enabled, baseId, baseColor, baseTrailing = '', end, angle, outline = null, footer = '',
+    key, title, enabled, baseId, baseColor, end, angle, outline = null, footer = '',
 }) {
     return `<div class="wl-cd-color-group wl-cd-gradient-card" data-wl-design-effects>
         <div class="wl-cd-effect wl-cd-effect-shared ${enabled ? 'wl-cd-effect-enabled' : ''}" data-wl-effect="${key}">
@@ -211,15 +211,12 @@ export function renderSharedGradientCard({
             </div>
             <div class="wl-cd-effect-field wl-cd-effect-field-color wl-cd-effect-base">
                 <label data-wl-shared-color-label="${key}">${enabled ? 'Start' : 'Solid'}</label>
-                <div class="wl-cd-color-input-wrap">
-                    <input type="color" id="${baseId}" value="${baseColor}">
-                    ${baseTrailing}
-                </div>
+                ${renderSyncedColorInput({ id: baseId, value: baseColor })}
             </div>
             <div class="wl-cd-effect-fields" ${enabled ? '' : 'hidden'}>
                 <div class="wl-cd-effect-field wl-cd-effect-field-color">
                     <label>End</label>
-                    <div class="wl-cd-color-input-wrap"><input type="color" data-effect-part="end" value="${end}"></div>
+                    ${renderSyncedColorInput({ value: end, dataAttribute: 'data-effect-part="end"' })}
                 </div>
                 <div class="wl-cd-effect-field wl-cd-effect-field-range">
                     <label>Direction</label>
@@ -232,16 +229,24 @@ export function renderSharedGradientCard({
     </div>`;
 }
 
+function renderSyncedColorInput({ id = '', value, dataAttribute = '' }) {
+    const idAttribute = id ? ` id="${id}"` : '';
+    return `<div class="wl-cd-color-input-wrap" data-wl-color-pair>
+        <input type="color"${idAttribute} ${dataAttribute} value="${value}">
+        <input type="text" class="text_pole wl-cd-color-hex-input" data-wl-color-hex value="${value}" maxlength="7" spellcheck="false" aria-label="HEX color">
+    </div>`;
+}
+
 function renderOutlineFields({ target, color, width, max }) {
     return `<div class="wl-cd-outline-fields" data-outline="${target}">
-        <div class="wl-cd-effect-field wl-cd-effect-field-color"><label>Outline</label><div class="wl-cd-color-input-wrap"><input type="color" data-outline-color value="${color}"></div></div>
+        <div class="wl-cd-effect-field wl-cd-effect-field-color"><label>Outline</label>${renderSyncedColorInput({ value: color, dataAttribute: 'data-outline-color' })}</div>
         <div class="wl-cd-effect-field wl-cd-effect-field-range"><label>Thickness</label><div class="wl-cd-color-input-wrap"><input type="range" data-outline-width min="0" max="${max}" step="0.25" value="${width}"><output>${width}px</output></div></div>
     </div>`;
 }
 
 /** Name uses the same shared Solid/Start model while retaining outline controls. */
 export function renderNameColorCard({
-    baseId, baseColor, baseText, enabled, end, angle, outlineColor, outlineWidth,
+    baseId, baseColor, enabled, end, angle, outlineColor, outlineWidth,
 }) {
     return `<div class="wl-cd-color-group" data-wl-design-effects>
         <div class="wl-cd-effect wl-cd-effect-shared wl-cd-effect-name ${enabled ? 'wl-cd-effect-enabled' : ''}" data-wl-effect="nameGradient">
@@ -251,15 +256,12 @@ export function renderNameColorCard({
             </div>
             <div class="wl-cd-effect-field wl-cd-effect-field-color wl-cd-effect-base">
                 <label data-wl-shared-color-label="nameGradient">${enabled ? 'Start' : 'Solid'}</label>
-                <div class="wl-cd-color-input-wrap">
-                    <input type="color" id="${baseId}" value="${baseColor}">
-                    <span class="wl-cd-color-hex">${baseText}</span>
-                </div>
+                ${renderSyncedColorInput({ id: baseId, value: baseColor })}
             </div>
             <div class="wl-cd-effect-fields" ${enabled ? '' : 'hidden'}>
                 <div class="wl-cd-effect-field wl-cd-effect-field-color">
                     <label>End</label>
-                    <div class="wl-cd-color-input-wrap"><input type="color" data-effect-part="end" value="${end}"></div>
+                    ${renderSyncedColorInput({ value: end, dataAttribute: 'data-effect-part="end"' })}
                 </div>
                 <div class="wl-cd-effect-field wl-cd-effect-field-range">
                     <label>Direction</label>
@@ -274,6 +276,35 @@ export function renderNameColorCard({
 export function wireDesignEffects(pane, update, isCurrent = () => true) {
     const roots = pane.querySelectorAll('[data-wl-design-effects]');
     if (!roots.length) return;
+    pane.querySelectorAll('[data-wl-color-pair]').forEach(pair => {
+        const colorInput = pair.querySelector('input[type="color"]');
+        const hexInput = pair.querySelector('[data-wl-color-hex]');
+        if (!colorInput || !hexInput) return;
+
+        colorInput.addEventListener('input', () => {
+            hexInput.value = colorInput.value;
+            hexInput.removeAttribute('aria-invalid');
+        });
+
+        const applyHexValue = () => {
+            const hex = normalizeHexColor(hexInput.value);
+            if (!hex) {
+                hexInput.setAttribute('aria-invalid', 'true');
+                return;
+            }
+            colorInput.value = hex;
+            hexInput.value = hex;
+            hexInput.removeAttribute('aria-invalid');
+            colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        hexInput.addEventListener('change', applyHexValue);
+        hexInput.addEventListener('keydown', event => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            applyHexValue();
+            hexInput.blur();
+        });
+    });
     roots.forEach(root => root.querySelectorAll('[data-wl-effect]').forEach(group => {
         const enabled = group.querySelector('[data-effect-enabled]');
         const fields = group.querySelector('.wl-cd-effect-fields');
@@ -312,4 +343,13 @@ export function wireDesignEffects(pane, update, isCurrent = () => true) {
         outlineColor.addEventListener('input', saveOutline);
     });
 
+}
+
+function normalizeHexColor(value) {
+    const match = String(value || '').trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!match) return '';
+    const hex = match[1].length === 3
+        ? match[1].split('').map(char => char + char).join('')
+        : match[1];
+    return `#${hex.toLowerCase()}`;
 }

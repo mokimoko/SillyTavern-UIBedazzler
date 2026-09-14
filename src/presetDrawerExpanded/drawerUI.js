@@ -24,6 +24,28 @@ const OPEN_CLASS = 'wl-pe-open';
 
 let isActive = false;
 let originalPositions = []; // { element, parent, nextSibling }
+let tokenRefreshModulePromise = null;
+
+function loadTokenRefreshModule() {
+    if (!tokenRefreshModulePromise) {
+        tokenRefreshModulePromise = import('./tokenRefresh.js').catch((error) => {
+            console.warn('[BD Preset Expanded] Token refresh unavailable:', error);
+            return null;
+        });
+    }
+    return tokenRefreshModulePromise;
+}
+
+function startTokenRefreshSafe() {
+    void loadTokenRefreshModule().then((module) => {
+        if (document.getElementById(ROOT_ID)) module?.startTokenRefresh();
+    });
+}
+
+function stopTokenRefreshSafe() {
+    if (!tokenRefreshModulePromise) return;
+    void tokenRefreshModulePromise.then((module) => module?.stopTokenRefresh());
+}
 
 // While the expanded drawer is open we pause the White Lotus companion extension
 // (if installed) so the Test tab exercises the RAW preset — not WL's runtime,
@@ -101,6 +123,10 @@ export function takeoverExpanded() {
     // sync as ST re-renders the list.
     startGroupRender(center);
 
+    // Recount through ST's native Prompt Manager after preset loads and prompt
+    // toggles; relocation otherwise leaves some builds displaying stale counts.
+    startTokenRefreshSafe();
+
     // Dock ST's native prompt-edit form into the right column (native save).
     startEditorDock(root.querySelector('#wl-pe-right-body'));
 
@@ -126,6 +152,7 @@ export function restoreExpanded() {
     // move, so nothing of ours rides back into the native drawer.
     const _root = document.getElementById(ROOT_ID);
     stopGroupRender(_root?.querySelector('#wl-pe-center'));
+    stopTokenRefreshSafe();
     stopEditorDock(_root?.querySelector('#wl-pe-right-body'));
     stopTestChat(_root?.querySelector('#wl-pe-view-test'));
     stopRegexDock(_root?.querySelector('#wl-pe-regex-body'));

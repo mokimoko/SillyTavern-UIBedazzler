@@ -18,8 +18,9 @@ import {
 } from '../design/designUtils.js';
 import { refreshChatDesignCSSDebounced } from '../chatDesign/index.js';
 import {
-    buildDesignEffectsCSS, hasDesignEffects,
-    renderDesignEffects, wireDesignEffects,
+    buildDesignEffectsCSS, dialogueColorCSS, hasDesignEffects,
+    migrateSharedGradientBases, normalizeDesignEffects, renderNameColorCard,
+    renderSharedGradientCard, wireDesignEffects,
 } from '../design/designEffects.js';
 
 const log = () => {};
@@ -122,9 +123,13 @@ export function renderDesignTab(pane) {
         return;
     }
 
-    const design = { ...getDesignData() };
-    design.bannerUrl = normalizeBannerUrl(design.bannerUrl);
     const personaName = getCurrentPersonaName();
+    const migration = migrateSharedGradientBases(getDesignData());
+    if (Object.keys(migration.updates).length) {
+        updatePersonaDesignForAvatar(avatar, personaName, migration.updates);
+    }
+    const design = { ...migration.design };
+    design.bannerUrl = normalizeBannerUrl(design.bannerUrl);
     const isStillCurrent = () => pane.isConnected && getCurrentPersonaAvatar() === avatar;
     const updateRenderedPersona = updates => updatePersonaDesignForAvatar(avatar, personaName, updates);
 
@@ -132,6 +137,7 @@ export function renderDesignTab(pane) {
     const boxHex = boxParsed ? rgbToHex(boxParsed.r, boxParsed.g, boxParsed.b) : '#4a4441';
     const boxOpacity = boxParsed ? boxParsed.a : 0.5;
     const bannerPos = design.bannerPosition ?? 25;
+    const effects = normalizeDesignEffects(design);
 
     pane.innerHTML = `
         <div class="wl-cd-design">
@@ -141,45 +147,30 @@ export function renderDesignTab(pane) {
                 </div>
 
                 <div class="wl-cd-color-grid">
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Name</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-pd-name-color" value="${design.nameColor || '#cccccc'}" />
-                            <span class="wl-cd-color-hex">${design.nameColor || 'default'}</span>
-                        </div>
-                    </div>
+                    ${renderNameColorCard({
+                        baseId: 'wl-pd-name-color', baseColor: design.nameColor || '#cccccc',
+                        baseText: design.nameColor || 'default', enabled: !!design.nameGradient,
+                        end: effects.nameGradient?.end || '#b48ead',
+                        angle: effects.nameGradient?.angle ?? 90,
+                        outlineColor: effects.nameOutlineColor,
+                        outlineWidth: effects.nameOutlineWidth,
+                    })}
 
-                    ${renderDesignEffects(design, 'name')}
-                    </div>
+                    ${renderSharedGradientCard({
+                        key: 'dialogueGradient', title: 'Dialogue', enabled: !!design.dialogueGradient,
+                        baseId: 'wl-pd-dialogue-color', baseColor: design.dialogueColor || '#cccccc',
+                        baseTrailing: `<span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>`,
+                        end: effects.dialogueGradient?.end || '#b48ead',
+                        angle: effects.dialogueGradient?.angle ?? 90,
+                    })}
 
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Dialogue</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-pd-dialogue-color" value="${design.dialogueColor || '#cccccc'}" />
-                            <span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>
-                        </div>
-                    </div>
-                    </div>
-
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Message Background</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-pd-box-color" value="${boxHex}" />
-                            <div class="wl-cd-opacity-wrap">
-                                <input type="range" id="wl-pd-box-opacity" min="0" max="1" step="0.05" value="${boxOpacity}" />
-                                <span class="wl-cd-opacity-label">${Math.round(boxOpacity * 100)}%</span>
-                            </div>
-                            <span class="wl-cd-color-hint">(all chat styles)</span>
-                        </div>
-                    </div>
-                    ${renderDesignEffects(design, 'box')}
-                    </div>
+                    ${renderSharedGradientCard({
+                        key: 'boxGradient', title: 'Message Background', enabled: !!design.boxGradient,
+                        baseId: 'wl-pd-box-color', baseColor: boxHex,
+                        end: effects.boxGradient?.end || '#252035',
+                        angle: effects.boxGradient?.angle ?? 135,
+                        footer: `<div class="wl-cd-card-detail wl-cd-effect-field wl-cd-effect-field-range"><label>Opacity</label><div class="wl-cd-color-input-wrap"><input type="range" id="wl-pd-box-opacity" min="0" max="1" step="0.05" value="${boxOpacity}"><span class="wl-cd-opacity-label">${Math.round(boxOpacity * 100)}%</span></div></div>`,
+                    })}
                 </div>
 
                 <div class="wl-cd-color-actions">
@@ -442,7 +433,7 @@ function buildPersonaCSS(personaName, design, avatarFile) {
     const rules = [];
 
     if (dialogueColor) {
-        rules.push(`${selector} q { color: ${dialogueColor}; }`);
+        rules.push(`${selector} q { color: ${dialogueColorCSS(dialogueColor)}; }`);
     }
     if (nameColor) {
         rules.push(`${selector} .name_text { color: ${nameColor}; }`);

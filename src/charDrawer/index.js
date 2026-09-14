@@ -11,6 +11,7 @@ import { MODULE_NAME } from '../settings.js';
 import { takeoverDrawer, restoreDrawer, isTakeoverActive, getActiveTab } from './drawerUI.js';
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
+import { initDialogueColorPicker } from './dialogueColorPicker.js';
 
 const log = () => {};
 
@@ -26,6 +27,8 @@ let drawerObserver = null;
  */
 export function initCharDrawer() {
     const settings = extension_settings[MODULE_NAME];
+
+    initDialogueColorPicker();
 
     if (settings.charDrawerTakeover) {
         setupDrawerWatcher();
@@ -97,7 +100,8 @@ export function retakeCharDrawer() {
  */
 export function syncDesignCSS() {
     const settings = extension_settings[MODULE_NAME];
-    if (settings.charDrawerTakeover || settings.charDrawerExpanded) {
+    const enabled = settings.charDrawerTakeover || settings.charDrawerExpanded;
+    if (enabled) {
         injectDesignCSS();
     } else {
         removeDesignCSS();

@@ -18,6 +18,7 @@ import { getFontFamilyCSS, loadUsedFonts } from './fonts.js';
 import {
     escapeCSSName, cleanAvatar, normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
+import { buildGradientTextDeclarations } from '../design/designEffects.js';
 import { power_user } from '../../../../../power-user.js';
 import { user_avatar } from '../../../../../personas.js';
 import { extension_settings, getContext } from '../../../../../extensions.js';
@@ -120,18 +121,28 @@ function buildNameCSS(style, selector, properties = style.properties) {
     if (p.fontStyle && p.fontStyle !== 'normal') decls.push(`font-style: ${p.fontStyle} !important`);
     if (p.textTransform && p.textTransform !== 'none') decls.push(`text-transform: ${p.textTransform} !important`);
     if (p.letterSpacing && p.letterSpacing !== '0px') decls.push(`letter-spacing: ${p.letterSpacing} !important`);
-    if (p.textShadow && p.textShadow !== 'none') decls.push(`text-shadow: ${p.textShadow} !important`);
+    if (p.textShadow === 'none') decls.push('text-shadow: none !important');
+    else if (p.textShadow) decls.push(`text-shadow: ${p.textShadow} !important`);
     if (p.noWrap === true) decls.push('white-space: nowrap !important');
+    const separatorMode = ['underline', 'divider'].includes(p.separatorMode)
+        ? p.separatorMode
+        : 'none';
+    const separatorColor = safeHexColor(p.separatorColor, '#cccccc');
+    const separatorWidth = clampNumber(p.separatorWidth, 0.5, 5, 1);
+    if (separatorMode === 'underline') {
+        decls.push('text-decoration-line: underline !important');
+        decls.push('text-decoration-style: solid !important');
+        decls.push(`text-decoration-color: ${separatorColor} !important`);
+        decls.push(`text-decoration-thickness: ${separatorWidth}px !important`);
+        decls.push('text-underline-offset: 0.18em !important');
+    }
     if (p.fillMode === 'gradient') {
         const startColor = safeHexColor(p.fillStartColor, '#d49a74');
         const endColor = safeHexColor(p.fillEndColor, '#71405b');
         const angle = clampNumber(p.fillAngle, 0, 360, 90);
-        decls.push(`background-image: linear-gradient(${angle}deg, ${startColor}, ${endColor}) !important`);
-        decls.push('background-repeat: no-repeat !important');
-        decls.push('-webkit-background-clip: text !important');
-        decls.push('background-clip: text !important');
-        decls.push('color: transparent !important');
-        decls.push('-webkit-text-fill-color: transparent !important');
+        decls.push(...buildGradientTextDeclarations(
+            `linear-gradient(${angle}deg, ${startColor}, ${endColor})`,
+        ));
     }
     const offsetX = Math.min(800, Math.max(-400, Number(p.offsetX) || 0));
     const offsetY = Math.min(250, Math.max(-250, Number(p.offsetY) || 0));
@@ -210,6 +221,14 @@ function buildNameCSS(style, selector, properties = style.properties) {
 
     rules.push(alignmentRule);
     if (decls.length > 0) rules.push(`${selector} .name_text {\n    ${decls.join(';\n    ')};\n}`);
+    if (separatorMode === 'divider') {
+        rules.push(`${selector} .ch_name {\n` +
+            '    width: 100% !important;\n' +
+            '    box-sizing: border-box !important;\n' +
+            '    padding-bottom: 4px !important;\n' +
+            `    border-bottom: ${separatorWidth}px solid ${separatorColor} !important;\n` +
+            '}');
+    }
     if (nameOffsetRule) rules.push(nameOffsetRule);
     if (nameBackgroundRule) rules.push(nameBackgroundRule);
 
@@ -256,7 +275,9 @@ function buildFontsCSS(style, selector) {
     const rules = [];
     const nameProperties = Object.fromEntries([
         'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textTransform',
-        'letterSpacing', 'textShadow', 'textAlign', 'noWrap', 'fillMode', 'fillStartColor', 'fillEndColor',
+        'letterSpacing', 'textShadow', 'textAlign', 'noWrap',
+        'separatorMode', 'separatorColor', 'separatorWidth',
+        'fillMode', 'fillStartColor', 'fillEndColor',
         'fillAngle', 'offsetX', 'offsetY', 'backgroundColor', 'backgroundFillMode',
         'backgroundSecondaryColor', 'backgroundAngle',
         'backgroundOpacity', 'backgroundWidth', 'backgroundHeight',

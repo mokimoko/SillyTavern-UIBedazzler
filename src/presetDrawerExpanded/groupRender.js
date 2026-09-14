@@ -16,6 +16,7 @@
 
 import { computeGroups } from './groupParser.js';
 import { getSetting, setSetting } from '../settings.js';
+import { eventSource, event_types } from '../../../../../../script.js';
 
 // oai_settings holds the block CONTENT (the DOM only has names/tokens). Loaded
 // LAZILY via dynamic import so a path/version mismatch can never break extension
@@ -291,6 +292,8 @@ function buildHead(g, color, anchorId) {
             e.stopPropagation();
             openNamePopover(tagEl, g.name, (v) => renameManual(anchorId, v));
         });
+    }
+    if (g.kind === 'manual') {
         head.querySelector('.wl-pe-gh-del').addEventListener('click', (e) => {
             e.stopPropagation();
             removeManual(anchorId);
@@ -404,14 +407,19 @@ export function renderGroups(centerEl) {
 }
 
 /** Re-derive (debounced) whenever ST rebuilds the prompt-manager list. */
+function scheduleGroupRender() {
+    if (!currentCenter || rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+        rafPending = false;
+        if (currentCenter) renderGroups(currentCenter);
+    });
+}
+
 function observeList(centerEl) {
     const manager = centerEl.querySelector('#completion_prompt_manager') || centerEl;
     if (observer) observer.disconnect();
-    observer = new MutationObserver(() => {
-        if (rafPending) return;
-        rafPending = true;
-        requestAnimationFrame(() => { rafPending = false; renderGroups(centerEl); });
-    });
+    observer = new MutationObserver(scheduleGroupRender);
     observer.observe(manager, { childList: true, subtree: true });
 }
 
@@ -420,6 +428,8 @@ export function startGroupRender(centerEl) {
     // ST's own (re)render of the list even before the import resolves.
     ensureOai().then(() => renderGroups(centerEl));
     observeList(centerEl);
+    eventSource.on(event_types.SETTINGS_UPDATED, scheduleGroupRender);
+    eventSource.on(event_types.OAI_PRESET_CHANGED_AFTER, scheduleGroupRender);
 }
 
 // ── Viewer bridge ───────────────────────────────────────────
@@ -476,6 +486,8 @@ export function getGroupsForViewer() {
 
 export function stopGroupRender(centerEl) {
     if (observer) { observer.disconnect(); observer = null; }
+    eventSource.removeListener(event_types.SETTINGS_UPDATED, scheduleGroupRender);
+    eventSource.removeListener(event_types.OAI_PRESET_CHANGED_AFTER, scheduleGroupRender);
     rafPending = false;
     closePalette();
     closeNamePopover();

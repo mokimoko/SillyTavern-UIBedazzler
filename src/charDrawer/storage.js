@@ -31,7 +31,9 @@ let cachedData = null;
  * @returns {object|null}
  */
 function parseJsonData() {
-    const raw = $('#character_json_data').val();
+    const context = getContext();
+    const selected = context.characters?.[context.characterId];
+    const raw = $('#character_json_data').val() || selected?.json_data;
     if (!raw) return null;
     if (raw === cachedRaw && cachedData) return cachedData;
 
@@ -209,7 +211,7 @@ export function getDesignData() {
     if (!result) {
         return {
             nameColor: null, dialogueColor: null, boxColor: null,
-            nameGradient: null, boxGradient: null,
+            nameGradient: null, dialogueGradient: null, boxGradient: null,
             nameOutlineColor: null, nameOutlineWidth: null,
             bannerMode: null, bannerUrl: null, bannerPosition: null,
         };
@@ -223,6 +225,7 @@ export function getDesignData() {
         dialogueColor: ext.dialogueColor || null,
         boxColor: ext.boxColor || null,
         nameGradient: wld.nameGradient || null,
+        dialogueGradient: wld.dialogueGradient || null,
         boxGradient: wld.boxGradient || null,
         nameOutlineColor: wld.nameOutlineColor || null,
         nameOutlineWidth: wld.nameOutlineWidth ?? null,

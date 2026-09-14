@@ -1761,6 +1761,16 @@ function renderNameProps(p, prefix = 'name') {
             renderRangeField('Vertical Offset', `wl-cdm-p-${key('offsetY')}`, p[key('offsetY')], -250, 250, 1, 'px'),
         ], 'Alignment positions the name cluster within its header row; offsets fine-tune it from that anchor')}
         ${renderCheckboxField('Keep name on one line', `wl-cdm-p-${key('noWrap')}`, p[key('noWrap')], 'Prevents long names from wrapping; they extend away from the selected alignment anchor instead.')}
+        <div class="wl-cdm-subsection">Name Separator</div>
+        ${renderSelectField('Style', `wl-cdm-p-${key('separatorMode')}`, p[key('separatorMode')], {
+            none: 'None', underline: 'Underline', divider: 'Full-width divider',
+        })}
+        <div data-wl-name-separator-conditional ${p[key('separatorMode')] === 'none' ? 'hidden' : ''}>
+            ${renderFieldRow([
+                renderColorField('Color', `wl-cdm-p-${key('separatorColor')}`, p[key('separatorColor')]),
+                renderRangeField('Thickness', `wl-cdm-p-${key('separatorWidth')}`, p[key('separatorWidth')], 0.5, 5, 0.25, 'px'),
+            ], 'Underline follows the name text; Full-width divider spans the message header above the main text.')}
+        </div>
         <div class="wl-cdm-subsection">Name Background</div>
         ${renderSelectField('Fill', `wl-cdm-p-${key('backgroundFillMode')}`, p[key('backgroundFillMode')], {
             solid: 'Solid color', gradient: 'Two-color gradient',
@@ -3724,6 +3734,10 @@ function syncNameFillConditionalFields(props) {
     const backgroundMode = props.querySelector('#wl-cdm-p-nameBackgroundFillMode')?.value;
     props.querySelectorAll('[data-wl-name-background-conditional="gradient"]').forEach(field => {
         field.hidden = backgroundMode !== 'gradient';
+    });
+    const separatorMode = props.querySelector('#wl-cdm-p-nameSeparatorMode')?.value;
+    props.querySelectorAll('[data-wl-name-separator-conditional]').forEach(field => {
+        field.hidden = !separatorMode || separatorMode === 'none';
     });
 }
 

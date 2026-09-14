@@ -19,8 +19,8 @@ import {
 } from '../design/designUtils.js';
 import { getCharacterAvatarUrl } from '../hostAdapter.js';
 import {
-    buildDesignEffectsCSS, hasDesignEffects, normalizeDesignEffects,
-    renderDesignEffects, wireDesignEffects,
+    buildDesignEffectsCSS, dialogueColorCSS, hasDesignEffects, normalizeDesignEffects,
+    migrateSharedGradientBases, renderNameColorCard, renderSharedGradientCard, wireDesignEffects,
 } from '../design/designEffects.js';
 
 const log = () => {};
@@ -88,6 +88,11 @@ function scheduleLiveCSSRebuild(design, avatar) {
     });
 }
 
+/** Update one character's cached Design CSS without reparsing every card. */
+export function updateCharacterDesignPreview(design, avatar) {
+    scheduleLiveCSSRebuild(normalizeDesign(design), avatar);
+}
+
 // ============================================================
 // Design Data Cache
 // ============================================================
@@ -120,7 +125,8 @@ function buildDesignCache() {
         // Quick substring check before expensive parse
         if (!raw.includes('nameColor') && !raw.includes('dialogueColor') &&
             !raw.includes('boxColor') && !raw.includes('bannerMode') &&
-            !raw.includes('nameGradient') && !raw.includes('boxGradient') &&
+            !raw.includes('nameGradient') && !raw.includes('dialogueGradient') &&
+            !raw.includes('boxGradient') &&
             !raw.includes('nameOutlineWidth')) {
             continue;
         }
@@ -134,6 +140,7 @@ function buildDesignCache() {
                 dialogueColor: ext.dialogueColor || null,
                 boxColor: ext.boxColor || null,
                 nameGradient: wld.nameGradient || null,
+                dialogueGradient: wld.dialogueGradient || null,
                 boxGradient: wld.boxGradient || null,
                 nameOutlineColor: wld.nameOutlineColor || null,
                 nameOutlineWidth: wld.nameOutlineWidth ?? null,
@@ -175,7 +182,16 @@ export function invalidateDesignCache() {
 export function renderDesignTab(pane) {
     if (!pane) return;
 
-    const design = normalizeDesign(getDesignData());
+    const storedDesign = getDesignData();
+    const migration = migrateSharedGradientBases(storedDesign);
+    if (Object.keys(migration.updates).length) {
+        const updates = {};
+        for (const [key, value] of Object.entries(migration.updates)) {
+            updates[key.endsWith('Gradient') ? `wl_design.${key}` : key] = value;
+        }
+        updateCharExtensions(updates);
+    }
+    const design = normalizeDesign(migration.design);
     const liveDesign = { ...design };
     const renderContext = getContext();
     const editAvatar = renderContext.characters?.[renderContext.characterId]?.avatar || null;
@@ -189,6 +205,7 @@ export function renderDesignTab(pane) {
     const boxHex = boxParsed ? rgbToHex(boxParsed.r, boxParsed.g, boxParsed.b) : '#4a4441';
     const boxOpacity = boxParsed ? boxParsed.a : 0.5;
     const bannerPos = design.bannerPosition ?? 25;
+    const effects = normalizeDesignEffects(design);
 
     pane.innerHTML = `
         <div class="wl-cd-design">
@@ -198,45 +215,30 @@ export function renderDesignTab(pane) {
                 </div>
 
                 <div class="wl-cd-color-grid">
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Name</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-name-color" value="#cccccc" />
-                            <span class="wl-cd-color-hex">default</span>
-                        </div>
-                    </div>
+                    ${renderNameColorCard({
+                        baseId: 'wl-cd-name-color', baseColor: design.nameColor || '#cccccc',
+                        baseText: design.nameColor || 'default', enabled: !!design.nameGradient,
+                        end: effects.nameGradient?.end || '#b48ead',
+                        angle: effects.nameGradient?.angle ?? 90,
+                        outlineColor: effects.nameOutlineColor,
+                        outlineWidth: effects.nameOutlineWidth,
+                    })}
 
-                    ${renderDesignEffects(design, 'name')}
-                    </div>
+                    ${renderSharedGradientCard({
+                        key: 'dialogueGradient', title: 'Dialogue', enabled: !!design.dialogueGradient,
+                        baseId: 'wl-cd-dialogue-color', baseColor: design.dialogueColor || '#cccccc',
+                        baseTrailing: `<span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>`,
+                        end: effects.dialogueGradient?.end || '#b48ead',
+                        angle: effects.dialogueGradient?.angle ?? 90,
+                    })}
 
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Dialogue</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-dialogue-color" value="#cccccc" />
-                            <span class="wl-cd-color-hex">default</span>
-                        </div>
-                    </div>
-                    </div>
-
-                    <div class="wl-cd-color-group">
-                    <div class="wl-cd-color-group-title">Message Background</div>
-                    <div class="wl-cd-color-row">
-                        <label>Solid</label>
-                        <div class="wl-cd-color-input-wrap">
-                            <input type="color" id="wl-cd-box-color" value="#4a4441" />
-                            <div class="wl-cd-opacity-wrap">
-                                <input type="range" id="wl-cd-box-opacity" min="0" max="1" step="0.05" value="0.5" />
-                                <span class="wl-cd-opacity-label">50%</span>
-                            </div>
-                            <span class="wl-cd-color-hint">(all chat styles)</span>
-                        </div>
-                    </div>
-                    ${renderDesignEffects(design, 'box')}
-                    </div>
+                    ${renderSharedGradientCard({
+                        key: 'boxGradient', title: 'Message Background', enabled: !!design.boxGradient,
+                        baseId: 'wl-cd-box-color', baseColor: boxHex,
+                        end: effects.boxGradient?.end || '#252035',
+                        angle: effects.boxGradient?.angle ?? 135,
+                        footer: `<div class="wl-cd-card-detail wl-cd-effect-field wl-cd-effect-field-range"><label>Opacity</label><div class="wl-cd-color-input-wrap"><input type="range" id="wl-cd-box-opacity" min="0" max="1" step="0.05" value="${boxOpacity}"><span class="wl-cd-opacity-label">${Math.round(boxOpacity * 100)}%</span></div></div>`,
+                    })}
                 </div>
 
                 <div class="wl-cd-color-actions">
@@ -489,6 +491,7 @@ export function renderDesignTab(pane) {
             'wl_design.bannerUrl': null,
             'wl_design.bannerPosition': null,
             'wl_design.nameGradient': null,
+            'wl_design.dialogueGradient': null,
             'wl_design.boxGradient': null,
             'wl_design.nameOutlineColor': null,
             'wl_design.nameOutlineWidth': null,
@@ -567,7 +570,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
     const rules = [];
 
     if (dialogueColor) {
-        rules.push(`${selector} q { color: ${dialogueColor}; }`);
+        rules.push(`${selector} q { color: ${dialogueColorCSS(dialogueColor)}; }`);
     }
     if (nameColor) {
         rules.push(`${selector} .name_text { color: ${nameColor}; }`);

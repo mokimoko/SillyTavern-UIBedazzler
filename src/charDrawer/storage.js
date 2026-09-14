@@ -213,6 +213,7 @@ export function getDesignData() {
             nameColor: null, dialogueColor: null, boxColor: null,
             nameGradient: null, dialogueGradient: null, boxGradient: null,
             nameOutlineColor: null, nameOutlineWidth: null,
+            dialogueOutlineColor: null, dialogueOutlineWidth: null,
             bannerMode: null, bannerUrl: null, bannerPosition: null,
         };
     }
@@ -229,6 +230,8 @@ export function getDesignData() {
         boxGradient: wld.boxGradient || null,
         nameOutlineColor: wld.nameOutlineColor || null,
         nameOutlineWidth: wld.nameOutlineWidth ?? null,
+        dialogueOutlineColor: wld.dialogueOutlineColor || null,
+        dialogueOutlineWidth: wld.dialogueOutlineWidth ?? null,
         bannerMode: wld.bannerMode || null,
         bannerUrl: wld.bannerUrl || null,
         bannerPosition: wld.bannerPosition ?? null,

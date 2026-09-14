@@ -2,6 +2,7 @@
 export const DESIGN_EFFECT_KEYS = [
     'nameGradient', 'dialogueGradient', 'boxGradient',
     'nameOutlineColor', 'nameOutlineWidth',
+    'dialogueOutlineColor', 'dialogueOutlineWidth',
 ];
 
 const DIALOGUE_COLOR_CUSTOM_PROPERTY = '--character-color';
@@ -74,6 +75,8 @@ export function normalizeDesignEffects(design = {}) {
             : null,
         nameOutlineColor: color(design.nameOutlineColor, '#000000'),
         nameOutlineWidth: clamp(design.nameOutlineWidth, 0, 5, 0),
+        dialogueOutlineColor: color(design.dialogueOutlineColor, '#000000'),
+        dialogueOutlineWidth: clamp(design.dialogueOutlineWidth, 0, 2, 0),
     };
 }
 
@@ -131,7 +134,7 @@ export function migrateSharedGradientBases(design = {}) {
 export function hasDesignEffects(design = {}) {
     const effects = normalizeDesignEffects(design);
     return !!(effects.nameGradient || effects.dialogueGradient ||
-        effects.boxGradient || effects.nameOutlineWidth > 0);
+        effects.boxGradient || effects.nameOutlineWidth > 0 || effects.dialogueOutlineWidth > 0);
 }
 
 function gradientStop(value, hex) {
@@ -144,13 +147,25 @@ function gradientCSS(value, startOverride = null) {
     return `linear-gradient(${value.angle}deg, ${start}, ${gradientStop(value, value.end)})`;
 }
 
+function buildGradientInlinePaintDeclarations(decorationColor) {
+    return [
+        'background: none !important',
+        'color: transparent !important',
+        '-webkit-text-fill-color: transparent !important',
+        'text-shadow: none !important',
+        `text-decoration-color: ${decorationColor} !important`,
+    ];
+}
+
 export function buildDesignEffectsCSS(selector, design) {
     const {
         nameGradient, dialogueGradient, boxGradient,
         nameOutlineColor, nameOutlineWidth,
+        dialogueOutlineColor, dialogueOutlineWidth,
     } = normalizeDesignEffects(design);
     const rules = [];
     const name = [];
+    let dialogueInlinePaint = '';
     if (nameGradient) {
         name.push(...buildGradientTextDeclarations(gradientCSS({ ...nameGradient, opacity: 1 })));
     }
@@ -159,11 +174,23 @@ export function buildDesignEffectsCSS(selector, design) {
             'paint-order: stroke fill !important');
     }
     if (name.length) rules.push(`#chat ${selector} .name_text {\n    ${name.join(';\n    ')};\n}`);
+    const dialogue = [];
     if (dialogueGradient) {
         const normalized = { ...dialogueGradient, opacity: 1 };
         const fallbackStart = gradientStop(normalized, normalized.start);
         const backgroundImage = gradientCSS(normalized, dialogueColorCSS(fallbackStart));
-        rules.push(`#chat ${selector} q {\n    ${buildGradientTextDeclarations(backgroundImage).join(';\n    ')};\n}`);
+        dialogue.push(...buildGradientTextDeclarations(backgroundImage));
+        dialogueInlinePaint = buildGradientInlinePaintDeclarations(
+            dialogueColorCSS(fallbackStart),
+        ).join(';\n    ');
+    }
+    if (dialogueOutlineWidth > 0) {
+        dialogue.push(`-webkit-text-stroke: ${dialogueOutlineWidth}px ${dialogueOutlineColor} !important`,
+            'paint-order: stroke fill !important');
+    }
+    if (dialogue.length) rules.push(`#chat ${selector} q {\n    ${dialogue.join(';\n    ')};\n}`);
+    if (dialogueInlinePaint) {
+        rules.push(`#chat ${selector} q :is(a, em, strong, b, i, u, s, del) {\n    ${dialogueInlinePaint};\n}`);
     }
     if (boxGradient) {
         // A transparent base avoids applying the legacy box opacity twice.
@@ -174,7 +201,7 @@ export function buildDesignEffectsCSS(selector, design) {
 
 /** Compact shared-base editor used by Dialogue and Message Background cards. */
 export function renderSharedGradientCard({
-    key, title, enabled, baseId, baseColor, baseTrailing = '', end, angle, footer = '',
+    key, title, enabled, baseId, baseColor, baseTrailing = '', end, angle, outline = null, footer = '',
 }) {
     return `<div class="wl-cd-color-group wl-cd-gradient-card" data-wl-design-effects>
         <div class="wl-cd-effect wl-cd-effect-shared ${enabled ? 'wl-cd-effect-enabled' : ''}" data-wl-effect="${key}">
@@ -199,8 +226,16 @@ export function renderSharedGradientCard({
                     <div class="wl-cd-color-input-wrap"><input type="range" min="0" max="360" step="1" data-effect-part="angle" value="${angle}"><output>${angle}°</output></div>
                 </div>
             </div>
+            ${outline ? renderOutlineFields(outline) : ''}
             ${footer}
         </div>
+    </div>`;
+}
+
+function renderOutlineFields({ target, color, width, max }) {
+    return `<div class="wl-cd-outline-fields" data-outline="${target}">
+        <div class="wl-cd-effect-field wl-cd-effect-field-color"><label>Outline</label><div class="wl-cd-color-input-wrap"><input type="color" data-outline-color value="${color}"></div></div>
+        <div class="wl-cd-effect-field wl-cd-effect-field-range"><label>Thickness</label><div class="wl-cd-color-input-wrap"><input type="range" data-outline-width min="0" max="${max}" step="0.25" value="${width}"><output>${width}px</output></div></div>
     </div>`;
 }
 
@@ -231,10 +266,7 @@ export function renderNameColorCard({
                     <div class="wl-cd-color-input-wrap"><input type="range" min="0" max="360" step="1" data-effect-part="angle" value="${angle}"><output>${angle}°</output></div>
                 </div>
             </div>
-            <div class="wl-cd-outline-fields">
-                <div class="wl-cd-effect-field wl-cd-effect-field-color"><label>Outline</label><div class="wl-cd-color-input-wrap"><input type="color" data-outline-color value="${outlineColor}"></div></div>
-                <div class="wl-cd-effect-field wl-cd-effect-field-range"><label>Thickness</label><div class="wl-cd-color-input-wrap"><input type="range" data-outline-width min="0" max="5" step="0.25" value="${outlineWidth}"><output>${outlineWidth}px</output></div></div>
-            </div>
+            ${renderOutlineFields({ target: 'name', color: outlineColor, width: outlineWidth, max: 5 })}
         </div>
     </div>`;
 }
@@ -263,16 +295,21 @@ export function wireDesignEffects(pane, update, isCurrent = () => true) {
         enabled.addEventListener('change', save);
         fields.addEventListener('input', save);
     }));
-    const width = pane.querySelector('[data-outline-width]');
-    const outlineColor = pane.querySelector('[data-outline-color]');
-    if (width && outlineColor) {
+    pane.querySelectorAll('[data-outline]').forEach(outline => {
+        const target = outline.dataset.outline;
+        const width = outline.querySelector('[data-outline-width]');
+        const outlineColor = outline.querySelector('[data-outline-color]');
+        if (!target || !width || !outlineColor) return;
         const saveOutline = () => {
             if (!isCurrent()) return;
             width.nextElementSibling.textContent = `${width.value}px`;
-            update({ nameOutlineWidth: Number(width.value), nameOutlineColor: outlineColor.value });
+            update({
+                [`${target}OutlineWidth`]: Number(width.value),
+                [`${target}OutlineColor`]: outlineColor.value,
+            });
         };
         width.addEventListener('input', saveOutline);
         outlineColor.addEventListener('input', saveOutline);
-    }
+    });
 
 }

@@ -127,7 +127,7 @@ function buildDesignCache() {
             !raw.includes('boxColor') && !raw.includes('bannerMode') &&
             !raw.includes('nameGradient') && !raw.includes('dialogueGradient') &&
             !raw.includes('boxGradient') &&
-            !raw.includes('nameOutlineWidth')) {
+            !raw.includes('nameOutlineWidth') && !raw.includes('dialogueOutlineWidth')) {
             continue;
         }
 
@@ -144,6 +144,8 @@ function buildDesignCache() {
                 boxGradient: wld.boxGradient || null,
                 nameOutlineColor: wld.nameOutlineColor || null,
                 nameOutlineWidth: wld.nameOutlineWidth ?? null,
+                dialogueOutlineColor: wld.dialogueOutlineColor || null,
+                dialogueOutlineWidth: wld.dialogueOutlineWidth ?? null,
                 bannerMode: wld.bannerMode || null,
                 bannerUrl: wld.bannerUrl || null,
                 bannerPosition: wld.bannerPosition ?? 25,
@@ -230,6 +232,10 @@ export function renderDesignTab(pane) {
                         baseTrailing: `<span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>`,
                         end: effects.dialogueGradient?.end || '#b48ead',
                         angle: effects.dialogueGradient?.angle ?? 90,
+                        outline: {
+                            target: 'dialogue', color: effects.dialogueOutlineColor,
+                            width: effects.dialogueOutlineWidth, max: 2,
+                        },
                     })}
 
                     ${renderSharedGradientCard({
@@ -495,6 +501,8 @@ export function renderDesignTab(pane) {
             'wl_design.boxGradient': null,
             'wl_design.nameOutlineColor': null,
             'wl_design.nameOutlineWidth': null,
+            'wl_design.dialogueOutlineColor': null,
+            'wl_design.dialogueOutlineWidth': null,
         });
         Object.assign(liveDesign, normalizeDesign({}));
         schedulePreview();

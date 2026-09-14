@@ -162,6 +162,10 @@ export function renderDesignTab(pane) {
                         baseTrailing: `<span class="wl-cd-color-hex">${design.dialogueColor || 'default'}</span>`,
                         end: effects.dialogueGradient?.end || '#b48ead',
                         angle: effects.dialogueGradient?.angle ?? 90,
+                        outline: {
+                            target: 'dialogue', color: effects.dialogueOutlineColor,
+                            width: effects.dialogueOutlineWidth, max: 2,
+                        },
                     })}
 
                     ${renderSharedGradientCard({

@@ -77,7 +77,7 @@ export function renderFontPicker(currentFont, fieldId, options = {}) {
                     aria-expanded="false" aria-controls="${esc(panelId)}"
                     ${customControlAttrs}
                     ${customKey ? `data-wl-custom-dependent="${esc(customKey)}"` : ''}
-                    ${useCustom ? '' : 'disabled'}>
+                    ${useCustomFieldId && !useCustom ? 'disabled' : ''}>
                 <span class="wl-cdm-font-control-name">${esc(displayName)}</span>
                 <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
             </button>

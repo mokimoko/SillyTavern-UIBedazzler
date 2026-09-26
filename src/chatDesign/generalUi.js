@@ -7,9 +7,11 @@ import { buildControlStyleCSS } from './controlStyle.js';
 import { buildInputAreaStyleCSS } from './inputAreaStyle.js';
 import { buildQuickReplyStyleCSS } from './quickReplyStyle.js';
 import { buildScrollbarStyleCSS } from './scrollbarStyle.js';
+import { buildToastStyleCSS } from './toastStyle.js';
 import { buildWeatherBadgeCSS } from './weatherBadgeStyle.js';
 import { buildChatTopBarCSS } from './chatTopBarStyle.js';
 import { buildGuidedGenerationsCSS } from './guidedGenerationsStyle.js';
+import { buildLeftRailLayoutCSS } from './leftRailLayout.js';
 
 const TOP_BAR_ICON_SELECTORS = Object.freeze([
     '#top-settings-holder .drawer-icon',
@@ -52,11 +54,15 @@ export function buildGeneralUiCSS(style) {
         ? {
             ...source,
             topBarPresetUseCustom: false,
+            topBarRailWidth: 60,
+            topBarRailRadius: 22,
             topBarWidthMode: 'theme',
             topBarHeightMode: 'theme',
             topBarTopOffset: 0,
             chatGapMode: 'theme',
             topBarSurfaceMode: 'theme',
+            topBarBlurMode: 'theme',
+            topBarShadowMode: 'theme',
             topBarBorderMode: 'theme',
             iconSizeMode: 'theme',
             iconSpacingMode: 'theme',
@@ -70,6 +76,7 @@ export function buildGeneralUiCSS(style) {
             inputAreaIconMode: 'theme',
             qrButtonMode: 'theme',
             scrollbarMode: 'theme',
+            toastMode: 'theme',
         }
         : {
             ...source,
@@ -169,6 +176,30 @@ body.no-blur #top-bar {
 }`);
     }
 
+    if (p.topBarBlurMode === 'custom') {
+        const blur = clampNumber(p.topBarBlur, 0, 30, 8);
+        const filter = blur === 0 ? 'none' : `blur(${blur}px)`;
+        sections.push(`#top-bar,
+body #top-bar,
+body.no-blur #top-bar {
+    backdrop-filter: ${filter} !important;
+    -webkit-backdrop-filter: ${filter} !important;
+}`);
+    }
+
+    if (p.topBarShadowMode === 'custom') {
+        const opacity = clampNumber(p.topBarShadowOpacity, 0, 1, 0.28);
+        const blur = clampNumber(p.topBarShadowBlur, 0, 60, 24);
+        const offsetY = clampNumber(p.topBarShadowOffsetY, -30, 30, 8);
+        const shadow = opacity === 0 ? 'none'
+            : `0 ${offsetY}px ${blur}px ${hexToRgba(p.topBarShadowColor, opacity, '#000000')}`;
+        sections.push(`#top-bar,
+body #top-bar,
+body.no-blur #top-bar {
+    box-shadow: ${shadow} !important;
+}`);
+    }
+
     if (p.topBarBorderMode === 'custom') {
         const width = clampNumber(p.topBarBorderWidth, 0, 6, 1);
         const color = hexToRgba(p.topBarBorderColor, p.topBarBorderOpacity, '#ffffff');
@@ -178,7 +209,7 @@ body.no-blur #top-bar {
 }`);
     }
 
-    if (widthMode === 'custom') {
+    if (widthMode === 'custom' && preset !== 'leftRail') {
         const width = clampNumber(p.topBarWidth ?? p.fullBleedWidth, 50, 100, 92);
         sections.push(`#top-bar {
     width: ${width}vw !important;
@@ -193,7 +224,7 @@ body.no-blur #top-bar {
     // Floating Frame has its own inset; otherwise a zero offset leaves the
     // theme's vertical placement entirely alone. The icon host must travel
     // with the visible backdrop without inheriting its width.
-    if (preset === 'floatingFrame' || topOffset !== 0) {
+    if (preset !== 'leftRail' && (preset === 'floatingFrame' || topOffset !== 0)) {
         sections.push(`@media screen and (min-width: 1001px) {
     #top-bar,
     #top-settings-holder {
@@ -219,7 +250,7 @@ body.no-blur #top-bar {
 }`);
     }
 
-    if (p.chatGapMode === 'custom') {
+    if (p.chatGapMode === 'custom' && preset !== 'leftRail') {
         const gap = clampNumber(p.chatGap, 0, 24, 0);
         const desktopExtra = desktopTop + gap;
         const mobileExtra = mobileTop + gap;
@@ -242,6 +273,10 @@ body.no-blur #top-bar {
 }`);
     }
 
+    if (preset === 'leftRail') {
+        sections.push(buildLeftRailLayoutCSS(p));
+    }
+
     if (p.iconSizeMode === 'custom') {
         const size = clampNumber(p.iconSize, 18, 48, 30);
         sections.push(`body {
@@ -252,14 +287,25 @@ body.no-blur #top-bar {
     if (p.iconSpacingMode === 'custom') {
         const gap = clampNumber(p.iconSpacing, 0, 80, 8);
         const offsetX = clampNumber(p.iconOffsetX, -240, 240, 0);
-        const offsetRule = offsetX !== 0 ? `\n    left: ${offsetX}px !important;` : '';
-        sections.push(`#top-settings-holder {
+        if (preset === 'leftRail') {
+            const offsetRule = offsetX !== 0
+                ? `\n#top-settings-holder > .drawer > .drawer-toggle {\n    transform: translateX(${offsetX}px) !important;\n}`
+                : '';
+            sections.push(`@media screen and (min-width: 1001px) {
+    #top-settings-holder {
+        gap: ${gap}px !important;
+    }${offsetRule}
+}`);
+        } else {
+            const offsetRule = offsetX !== 0 ? `\n    left: ${offsetX}px !important;` : '';
+            sections.push(`#top-settings-holder {
     gap: ${gap}px !important;${offsetRule}
 }
 #top-settings-holder > .drawer {
     flex: 0 0 auto !important;
     width: auto !important;
 }`);
+        }
     }
 
     if (p.iconColorMode === 'custom') {
@@ -298,6 +344,9 @@ ${interactiveIcons} {
 
     const scrollbarStyleCSS = buildScrollbarStyleCSS(p);
     if (scrollbarStyleCSS) sections.push(scrollbarStyleCSS);
+
+    const toastStyleCSS = buildToastStyleCSS(p);
+    if (toastStyleCSS) sections.push(toastStyleCSS);
 
     const weatherBadgeCSS = buildWeatherBadgeCSS(p);
     if (weatherBadgeCSS) sections.push(weatherBadgeCSS);

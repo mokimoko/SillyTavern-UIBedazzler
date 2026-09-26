@@ -1,7 +1,6 @@
 // src/chatDesign/avatarStamp.js
 // Stamps each rendered .mes element with a unique avatar identifier so Chat
-// Design CSS can target a specific character/persona even when two share a
-// display name.
+// Design and Persona Design can target entities that share a display name.
 //
 // ST renders the source avatar into the message's `.avatar img` src as a
 // query param, e.g.:
@@ -18,8 +17,14 @@ const log = () => {};
 const CHAT_SELECTOR = '#chat';
 let observer = null;
 let retryTimer = null;
-let stampingRequested = false;
-let onAvatarStamped = null;
+const clients = new Map();
+let observedChat = null;
+
+function notifyClients(avatar, mes) {
+    for (const callback of clients.values()) {
+        try { callback?.(avatar, mes); } catch {}
+    }
+}
 
 /**
  * Extract the `file=` param from a thumbnail src and decode it.
@@ -49,7 +54,7 @@ export function stampMessage(mes) {
     const avatar = avatarFromSrc(img.getAttribute('src'));
     if (!avatar) return false;
     if (mes.dataset.wlAvatar !== avatar) mes.dataset.wlAvatar = avatar;
-    try { onAvatarStamped?.(avatar, mes); } catch {}
+    notifyClients(avatar, mes);
     return true;
 }
 
@@ -72,18 +77,21 @@ export function stampAllMessages() {
  *   3. An existing message's avatar img src changes (swipe/edit re-render) →
  *      same attribute path re-stamps it.
  *
- * Idempotent: calling start again tears down the previous observer first.
+ * Multiple features share one observer; repeat calls reuse it for the same chat.
  */
-export function startAvatarStamping(callback = null) {
-    if (typeof callback === 'function') onAvatarStamped = callback;
-    stampingRequested = true;
+export function startAvatarStamping(callback = null, client = 'chatDesign') {
+    const alreadyRegistered = clients.has(client);
+    clients.set(client, typeof callback === 'function' ? callback : null);
     const chat = document.querySelector(CHAT_SELECTOR);
     if (!chat) {
         log('startAvatarStamping: #chat not found, deferring');
         if (retryTimer === null) {
             retryTimer = setTimeout(() => {
                 retryTimer = null;
-                if (stampingRequested) startAvatarStamping();
+                if (clients.size) {
+                    const [waitingClient, waitingCallback] = clients.entries().next().value;
+                    startAvatarStamping(waitingCallback, waitingClient);
+                }
             }, 200);
         }
         return;
@@ -93,8 +101,17 @@ export function startAvatarStamping(callback = null) {
         clearTimeout(retryTimer);
         retryTimer = null;
     }
+    if (observer && observedChat === chat) {
+        if (alreadyRegistered && typeof callback !== 'function') return;
+        // A new client may need to inspect messages stamped before it joined.
+        if (typeof callback === 'function') chat.querySelectorAll('.mes[data-wl-avatar]')
+            .forEach(mes => { try { callback(mes.dataset.wlAvatar, mes); } catch {} });
+        stampAllMessages();
+        return;
+    }
     observer?.disconnect();
     observer = null;
+    observedChat = chat;
 
     // Initial pass over anything already rendered.
     stampAllMessages();
@@ -153,9 +170,9 @@ export function startAvatarStamping(callback = null) {
 /**
  * Stop observing. Existing data-wl-avatar attributes are left in place.
  */
-export function stopAvatarStamping() {
-    stampingRequested = false;
-    onAvatarStamped = null;
+export function stopAvatarStamping(client = 'chatDesign') {
+    clients.delete(client);
+    if (clients.size) return;
     if (retryTimer !== null) {
         clearTimeout(retryTimer);
         retryTimer = null;
@@ -163,6 +180,7 @@ export function stopAvatarStamping() {
     if (observer) {
         observer.disconnect();
         observer = null;
+        observedChat = null;
         log('Avatar stamping stopped');
     }
 }

@@ -8,6 +8,7 @@ export function buildControlStyleCSS(properties = {}) {
     if (properties.controlColorsMode !== 'custom') return '';
 
     const checkboxSurface = color(properties.checkboxSurfaceColor, '#20242c');
+    const checkboxOff = color(properties.checkboxOffColor, checkboxSurface);
     const checkboxTick = color(properties.checkboxTickColor, '#8fb5ff');
     const checkboxBorder = color(properties.checkboxBorderColor, '#667085');
     const toggleOn = color(properties.toggleOnColor, '#7aa2f7');
@@ -25,6 +26,9 @@ input[type="checkbox"]:not(.bd-switch) {
     background-color: ${checkboxSurface} !important;
     border-color: ${checkboxBorder} !important;
     outline-color: color-mix(in srgb, ${checkboxBorder} 55%, transparent) !important;
+}
+input[type="checkbox"]:not(.bd-switch):not(:checked) {
+    background-color: ${checkboxOff} !important;
 }
 input[type="checkbox"]:not(.bd-switch)::before {
     box-shadow: inset 1em 1em ${checkboxTick} !important;

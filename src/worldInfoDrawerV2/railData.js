@@ -43,31 +43,45 @@ export function getPersonaBookName() {
 }
 
 /**
- * The character's books: primary from the card (data.extensions.world), extras
- * from world_info.charLore keyed by the avatar filename (same lookup ST's own
- * /getcharbook uses — verified against world-info.js ~1130). Primary first,
- * order only (no sub-label in the rail — mock's rule). Empty in group chats
- * and no-character contexts for now.
+ * Character books: primary from each card, extras from world_info.charLore
+ * keyed by avatar filename. In groups, ST uses the current speaker's books
+ * for each reply, so collect enabled members' books for the rail. A shared
+ * book appears once with every member who links it.
  */
 export async function getCharBooks() {
     const c = ctx();
-    if (c.characterId == null || c.groupId != null) return [];
-    const character = c.characters?.[c.characterId];
-    if (!character) return [];
+    let characters;
+    if (c.groupId != null) {
+        const group = c.groups?.find(g => String(g.id) === String(c.groupId));
+        if (!group?.members) return [];
+        const disabled = new Set(group.disabled_members || []);
+        const byAvatar = new Map((c.characters || []).map(character => [character.avatar, character]));
+        characters = group.members.filter(avatar => !disabled.has(avatar)).map(avatar => byAvatar.get(avatar)).filter(Boolean);
+    } else {
+        const character = c.characterId != null ? c.characters?.[c.characterId] : null;
+        characters = character ? [character] : [];
+    }
+    if (!characters.length) return [];
 
-    const books = [];
-    const primary = character.data?.extensions?.world;
-    if (primary) books.push({ name: primary, primary: true });
-
-    const fileName = (character.avatar || '').replace(/\.[^/.]+$/, '');
     const { world_info } = await wiPromise;
-    const extra = world_info?.charLore?.find(e => e.name === fileName);
-    for (const name of (extra?.extraBooks ?? [])) {
-        if (name && !books.some(b => b.name === name)) {
-            books.push({ name, primary: false });
+    const extrasByAvatar = new Map((world_info?.charLore || []).map(entry => [entry.name, entry.extraBooks || []]));
+    const books = new Map();
+    for (const character of characters) {
+        const owner = character.name || character.avatar;
+        const add = (name, primary) => {
+            if (!name) return;
+            if (!books.has(name)) books.set(name, { name, primary, owners: [] });
+            const book = books.get(name);
+            book.primary ||= primary;
+            if (!book.owners.includes(owner)) book.owners.push(owner);
+        };
+        add(character.data?.extensions?.world, true);
+        const fileName = (character.avatar || '').replace(/\.[^/.]+$/, '');
+        for (const name of (extrasByAvatar.get(fileName) || [])) {
+            add(name, false);
         }
     }
-    return books;
+    return [...books.values()];
 }
 
 /** Toggle one book's membership in the global set. Routed through the shared

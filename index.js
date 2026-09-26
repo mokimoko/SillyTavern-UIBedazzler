@@ -64,6 +64,7 @@ import {
     syncWeatherCycleBadgeSettingsRow,
 } from './src/weatherCycleBadge.js';
 import { initWeatherCycleVisibility } from './src/weatherCycleVisibility.js';
+import { initStoryAppsDockCompat } from './src/storyAppsDockCompat.js';
 import { onWeatherCycleCompatToggleChanged } from './src/weatherCycleCompat.js';
 import {
     applySideButtonStyleForActiveChar,
@@ -454,6 +455,11 @@ jQuery(async () => {
     // Init all features (each timed)
     _time('initPresetDrawer', () => initPresetDrawer());
     _time('initPresetDrawerExpanded', () => initPresetDrawerExpanded());
+    // Group-chat token totals can stay on the previous Chat Completion preset
+    // even with both drawer features off. Install the narrow fallback globally.
+    void import('./src/presetDrawerExpanded/tokenRefresh.js')
+        .then(({ initPresetTokenRefresh }) => initPresetTokenRefresh())
+        .catch(error => console.warn('[UIBedazzler] Preset token refresh unavailable:', error));
     _time('initUserSettingsDrawer', () => initUserSettingsDrawer());
     _time('initPersonaLore', () => initPersonaLore());
     _time('initCharDrawer', () => initCharDrawer());
@@ -465,6 +471,7 @@ jQuery(async () => {
     _time('initWeatherCycleVisibility', () => initWeatherCycleVisibility());
     _time('initSideButtons', () => initSideButtons());
     _time('initWeatherCycleBadge', () => initWeatherCycleBadge());
+    _time('initStoryAppsDockCompat', () => initStoryAppsDockCompat());
     _time('initVariableViewer', () => initVariableViewer());
     _time('initLightThemeCompat', () => initLightThemeCompat());
     _time('initNativePromptViewer', () => initNativePromptViewer());

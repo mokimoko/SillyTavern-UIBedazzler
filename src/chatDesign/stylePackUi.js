@@ -220,7 +220,11 @@ async function openReviewDialog(parsed, onApplied) {
 
 /** Choose a bundled Style Pack, then open the shared review screen. */
 export async function addStylePack(onApplied) {
-    const { getBuiltInStylePack, getBuiltInStylePacks } = await import('./builtInStylePacks.js');
+    const {
+        getBuiltInStylePack,
+        getBuiltInStylePacks,
+        getBuiltInStylePackPreviewTheme,
+    } = await import('./builtInStylePacks.js');
     const packs = await getBuiltInStylePacks();
     const resourceSummary = pack => {
         const resources = [];
@@ -242,7 +246,6 @@ export async function addStylePack(onApplied) {
             <section class="wl-sp-pack-preview-pane" aria-label="Selected Style Pack preview">
                 <header><span><i class="fa-regular fa-eye"></i> Live Preview</span><strong id="wl-sp-preview-name"></strong></header>
                 <div class="wl-sp-pack-preview-host"></div>
-                <p>Rendered by Chat Design using the current chat's background and avatar. Saved themes, General UI settings, and custom top-bar icons are listed but not simulated here.</p>
             </section>
         </div>
     `, `
@@ -252,16 +255,26 @@ export async function addStylePack(onApplied) {
     const previewHost = overlay.querySelector('.wl-sp-pack-preview-host');
     const previewName = overlay.querySelector('#wl-sp-preview-name');
     let selectedIndex = 0;
-    const selectPack = index => {
+    let previewRevision = 0;
+    const selectPack = async index => {
+        const revision = ++previewRevision;
         selectedIndex = index;
         overlay.querySelectorAll('[data-pack-index]').forEach(button => {
             button.setAttribute('aria-selected', String(Number(button.dataset.packIndex) === selectedIndex));
         });
         if (previewName) previewName.textContent = packs[selectedIndex].name;
-        renderStylePackPreview(previewHost, packs[selectedIndex]);
+        const selectedPack = packs[selectedIndex];
+        try {
+            const theme = await getBuiltInStylePackPreviewTheme(selectedPack.name);
+            if (revision !== previewRevision || !overlay.isConnected) return;
+            renderStylePackPreview(previewHost, selectedPack, theme);
+        } catch {
+            if (revision !== previewRevision || !overlay.isConnected) return;
+            renderStylePackPreview(previewHost, selectedPack);
+        }
     };
     overlay.querySelectorAll('[data-pack-index]').forEach(button => button.addEventListener('click', () => {
-        selectPack(Number(button.dataset.packIndex));
+        void selectPack(Number(button.dataset.packIndex));
     }));
     overlay.querySelector('[data-action="review"]')?.addEventListener('click', async () => {
         const pack = packs[selectedIndex];
@@ -272,7 +285,7 @@ export async function addStylePack(onApplied) {
             globalThis.toastr?.error(error.message || 'The built-in Style Pack could not be loaded.', 'Style Packs');
         }
     });
-    selectPack(0);
+    void selectPack(0);
 }
 
 /** Open a file picker, validate the archive, then show the shared review screen. */

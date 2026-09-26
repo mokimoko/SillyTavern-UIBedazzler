@@ -204,6 +204,17 @@ function switchTab(tabName) {
     }
 }
 
+export function isClassicPopupVisible(popup = document.getElementById('character_popup')) {
+    if (!popup) return false;
+    if (popup.style.display === 'none' || popup.style.visibility === 'hidden') return false;
+    if (popup.classList.contains('displayNone') || popup.classList.contains('hidden')) return false;
+
+    if (typeof popup.checkVisibility === 'function') {
+        return popup.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true });
+    }
+    return popup.getClientRects().length > 0;
+}
+
 // ============================================================
 // Outside Close
 // ============================================================
@@ -227,7 +238,15 @@ function clearOutsideClickSuppression() {
 function closeOnOutsidePointer(event) {
     if (!isActive || document.body.classList.contains('wl-xd-open')) return;
     const popup = document.getElementById('character_popup');
-    if (!popup || popup.contains(event.target) || event.target.closest(NATIVE_POPUP_OPENER_SELECTOR)) return;
+    if (!popup) return;
+
+    // A stale takeover must never invoke the native toggle: when the popup is
+    // already hidden, that toggle opens it and hijacks the user's next click.
+    if (!isClassicPopupVisible(popup)) {
+        restoreDrawer();
+        return;
+    }
+    if (popup.contains(event.target) || event.target.closest(NATIVE_POPUP_OPENER_SELECTOR)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();

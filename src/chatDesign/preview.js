@@ -12,7 +12,8 @@ const ELEMENT_LABELS = {
     avatar: 'Message Elements',
     background: 'Background',
 };
-const FALLBACK_AVATAR = '/scripts/extensions/third-party/SillyTavern-UIBedazzler/assets/nebula/default_Assistant.png';
+const PREVIEW_AVATAR_PLACEHOLDER = new URL('../../assets/chat-design/avatar-preview-placeholder.svg', import.meta.url).href;
+const PREVIEW_BANNER_PLACEHOLDER = new URL('../../assets/chat-design/banner-preview-placeholder.svg', import.meta.url).href;
 
 let previewExpanded = false;
 let previewRole = 'assistant';
@@ -66,15 +67,18 @@ const SHADOW_CSS = `
         min-height: 176px;
         padding: 15px;
         overflow: hidden;
-        background: var(--SmartThemeChatTintColor, rgba(24, 23, 29, 0.88));
+        background: var(--SmartThemeBotMesBlurTintColor, var(--SmartThemeChatTintColor, rgba(24, 23, 29, 0.88)));
         border: 1px solid var(--bd-border, rgba(255, 255, 255, 0.12));
+    }
+    .mes[is_user="true"] {
+        background: var(--SmartThemeUserMesBlurTintColor, var(--SmartThemeChatTintColor, rgba(24, 23, 29, 0.88)));
     }
     .mesAvatarWrapper {
         position: relative;
         z-index: 3;
-        flex: 0 0 62px;
-        width: 62px;
-        min-width: 62px;
+        flex: 0 0 auto;
+        width: max-content;
+        min-width: 0;
         text-align: center;
         color: var(--bd-text-faint, rgba(255, 255, 255, 0.48));
         font-size: 8px;
@@ -285,19 +289,30 @@ function getLiveSample(role) {
         const raw = message.getAttribute('is_user');
         return raw === String(wantsUser) || raw === (wantsUser ? '1' : '0');
     });
-    const name = source?.querySelector('.name_text')?.textContent?.trim()
+    const liveName = source?.querySelector('.name_text')?.textContent?.trim()
         || (wantsUser ? 'You' : 'Assistant');
     const sourceImage = source?.querySelector('.avatar img');
-    const avatarUrl = sourceImage?.currentSrc || sourceImage?.src || FALLBACK_AVATAR;
-    let hasBanner = false;
+    const liveAvatarUrl = sourceImage?.currentSrc || sourceImage?.src || '';
+    const isDefaultAssistant = !wantsUser && (!source || liveName === 'SillyTavern System'
+        || liveAvatarUrl.includes('/assets/nebula/default_Assistant.png'));
+    const usesFallbackAvatar = isDefaultAssistant || !liveAvatarUrl
+        || (sourceImage?.complete && sourceImage.naturalWidth === 0);
+    const name = isDefaultAssistant ? 'Alex' : liveName;
+    const avatarUrl = usesFallbackAvatar ? PREVIEW_AVATAR_PLACEHOLDER : liveAvatarUrl;
+    let bannerImage = '';
+    let bannerPosition = '';
     try {
-        hasBanner = !!source
-            && window.getComputedStyle(source, '::before').backgroundImage !== 'none';
-    } catch { /* A missing pseudo-element simply uses the avatar fallback. */ }
+        const sourceStyle = source ? window.getComputedStyle(source) : null;
+        bannerImage = computedValue(sourceStyle, '--wl-cdm-banner-image');
+        bannerPosition = computedValue(sourceStyle, '--wl-cdm-banner-position');
+    } catch { /* Unavailable live styles simply use the avatar fallback. */ }
+    if (isDefaultAssistant || ['none', 'initial', 'unset'].includes(bannerImage)) bannerImage = '';
     return {
         name,
         avatarUrl,
-        hasBanner,
+        usesFallbackAvatar,
+        bannerImage,
+        bannerPosition,
         contextCSS: buildContextCSS(source),
     };
 }
@@ -393,6 +408,7 @@ function mountPreview(host) {
     root.innerHTML = `
         <style data-preview-base>${SHADOW_CSS}</style>
         <style data-preview-context></style>
+        <style data-preview-theme></style>
         <style data-preview-live></style>
         <div class="wl-cdm-preview-frame">
             <div id="wl-cdm-preview-bg"></div>
@@ -466,7 +482,48 @@ function mountPreview(host) {
     return root;
 }
 
-function updatePreviewContent(host, previewStyles) {
+function validThemeColor(value) {
+    if (typeof value !== 'string') return '';
+    const color = value.trim();
+    if (!color || /[;{}]/.test(color)) return '';
+    return globalThis.CSS?.supports?.('color', color) ? color : '';
+}
+
+function buildPreviewThemeCSS(theme) {
+    if (!theme) return '';
+    const fields = [
+        ['main_text_color', ['--SmartThemeBodyColor', '--SmartThemeMainTextColor', '--bd-text', '--bd-text-dim']],
+        ['quote_text_color', ['--SmartThemeQuoteColor', '--bd-accent']],
+        ['italics_text_color', ['--SmartThemeEmColor']],
+        ['underline_text_color', ['--SmartThemeUnderlineColor']],
+        ['border_color', ['--SmartThemeBorderColor', '--bd-border']],
+        ['chat_tint_color', ['--SmartThemeChatTintColor']],
+        ['bot_mes_blur_tint_color', ['--SmartThemeBotMesBlurTintColor']],
+        ['user_mes_blur_tint_color', ['--SmartThemeUserMesBlurTintColor']],
+        ['blur_tint_color', ['--SmartThemeBlurTintColor', '--bd-surface', '--bd-surface-2']],
+        ['shadow_color', ['--SmartThemeShadowColor']],
+    ];
+    const declarations = [];
+    for (const [field, variables] of fields) {
+        const color = validThemeColor(theme[field]);
+        if (!color) continue;
+        declarations.push(...variables.map(variable => `${variable}: ${color}`));
+    }
+    const scale = Number(theme.font_scale);
+    if (Number.isFinite(scale) && scale >= 0.5 && scale <= 2) {
+        declarations.push(`--wl-pack-theme-font-scale: ${scale}`);
+    }
+    if (!declarations.length) return '';
+    return `
+        :host { ${declarations.join('; ')}; }
+        .wl-cdm-preview-message .name_text,
+        .wl-cdm-preview-message .mes_text { color: var(--SmartThemeBodyColor, var(--bd-text)); }
+        .wl-cdm-preview-message .mes_text { font-size: calc(14px * var(--wl-pack-theme-font-scale, 1)); }
+        .wl-cdm-preview-message .mes_text q { color: var(--SmartThemeQuoteColor, var(--bd-text)); }
+    `;
+}
+
+function updatePreviewContent(host, previewStyles, theme = null) {
     if (!host?.isConnected) return;
     const root = mountPreview(host);
     if (!host.__wlPreviewSample || host.__wlPreviewRole !== previewRole) {
@@ -477,12 +534,25 @@ function updatePreviewContent(host, previewStyles) {
     const message = root.querySelector('.wl-cdm-preview-message');
     const image = root.querySelector('.avatar img');
     const background = root.querySelector('#wl-cdm-preview-bg');
+    const fallbackBannerUrl = sample.usesFallbackAvatar ? PREVIEW_BANNER_PLACEHOLDER : sample.avatarUrl;
 
     message?.setAttribute('is_user', String(previewRole === 'user'));
     message?.setAttribute('ch_name', sample.name);
+    if (message) {
+        if (sample.bannerImage) message.style.setProperty('--wl-cdm-banner-image', sample.bannerImage);
+        else message.style.removeProperty('--wl-cdm-banner-image');
+        if (sample.bannerPosition) message.style.setProperty('--wl-cdm-banner-position', sample.bannerPosition);
+        else message.style.removeProperty('--wl-cdm-banner-position');
+    }
     const name = root.querySelector('.name_text');
     if (name) name.textContent = sample.name;
     if (image) {
+        image.onerror = () => {
+            image.onerror = null;
+            image.src = PREVIEW_AVATAR_PLACEHOLDER;
+            sample.usesFallbackAvatar = true;
+            if (!sample.bannerImage) renderPreviewStyles(root, previewStyles, sample, PREVIEW_BANNER_PLACEHOLDER);
+        };
         image.src = sample.avatarUrl;
         image.alt = `${sample.name} avatar`;
     }
@@ -499,18 +569,38 @@ function updatePreviewContent(host, previewStyles) {
     }
 
     const contextStyle = root.querySelector('[data-preview-context]');
-    if (contextStyle && contextStyle.textContent !== sample.contextCSS) {
-        contextStyle.textContent = sample.contextCSS;
+    const contextCSS = theme ? '' : sample.contextCSS;
+    if (contextStyle && contextStyle.textContent !== contextCSS) {
+        contextStyle.textContent = contextCSS;
+    }
+    const themeStyle = root.querySelector('[data-preview-theme]');
+    if (themeStyle) {
+        const themeCSS = buildPreviewThemeCSS(theme);
+        if (themeStyle.textContent !== themeCSS) themeStyle.textContent = themeCSS;
     }
     const liveStyle = root.querySelector('[data-preview-live]');
-    if (liveStyle) {
-        const css = previewStyles.map(previewStyle => buildPreviewCSS(
-            previewStyle,
-            '.wl-cdm-preview-message',
-            { avatarUrl: previewStyle.element === 'banner' && !sample.hasBanner ? sample.avatarUrl : null },
-        )).filter(Boolean).join('\n\n');
-        if (liveStyle.textContent !== css) liveStyle.textContent = css;
+    if (liveStyle) renderPreviewStyles(root, previewStyles, sample, fallbackBannerUrl);
+}
+
+function renderPreviewStyles(root, previewStyles, sample, fallbackBannerUrl) {
+    const liveStyle = root.querySelector('[data-preview-live]');
+    if (!liveStyle) return;
+    const rules = previewStyles.map(previewStyle => buildPreviewCSS(
+        previewStyle,
+        '.wl-cdm-preview-message',
+        { avatarUrl: previewStyle.element === 'banner' && !sample.bannerImage ? fallbackBannerUrl : null },
+    )).filter(Boolean);
+    if (root.host?.dataset.wlStylePackPreview === 'true') {
+        const banner = previewStyles.find(style => style.element === 'banner');
+        const padding = Number(banner?.properties?.paddingTop) || 150;
+        if (banner && Number.isFinite(padding) && padding >= 0 && padding <= 300) {
+            // The pack sample has no Character/Persona Design rule to reserve
+            // the banner's vertical space as a real assigned chat does.
+            rules.push(`#chat .wl-cdm-preview-message { padding-top: ${padding}px !important; }`);
+        }
     }
+    const css = rules.join('\n\n');
+    if (liveStyle.textContent !== css) liveStyle.textContent = css;
 }
 
 function updatePreview(host, style) {
@@ -525,11 +615,12 @@ function updatePreview(host, style) {
 }
 
 /** Render a bundled pack with the same isolated preview pipeline used by the style editor. */
-export function renderStylePackPreview(host, pack) {
+export function renderStylePackPreview(host, pack, theme = null) {
+    if (host) host.dataset.wlStylePackPreview = 'true';
     const styles = LINKED_PREVIEW_ORDER
         .map(element => pack?.styles?.find(style => style.element === element))
         .filter(Boolean);
-    updatePreviewContent(host, styles);
+    updatePreviewContent(host, styles, theme);
 }
 
 export function renderChatDesignPreview(elementType) {

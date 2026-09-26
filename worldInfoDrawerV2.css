@@ -267,6 +267,11 @@
     box-shadow: 0 0 6px color-mix(in srgb, var(--bd-accent) 70%, transparent);
 }
 .wl-wi2-book:not(.ours) .wl-wi2-dot { cursor: default; }
+.wl-wi2-book-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wl-wi2-book-owner {
+    min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; color: var(--faint); font-size: 10px;
+}
 .wl-wi2-cnt { margin-left: auto; font-size: 10.5px; color: var(--faint); font-family: var(--mono); }
 
 /* ── Read-order bindings (1/2/3) + strategy picker ── */

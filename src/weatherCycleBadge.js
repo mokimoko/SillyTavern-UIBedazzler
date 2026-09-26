@@ -45,6 +45,16 @@ function clampToViewport(x, y, badge) {
         && position.y + (rect.height || badge.offsetHeight || 36) > topBarRect.top;
     if (!overlaps) return position;
 
+    const verticalRail = topBarRect.height >= window.innerHeight * 0.6
+        && topBarRect.width < window.innerWidth * 0.35;
+    if (verticalRail) {
+        const beside = Math.ceil(topBarRect.right + TOP_BAR_GAP);
+        if (beside + (rect.width || badge.offsetWidth || 120) <= window.innerWidth) {
+            position.x = beside;
+            return position;
+        }
+    }
+
     const below = Math.ceil(topBarRect.bottom + TOP_BAR_GAP);
     if (below + (rect.height || badge.offsetHeight || 36) <= window.innerHeight) {
         position.y = below;
@@ -60,6 +70,14 @@ function applyPosition() {
         badgeEl.style.top = '';
         badgeEl.style.right = '';
         badgeEl.style.bottom = '';
+        const rect = badgeEl.getBoundingClientRect();
+        const position = clampToViewport(rect.left, rect.top, badgeEl);
+        if (position.x !== rect.left || position.y !== rect.top) {
+            badgeEl.style.left = `${position.x}px`;
+            badgeEl.style.top = `${position.y}px`;
+            badgeEl.style.right = 'auto';
+            badgeEl.style.bottom = 'auto';
+        }
         return;
     }
 

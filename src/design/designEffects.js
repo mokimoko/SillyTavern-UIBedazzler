@@ -34,6 +34,17 @@ export function buildGradientTextDeclarations(backgroundImage) {
     ];
 }
 
+/** Override an inherited text gradient without disturbing pseudo-element badges. */
+export function buildSolidTextDeclarations(textColor) {
+    return [
+        'background-image: none !important',
+        'background-clip: border-box !important',
+        '-webkit-background-clip: border-box !important',
+        `color: ${textColor} !important`,
+        `-webkit-text-fill-color: ${textColor} !important`,
+    ];
+}
+
 const clamp = (value, min, max, fallback) => {
     const number = Number(value);
     return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;

@@ -22,6 +22,25 @@ let originalPositions = []; // { element, parent, nextSibling }
 let isActive = false;
 let panelObserver = null;
 let initObserver = null;
+let tokenRefreshModulePromise = null;
+
+function startTokenRefresh() {
+    tokenRefreshModulePromise ??= import('./presetDrawerExpanded/tokenRefresh.js').catch(error => {
+        tokenRefreshModulePromise = null;
+        console.warn('[BD Preset Drawer] Token refresh unavailable:', error);
+        return null;
+    });
+    void tokenRefreshModulePromise.then(module => {
+        if (isActive && document.getElementById('wl-pd-container')) {
+            module?.startTokenRefresh('tabbed', 'wl-pd-container');
+        }
+    });
+}
+
+function stopTokenRefresh() {
+    if (!tokenRefreshModulePromise) return;
+    void tokenRefreshModulePromise.then(module => module?.stopTokenRefresh('tabbed'));
+}
 
 // ============================================================
 // Drawer Takeover
@@ -107,6 +126,7 @@ function takeoverDrawer() {
     });
 
     isActive = true;
+    startTokenRefresh();
 
     // --- Curtain up: reveal after DOM work is complete ---
     // requestAnimationFrame defers the reveal to the next paint frame,
@@ -141,6 +161,7 @@ function switchTab(tabName) {
  */
 function restoreDrawer() {
     if (!isActive) return;
+    stopTokenRefresh();
 
     const container = document.getElementById('wl-pd-container');
     if (!container) {
@@ -205,6 +226,7 @@ function ensureTakeover() {
     // reset state so takeoverDrawer() can re-apply cleanly.
     if (isActive && !document.getElementById('wl-pd-container')) {
         log('Container lost — resetting for re-takeover');
+        stopTokenRefresh();
         originalPositions = [];
         isActive = false;
     }

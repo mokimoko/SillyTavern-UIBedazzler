@@ -32,17 +32,59 @@ export function calculateSideButtonScrollerHeight(viewportHeight, topBarSafeY, o
     );
 }
 
+export function translateLegacyChatEdgeX(x, legacyChatRight, currentChatRight) {
+    const shift = currentChatRight - legacyChatRight;
+    if (shift <= 0) return x;
+
+    const wasBesideLegacyChat = x >= legacyChatRight - VIEWPORT_GAP
+        && x < currentChatRight;
+    return wasBesideLegacyChat ? x + shift : x;
+}
+
 function readPosition() {
     const value = getSetting(SETTING_KEY);
     return value && Number.isFinite(value.x) && Number.isFinite(value.y) ? value : null;
 }
 
-function getTopBarSafeY() {
-    const bottoms = ['top-bar', 'top-settings-holder']
+function getTopBarSafeOrigin() {
+    const rects = ['top-bar', 'top-settings-holder']
         .map(id => document.getElementById(id)?.getBoundingClientRect())
-        .filter(rect => rect && rect.width > 0 && rect.height > 0 && rect.bottom > 0)
-        .map(rect => rect.bottom);
-    return bottoms.length > 0 ? Math.max(...bottoms) + VIEWPORT_GAP : VIEWPORT_GAP;
+        .filter(rect => rect && rect.width > 0 && rect.height > 0);
+    let x = VIEWPORT_GAP;
+    let y = VIEWPORT_GAP;
+
+    for (const rect of rects) {
+        const verticalRail = rect.height >= window.innerHeight * 0.6
+            && rect.width < window.innerWidth * 0.35;
+        if (verticalRail && rect.left <= VIEWPORT_GAP) {
+            x = Math.max(x, rect.right + VIEWPORT_GAP);
+        } else if (rect.top <= VIEWPORT_GAP) {
+            y = Math.max(y, rect.bottom + VIEWPORT_GAP);
+        }
+    }
+
+    return { x, y };
+}
+
+function adjustSavedXForLeftRail(x) {
+    const topBar = document.getElementById('top-bar');
+    const chatShell = document.getElementById('sheld');
+    if (!topBar || !chatShell) return x;
+
+    const railRect = topBar.getBoundingClientRect();
+    const verticalRail = railRect.height >= window.innerHeight * 0.6
+        && railRect.width < window.innerWidth * 0.35;
+    if (!verticalRail || railRect.left > VIEWPORT_GAP) return x;
+
+    const bodyStyle = getComputedStyle(document.body);
+    const railWidth = Number.parseFloat(bodyStyle.getPropertyValue('--bd-left-rail-width'));
+    const railGap = Number.parseFloat(bodyStyle.getPropertyValue('--bd-left-rail-gap')) || 0;
+    if (!Number.isFinite(railWidth)) return x;
+
+    const railSpace = railWidth + railGap;
+    const chatRect = chatShell.getBoundingClientRect();
+    const legacyChatRight = chatRect.right - (railSpace / 2);
+    return translateLegacyChatEdgeX(x, legacyChatRight, chatRect.right);
 }
 
 function updateScrollableHeight(element) {
@@ -56,9 +98,10 @@ function updateScrollableHeight(element) {
         style.borderTopWidth,
         style.borderBottomWidth,
     ].reduce((total, value) => total + (Number.parseFloat(value) || 0), 0);
+    const safeOrigin = getTopBarSafeOrigin();
     const maxHeight = calculateSideButtonScrollerHeight(
         window.innerHeight,
-        getTopBarSafeY(),
+        safeOrigin.y,
         outerChrome,
     );
     const value = `${Math.floor(maxHeight)}px`;
@@ -69,6 +112,7 @@ function updateScrollableHeight(element) {
 
 function clampForElement(x, y, element) {
     const rect = element.getBoundingClientRect();
+    const safeOrigin = getTopBarSafeOrigin();
     return clampSideButtonPosition(
         x,
         y,
@@ -76,8 +120,8 @@ function clampForElement(x, y, element) {
         (rect.height || element.offsetHeight || 40) + HANDLE_CLEARANCE,
         window.innerWidth,
         window.innerHeight,
-        VIEWPORT_GAP,
-        getTopBarSafeY() + HANDLE_CLEARANCE,
+        safeOrigin.x,
+        safeOrigin.y + HANDLE_CLEARANCE,
     );
 }
 
@@ -85,9 +129,11 @@ function applyPosition(element) {
     updateScrollableHeight(element);
     const saved = readPosition();
     const rect = element.getBoundingClientRect();
+    const safeOrigin = getTopBarSafeOrigin();
+    const baseX = saved?.x ?? rect.left;
     const position = clampForElement(
-        saved?.x ?? rect.left,
-        saved?.y ?? Math.max(rect.top, getTopBarSafeY()),
+        saved ? adjustSavedXForLeftRail(baseX) : baseX,
+        saved?.y ?? Math.max(rect.top, safeOrigin.y),
         element,
     );
     element.style.left = `${position.x}px`;
@@ -126,6 +172,7 @@ export function attachSideButtonDrag(element, handles) {
     const onPointerDown = event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         const rect = element.getBoundingClientRect();
+        const safeOrigin = getTopBarSafeOrigin();
         drag = {
             pointerId: event.pointerId,
             handle: event.currentTarget,
@@ -133,7 +180,8 @@ export function attachSideButtonDrag(element, handles) {
             offsetY: event.clientY - rect.top,
             width: rect.width || element.offsetWidth || 40,
             height: (rect.height || element.offsetHeight || 40) + HANDLE_CLEARANCE,
-            minimumY: getTopBarSafeY() + HANDLE_CLEARANCE,
+            minimumX: safeOrigin.x,
+            minimumY: safeOrigin.y + HANDLE_CLEARANCE,
             position: null,
             moved: false,
         };
@@ -149,7 +197,7 @@ export function attachSideButtonDrag(element, handles) {
             drag.height,
             window.innerWidth,
             window.innerHeight,
-            VIEWPORT_GAP,
+            drag.minimumX,
             drag.minimumY,
         );
         if (dragFrame === null) dragFrame = requestAnimationFrame(flushDragPosition);

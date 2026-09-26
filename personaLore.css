@@ -121,7 +121,10 @@
     gap: 2px;
     flex-wrap: nowrap;
     min-width: 0;
-    padding: 0;
+    /* Keep the active tab's 2px underline inside this scroll container's
+       clipping edge while letting it cover the strip border as intended. */
+    padding: 0 0 2px;
+    margin-bottom: -2px;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-inline: contain;

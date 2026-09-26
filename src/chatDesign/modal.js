@@ -54,6 +54,7 @@ import { isWeatherCycleBadgeAvailable } from '../weatherCycleBadge.js';
 import { isChatTopBarAvailable } from './chatTopBarStyle.js';
 import { isGuidedGenerationsAvailable } from './guidedGenerationsStyle.js';
 import { uploadDesignImage } from '../design/designUtils.js';
+import { buildToastStyleCSS } from './toastStyle.js';
 
 const log = () => {};
 const ASSIGNMENT_PERSONA_CACHE_MS = 60_000;
@@ -1694,6 +1695,17 @@ function renderInputField(label, fieldId, value, placeholder = '') {
     `;
 }
 
+function renderGradientToggle(fieldId, value, offValue = 'solid') {
+    return `<div class="wl-cdm-field"><div class="wl-cdm-field-label-row">
+        <span class="wl-cdm-field-label">Fill</span>
+        <label class="wl-cdm-use-custom">
+            <input type="checkbox" class="wl-cdm-gradient-checkbox" id="${fieldId}"
+                   data-wl-gradient-off="${offValue}" ${value === 'gradient' ? 'checked' : ''}>
+            <span>Gradient</span>
+        </label>
+    </div></div>`;
+}
+
 function renderCheckboxField(label, fieldId, checked, hint = '') {
     return `
         <div class="wl-cdm-field">
@@ -1743,9 +1755,8 @@ function renderNameProps(p, prefix = 'name') {
         ])}
         ${renderShadowField('Text Shadow', `wl-cdm-p-${key('textShadow')}`, p[key('textShadow')])}
         <div class="wl-cdm-subsection">Name Text Fill</div>
-        ${renderSelectField('Fill', `wl-cdm-p-${key('fillMode')}`, p[key('fillMode')], {
-            theme: 'Active theme', gradient: 'Two-color gradient',
-        })}
+        ${renderGradientToggle(`wl-cdm-p-${key('fillMode')}`, p[key('fillMode')], 'theme')}
+        <div class="wl-cdm-field-hint">Off uses the active theme name color.</div>
         <div data-wl-name-fill-conditional="gradient" ${p[key('fillMode')] === 'gradient' ? '' : 'hidden'}>
             ${renderFieldRow([
                 renderColorField('Start Color', `wl-cdm-p-${key('fillStartColor')}`, p[key('fillStartColor')]),
@@ -1772,9 +1783,7 @@ function renderNameProps(p, prefix = 'name') {
             ], 'Underline follows the name text; Full-width divider spans the message header above the main text.')}
         </div>
         <div class="wl-cdm-subsection">Name Background</div>
-        ${renderSelectField('Fill', `wl-cdm-p-${key('backgroundFillMode')}`, p[key('backgroundFillMode')], {
-            solid: 'Solid color', gradient: 'Two-color gradient',
-        })}
+        ${renderGradientToggle(`wl-cdm-p-${key('backgroundFillMode')}`, p[key('backgroundFillMode')])}
         ${renderFieldRow([
             renderColorField('Primary Color', `wl-cdm-p-${key('backgroundColor')}`, p[key('backgroundColor')]),
             renderRangeField('Background Opacity', `wl-cdm-p-${key('backgroundOpacity')}`, p[key('backgroundOpacity')], 0, 1, 0.05, ''),
@@ -2059,9 +2068,7 @@ function renderBannerProps(p) {
         ${renderRangeField('Fade Opacity', 'wl-cdm-p-bottomFadeOpacity', p.bottomFadeOpacity, 0, 1, 0.05, '')}
 
         <div class="wl-cdm-subsection">Overlay</div>
-        ${renderSelectField('Fill', 'wl-cdm-p-overlayType', p.overlayType, {
-            solid: 'Solid color', gradient: 'Two-color gradient',
-        })}
+        ${renderGradientToggle('wl-cdm-p-overlayType', p.overlayType)}
         ${renderColorField('Primary Color', 'wl-cdm-p-overlayColor', p.overlayColor)}
         <div data-wl-banner-overlay-conditional="gradient"${overlayGradientHidden}>
             ${renderColorField('Secondary Color', 'wl-cdm-p-overlaySecondaryColor', p.overlaySecondaryColor)}
@@ -2305,9 +2312,7 @@ function renderMessageElementsProps(p, activeSection) {
         </div>
         <div class="wl-cdm-field-hint">Loads a complete color treatment. Every setting remains editable.</div>
         ${renderCheckboxField('Enable overlay', 'wl-cdm-p-avatarOverlayEnabled', p.avatarOverlayEnabled ?? false, 'Turn this off to return to the untouched avatar without losing your settings.')}
-        ${renderSelectField('Fill', 'wl-cdm-p-avatarOverlayType', p.avatarOverlayType, {
-            solid: 'Solid color', gradient: 'Two-color gradient',
-        })}
+        ${renderGradientToggle('wl-cdm-p-avatarOverlayType', p.avatarOverlayType)}
         ${renderColorField('Primary Color', 'wl-cdm-p-avatarOverlayPrimaryColor', p.avatarOverlayPrimaryColor)}
         <div data-wl-avatar-overlay-conditional="gradient"${overlayGradientHidden}>
             ${renderColorField('Secondary Color', 'wl-cdm-p-avatarOverlaySecondaryColor', p.avatarOverlaySecondaryColor)}
@@ -2418,6 +2423,7 @@ function ensureGeneralUiProperties(p) {
     }
     if (!('topBarPresetUseCustom' in p)) p.topBarPresetUseCustom = !!p.topBarPreset && p.topBarPreset !== 'theme';
     if (!('weatherBadgeFontUseCustom' in p)) p.weatherBadgeFontUseCustom = p.weatherBadgeFont === 'mono';
+    if (!('checkboxOffColor' in p)) p.checkboxOffColor = p.checkboxSurfaceColor || ELEMENT_DEFAULTS.generalUi.checkboxOffColor;
     for (const [key, value] of Object.entries(ELEMENT_DEFAULTS.generalUi)) {
         if (!(key in p)) p[key] = value;
     }
@@ -2429,7 +2435,8 @@ function syncScrollbarPreview(props) {
 
     const properties = {};
     props.querySelectorAll('[id^="wl-cdm-p-scrollbar"]').forEach(input => {
-        properties[input.id.replace('wl-cdm-p-', '')] = input.value;
+        properties[input.id.replace('wl-cdm-p-', '')] = input.matches('.wl-cdm-gradient-checkbox')
+            ? (input.checked ? 'gradient' : 'solid') : input.value;
     });
     const resolved = resolveScrollbarStyle(properties);
     const variables = {
@@ -2523,8 +2530,12 @@ function renderGeneralUiProps(p, activeSection) {
     const widthHidden = p.topBarWidthMode === 'custom' ? '' : ' hidden';
     const heightHidden = p.topBarHeightMode === 'custom' ? '' : ' hidden';
     const gapHidden = p.chatGapMode === 'custom' ? '' : ' hidden';
+    const railLayoutHidden = p.topBarPreset === 'leftRail' && p.topBarPresetUseCustom ? '' : ' hidden';
+    const horizontalLayoutHidden = p.topBarPreset === 'leftRail' && p.topBarPresetUseCustom ? ' hidden' : '';
     const surfaceHidden = p.topBarSurfaceMode === 'custom' ? '' : ' hidden';
     const surfaceGradientHidden = p.topBarSurfaceType === 'gradient' ? '' : ' hidden';
+    const blurHidden = p.topBarBlurMode === 'custom' ? '' : ' hidden';
+    const shadowHidden = p.topBarShadowMode === 'custom' ? '' : ' hidden';
     const borderHidden = p.topBarBorderMode === 'custom' ? '' : ' hidden';
     const inputSurfaceHidden = p.inputAreaSurfaceMode === 'custom' ? '' : ' hidden';
     const inputSurfaceGradientHidden = p.inputAreaSurfaceType === 'gradient' ? '' : ' hidden';
@@ -2536,6 +2547,10 @@ function renderGeneralUiProps(p, activeSection) {
     const qrGradientHidden = p.qrButtonSurfaceType === 'gradient' ? '' : ' hidden';
     const controlsHidden = p.controlColorsMode === 'custom' ? '' : ' hidden';
     const scrollbarsHidden = p.scrollbarMode === 'custom' ? '' : ' hidden';
+    const toastsHidden = p.toastMode === 'custom' ? '' : ' hidden';
+    const thumbGradientHidden = p.scrollbarThumbFill === 'gradient' ? '' : ' hidden';
+    const hoverGradientHidden = p.scrollbarThumbHoverFill === 'gradient' ? '' : ' hidden';
+    const trackGradientHidden = p.scrollbarTrackFill === 'gradient' ? '' : ' hidden';
     const weatherCustomHidden = p.weatherBadgeMode === 'custom' ? '' : ' hidden';
     const weatherColorsHidden = p.weatherBadgePalette === 'custom' ? '' : ' hidden';
     const chatTopBarSurfaceHidden = p.chatTopBarSurfaceMode === 'custom' ? '' : ' hidden';
@@ -2551,33 +2566,40 @@ function renderGeneralUiProps(p, activeSection) {
             fullBleed: 'Full Bleed',
             softShelf: 'Soft Shelf',
             floatingFrame: 'Floating Frame',
-        }, 'Off keeps the theme geometry. Floating Frame moves the backdrop and icon layer together while leaving the drawer host at its native width.')}
+            leftRail: 'Left Rail',
+        }, 'Off keeps the theme geometry. Left Rail is desktop-only and returns to the horizontal theme layout on smaller screens.')}
 
         <div class="wl-cdm-subsection">Bar Layout</div>
-        ${renderCustomModeToggle('Width', 'wl-cdm-p-topBarWidthMode', p.topBarWidthMode, 'Off follows the selected shape or active theme.')}
-        <div data-wl-general-ui-conditional="width"${widthHidden}>
-            ${renderRangeField('Bar Width', 'wl-cdm-p-topBarWidth', p.topBarWidth, 50, 100, 1, '% viewport')}
-            <div class="wl-cdm-field-hint">Works with every shape. 100% reaches both viewport edges; lower values stay centered.</div>
+        <div data-wl-general-ui-conditional="horizontal-layout"${horizontalLayoutHidden}>
+            ${renderCustomModeToggle('Width', 'wl-cdm-p-topBarWidthMode', p.topBarWidthMode, 'Off follows the selected shape or active theme.')}
+            <div data-wl-general-ui-conditional="width"${widthHidden}>
+                ${renderRangeField('Bar Width', 'wl-cdm-p-topBarWidth', p.topBarWidth, 50, 100, 1, '% viewport')}
+                <div class="wl-cdm-field-hint">Works with every horizontal shape. 100% reaches both viewport edges; lower values stay centered.</div>
+            </div>
+            ${renderCustomModeToggle('Height', 'wl-cdm-p-topBarHeightMode', p.topBarHeightMode)}
+            <div data-wl-general-ui-conditional="height"${heightHidden}>
+                ${renderRangeField('Bar Height', 'wl-cdm-p-topBarHeight', p.topBarHeight, 30, 56, 1, 'px')}
+                <div class="wl-cdm-field-hint">A deliberately modest range. Very large icons may need a taller bar.</div>
+            </div>
+            ${renderRangeField('Top Offset', 'wl-cdm-p-topBarTopOffset', p.topBarTopOffset, -16, 24, 1, 'px')}
+            <div class="wl-cdm-field-hint">− moves the bar toward the viewport edge · + adds room above it · 0 uses the preset or theme position</div>
         </div>
-        ${renderCustomModeToggle('Height', 'wl-cdm-p-topBarHeightMode', p.topBarHeightMode)}
-        <div data-wl-general-ui-conditional="height"${heightHidden}>
-            ${renderRangeField('Bar Height', 'wl-cdm-p-topBarHeight', p.topBarHeight, 30, 56, 1, 'px')}
-            <div class="wl-cdm-field-hint">A deliberately modest range. Very large icons may need a taller bar.</div>
+        <div data-wl-general-ui-conditional="rail-layout"${railLayoutHidden}>
+            ${renderRangeField('Rail Width', 'wl-cdm-p-topBarRailWidth', p.topBarRailWidth, 44, 96, 1, 'px')}
+            <div class="wl-cdm-field-hint">The rail reserves this space on the left. Wider icon styles may need a wider rail.</div>
+            ${renderRangeField('Outer Corner Radius', 'wl-cdm-p-topBarRailRadius', p.topBarRailRadius, 0, 48, 1, 'px')}
+            <div class="wl-cdm-field-hint">0px makes the rail square; higher values round its top-right and bottom-right corners.</div>
         </div>
-        ${renderRangeField('Top Offset', 'wl-cdm-p-topBarTopOffset', p.topBarTopOffset, -16, 24, 1, 'px')}
-        <div class="wl-cdm-field-hint">− moves the bar toward the viewport edge · + adds room above it · 0 uses the preset or theme position</div>
         ${renderCustomModeToggle('Space Before Chat', 'wl-cdm-p-chatGapMode', p.chatGapMode)}
         <div data-wl-general-ui-conditional="chat-gap"${gapHidden}>
             ${renderRangeField('Bar-to-Chat Gap', 'wl-cdm-p-chatGap', p.chatGap, 0, 24, 1, 'px')}
-            <div class="wl-cdm-field-hint">0 places the chat directly beneath the visible bar.</div>
+            <div class="wl-cdm-field-hint">For Left Rail, this becomes horizontal space between the rail and chat.</div>
         </div>
 
         <div class="wl-cdm-subsection">Bar Surface</div>
         ${renderCustomModeToggle('Surface', 'wl-cdm-p-topBarSurfaceMode', p.topBarSurfaceMode)}
         <div data-wl-general-ui-conditional="surface"${surfaceHidden}>
-            ${renderSelectField('Fill', 'wl-cdm-p-topBarSurfaceType', p.topBarSurfaceType, {
-                solid: 'Solid color', gradient: 'Two-color gradient',
-            })}
+            ${renderGradientToggle('wl-cdm-p-topBarSurfaceType', p.topBarSurfaceType)}
             ${renderColorField('Primary Color', 'wl-cdm-p-topBarSurfaceColor', p.topBarSurfaceColor)}
             <div data-wl-general-ui-conditional="surface-gradient"${surfaceGradientHidden}>
                 ${renderFieldRow([
@@ -2586,7 +2608,23 @@ function renderGeneralUiProps(p, activeSection) {
                 ])}
             </div>
             ${renderRangeField('Surface Opacity', 'wl-cdm-p-topBarSurfaceOpacity', p.topBarSurfaceOpacity, 0, 1, 0.05, '')}
-            <div class="wl-cdm-field-hint">Transparency keeps the existing backdrop blur, if the active theme provides one.</div>
+        </div>
+
+        <div class="wl-cdm-subsection">Backdrop Blur</div>
+        ${renderCustomModeToggle('Blur', 'wl-cdm-p-topBarBlurMode', p.topBarBlurMode, 'Set 0px to remove the theme blur.')}
+        <div data-wl-general-ui-conditional="blur"${blurHidden}>
+            ${renderRangeField('Blur Strength', 'wl-cdm-p-topBarBlur', p.topBarBlur, 0, 30, 1, 'px')}
+        </div>
+
+        <div class="wl-cdm-subsection">Shadow</div>
+        ${renderCustomModeToggle('Shadow', 'wl-cdm-p-topBarShadowMode', p.topBarShadowMode, 'Set opacity to 0 to remove the theme or shape shadow.')}
+        <div data-wl-general-ui-conditional="shadow"${shadowHidden}>
+            ${renderColorField('Shadow Color', 'wl-cdm-p-topBarShadowColor', p.topBarShadowColor)}
+            ${renderFieldRow([
+                renderRangeField('Shadow Opacity', 'wl-cdm-p-topBarShadowOpacity', p.topBarShadowOpacity, 0, 1, 0.05, ''),
+                renderRangeField('Shadow Blur', 'wl-cdm-p-topBarShadowBlur', p.topBarShadowBlur, 0, 60, 1, 'px'),
+            ])}
+            ${renderRangeField('Vertical Offset', 'wl-cdm-p-topBarShadowOffsetY', p.topBarShadowOffsetY, -30, 30, 1, 'px')}
         </div>
 
         <div class="wl-cdm-subsection">Border</div>
@@ -2606,9 +2644,7 @@ function renderGeneralUiProps(p, activeSection) {
         <div class="wl-cdm-subsection">Composer Surface</div>
         ${renderCustomModeToggle('Surface', 'wl-cdm-p-inputAreaSurfaceMode', p.inputAreaSurfaceMode, 'Off preserves the active theme surface and blur.')}
         <div data-wl-general-ui-conditional="input-surface"${inputSurfaceHidden}>
-            ${renderSelectField('Fill', 'wl-cdm-p-inputAreaSurfaceType', p.inputAreaSurfaceType, {
-                solid: 'Solid color', gradient: 'Two-color gradient',
-            })}
+            ${renderGradientToggle('wl-cdm-p-inputAreaSurfaceType', p.inputAreaSurfaceType)}
             ${renderColorField('Primary Color', 'wl-cdm-p-inputAreaSurfaceColor', p.inputAreaSurfaceColor)}
             <div data-wl-general-ui-conditional="input-surface-gradient"${inputSurfaceGradientHidden}>
                 ${renderFieldRow([
@@ -2678,9 +2714,7 @@ function renderGeneralUiProps(p, activeSection) {
         ${renderCustomModeToggle('QR Button Styling', 'wl-cdm-p-qrButtonMode', p.qrButtonMode, 'Off leaves the main Quick Reply bar and popout buttons on their native or theme styling.')}
         <div data-wl-general-ui-conditional="qr-buttons"${qrButtonsHidden}>
             <div class="wl-cdm-subsection">Button Surface</div>
-            ${renderSelectField('Fill', 'wl-cdm-p-qrButtonSurfaceType', p.qrButtonSurfaceType, {
-                solid: 'Solid color', gradient: 'Two-color gradient',
-            })}
+            ${renderGradientToggle('wl-cdm-p-qrButtonSurfaceType', p.qrButtonSurfaceType)}
             ${renderColorField('Primary Color', 'wl-cdm-p-qrButtonSurfaceColor', p.qrButtonSurfaceColor)}
             <div data-wl-general-ui-conditional="qr-gradient"${qrGradientHidden}>
                 ${renderFieldRow([
@@ -2866,7 +2900,8 @@ function renderGeneralUiProps(p, activeSection) {
         ${renderCustomModeToggle('Control Colors', 'wl-cdm-p-controlColorsMode', p.controlColorsMode, 'Off leaves SillyTavern and extension controls on their active theme colors.')}
         <div data-wl-general-ui-conditional="controls"${controlsHidden}>
             <div class="wl-cdm-subsection">Checkboxes</div>
-            ${renderColorField('Box Surface', 'wl-cdm-p-checkboxSurfaceColor', p.checkboxSurfaceColor)}
+            ${renderColorField('On (Checked)', 'wl-cdm-p-checkboxSurfaceColor', p.checkboxSurfaceColor)}
+            ${renderColorField('Off (Unchecked)', 'wl-cdm-p-checkboxOffColor', p.checkboxOffColor)}
             ${renderColorField('Checkmark', 'wl-cdm-p-checkboxTickColor', p.checkboxTickColor)}
             ${renderColorField('Border', 'wl-cdm-p-checkboxBorderColor', p.checkboxBorderColor)}
 
@@ -2883,11 +2918,6 @@ function renderGeneralUiProps(p, activeSection) {
             <div class="wl-cdm-subsection">Sliders</div>
             ${renderColorField('Track', 'wl-cdm-p-sliderTrackColor', p.sliderTrackColor)}
             ${renderColorField('Thumb', 'wl-cdm-p-sliderThumbColor', p.sliderThumbColor)}
-            ${renderFieldRow([
-                renderSelectField('Thumb Fill', 'wl-cdm-p-scrollbarThumbFill', p.scrollbarThumbFill, { solid: 'Solid', gradient: 'Gradient' }),
-                renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbEndColor', p.scrollbarThumbEndColor),
-                renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbAngle', p.scrollbarThumbAngle, 0, 360, 1, '°'),
-            ])}
             ${renderColorField('Thumb Border', 'wl-cdm-p-sliderThumbBorderColor', p.sliderThumbBorderColor)}
         </div>
     `;
@@ -2929,27 +2959,130 @@ function renderGeneralUiProps(p, activeSection) {
                 renderRangeField('Thumb Opacity', 'wl-cdm-p-scrollbarThumbOpacity', p.scrollbarThumbOpacity, 0.1, 1, 0.05, ''),
             ])}
             ${renderColorField('Thumb Border', 'wl-cdm-p-scrollbarThumbBorderColor', p.scrollbarThumbBorderColor)}
+            ${renderGradientToggle('wl-cdm-p-scrollbarThumbFill', p.scrollbarThumbFill)}
+            <div data-wl-general-ui-conditional="scrollbar-thumb-gradient"${thumbGradientHidden}>
+                ${renderFieldRow([
+                    renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbEndColor', p.scrollbarThumbEndColor),
+                    renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbAngle', p.scrollbarThumbAngle, 0, 360, 1, '°'),
+                ])}
+            </div>
             ${renderFieldRow([
                 renderColorField('Hover Color', 'wl-cdm-p-scrollbarThumbHoverColor', p.scrollbarThumbHoverColor),
                 renderColorField('Hover Border', 'wl-cdm-p-scrollbarThumbHoverBorderColor', p.scrollbarThumbHoverBorderColor),
             ])}
 
-            ${renderFieldRow([
-                renderSelectField('Hover Fill', 'wl-cdm-p-scrollbarThumbHoverFill', p.scrollbarThumbHoverFill, { solid: 'Solid', gradient: 'Gradient' }),
-                renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbHoverEndColor', p.scrollbarThumbHoverEndColor),
-                renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbHoverAngle', p.scrollbarThumbHoverAngle, 0, 360, 1, '°'),
-            ])}
+            ${renderGradientToggle('wl-cdm-p-scrollbarThumbHoverFill', p.scrollbarThumbHoverFill)}
+            <div data-wl-general-ui-conditional="scrollbar-hover-gradient"${hoverGradientHidden}>
+                ${renderFieldRow([
+                    renderColorField('Gradient End', 'wl-cdm-p-scrollbarThumbHoverEndColor', p.scrollbarThumbHoverEndColor),
+                    renderRangeField('Direction', 'wl-cdm-p-scrollbarThumbHoverAngle', p.scrollbarThumbHoverAngle, 0, 360, 1, '°'),
+                ])}
+            </div>
             <div class="wl-cdm-subsection">Track</div>
             ${renderFieldRow([
                 renderColorField('Track Color', 'wl-cdm-p-scrollbarTrackColor', p.scrollbarTrackColor),
                 renderRangeField('Track Opacity', 'wl-cdm-p-scrollbarTrackOpacity', p.scrollbarTrackOpacity, 0, 1, 0.05, ''),
             ])}
+            ${renderGradientToggle('wl-cdm-p-scrollbarTrackFill', p.scrollbarTrackFill)}
+            <div data-wl-general-ui-conditional="scrollbar-track-gradient"${trackGradientHidden}>
+                ${renderFieldRow([
+                    renderColorField('Gradient End', 'wl-cdm-p-scrollbarTrackEndColor', p.scrollbarTrackEndColor),
+                    renderRangeField('Direction', 'wl-cdm-p-scrollbarTrackAngle', p.scrollbarTrackAngle, 0, 360, 1, '°'),
+                ])}
+            </div>
+
+        </div>
+    `;
+
+    const toastFields = `
+        ${renderCustomModeToggle('Toast Styling', 'wl-cdm-p-toastMode', p.toastMode, 'Off keeps SillyTavern’s native toast appearance.')}
+        <div class="wl-cdm-field">
+            <label class="wl-cdm-field-label" for="wl-cdm-toast-preview-type">Preview</label>
+            <select class="wl-cdm-select" id="wl-cdm-toast-preview-type">
+                <option value="info">Info</option>
+                <option value="success">Success</option>
+                <option value="warning">Warning</option>
+                <option value="error">Error</option>
+            </select>
+            <button type="button" class="wl-cdm-btn wl-cdm-btn-ghost" id="wl-cdm-toast-preview">Show Sample Toast</button>
+        </div>
+        <div data-wl-general-ui-conditional="toasts"${toastsHidden}>
+            <div class="wl-cdm-subsection">Card</div>
             ${renderFieldRow([
-                renderSelectField('Track Fill', 'wl-cdm-p-scrollbarTrackFill', p.scrollbarTrackFill, { solid: 'Solid', gradient: 'Gradient' }),
-                renderColorField('Gradient End', 'wl-cdm-p-scrollbarTrackEndColor', p.scrollbarTrackEndColor),
-                renderRangeField('Direction', 'wl-cdm-p-scrollbarTrackAngle', p.scrollbarTrackAngle, 0, 360, 1, '°'),
+                renderColorField('Surface Color', 'wl-cdm-p-toastSurfaceColor', p.toastSurfaceColor),
+                renderRangeField('Surface Opacity', 'wl-cdm-p-toastSurfaceOpacity', p.toastSurfaceOpacity, 0, 1, 0.05, ''),
+            ])}
+            <div class="wl-cdm-field-hint">Uses background color only, so SillyTavern’s status icon stays intact.</div>
+            ${renderFieldRow([
+                renderRangeField('Width', 'wl-cdm-p-toastWidth', p.toastWidth, 220, 560, 5, 'px'),
+                renderRangeField('Corner Radius', 'wl-cdm-p-toastRadius', p.toastRadius, 0, 30, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Vertical Padding', 'wl-cdm-p-toastPaddingY', p.toastPaddingY, 4, 24, 1, 'px'),
+                renderRangeField('Right Padding', 'wl-cdm-p-toastPaddingRight', p.toastPaddingRight, 6, 36, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderRangeField('Icon & Text Spacing', 'wl-cdm-p-toastIconGutter', p.toastIconGutter, 40, 100, 1, 'px'),
+                renderRangeField('Stack Gap', 'wl-cdm-p-toastGap', p.toastGap, 0, 24, 1, 'px'),
+            ], 'The left gutter keeps both the title and message clear of the native icon.')}
+
+            <div class="wl-cdm-subsection">Frame & Status Accent</div>
+            ${renderFieldRow([
+                renderRangeField('Border Width', 'wl-cdm-p-toastBorderWidth', p.toastBorderWidth, 0, 6, 1, 'px'),
+                renderRangeField('Accent Width', 'wl-cdm-p-toastAccentWidth', p.toastAccentWidth, 0, 12, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderColorField('Border Color', 'wl-cdm-p-toastBorderColor', p.toastBorderColor),
+                renderRangeField('Border Opacity', 'wl-cdm-p-toastBorderOpacity', p.toastBorderOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderFieldRow([
+                renderColorField('Info', 'wl-cdm-p-toastInfoAccentColor', p.toastInfoAccentColor),
+                renderColorField('Success', 'wl-cdm-p-toastSuccessAccentColor', p.toastSuccessAccentColor),
+            ])}
+            ${renderFieldRow([
+                renderColorField('Warning', 'wl-cdm-p-toastWarningAccentColor', p.toastWarningAccentColor),
+                renderColorField('Error', 'wl-cdm-p-toastErrorAccentColor', p.toastErrorAccentColor),
+            ])}
+            ${renderRangeField('Accent Opacity', 'wl-cdm-p-toastAccentOpacity', p.toastAccentOpacity, 0, 1, 0.05, '')}
+
+            <div class="wl-cdm-subsection">Shadow</div>
+            ${renderColorField('Shadow Color', 'wl-cdm-p-toastShadowColor', p.toastShadowColor)}
+            ${renderFieldRow([
+                renderRangeField('Opacity', 'wl-cdm-p-toastShadowOpacity', p.toastShadowOpacity, 0, 1, 0.05, ''),
+                renderRangeField('Blur', 'wl-cdm-p-toastShadowBlur', p.toastShadowBlur, 0, 60, 1, 'px'),
+            ])}
+            ${renderRangeField('Vertical Offset', 'wl-cdm-p-toastShadowOffsetY', p.toastShadowOffsetY, -20, 30, 1, 'px')}
+
+            <div class="wl-cdm-subsection">Title</div>
+            ${renderFieldRow([
+                renderColorField('Title Color', 'wl-cdm-p-toastTitleColor', p.toastTitleColor),
+                renderRangeField('Title Opacity', 'wl-cdm-p-toastTitleOpacity', p.toastTitleOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderRangeField('Title Size', 'wl-cdm-p-toastTitleSize', p.toastTitleSize, 10, 22, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Weight', 'wl-cdm-p-toastTitleWeight', p.toastTitleWeight, 400, 800, 50, ''),
+                renderRangeField('Letter Spacing', 'wl-cdm-p-toastTitleLetterSpacing', p.toastTitleLetterSpacing, 0, 0.2, 0.01, 'em'),
+            ])}
+            ${renderCheckboxField('Uppercase title', 'wl-cdm-p-toastTitleUppercase', p.toastTitleUppercase)}
+            ${renderFieldRow([
+                renderRangeField('Title Gap', 'wl-cdm-p-toastTitleGap', p.toastTitleGap, 0, 20, 1, 'px'),
+                renderRangeField('Divider Width', 'wl-cdm-p-toastTitleDividerWidth', p.toastTitleDividerWidth, 0, 4, 1, 'px'),
+            ])}
+            ${renderFieldRow([
+                renderColorField('Divider Color', 'wl-cdm-p-toastTitleDividerColor', p.toastTitleDividerColor),
+                renderRangeField('Divider Opacity', 'wl-cdm-p-toastTitleDividerOpacity', p.toastTitleDividerOpacity, 0, 1, 0.05, ''),
             ])}
 
+            <div class="wl-cdm-subsection">Message & Close</div>
+            ${renderFieldRow([
+                renderColorField('Message Color', 'wl-cdm-p-toastMessageColor', p.toastMessageColor),
+                renderRangeField('Message Opacity', 'wl-cdm-p-toastMessageOpacity', p.toastMessageOpacity, 0, 1, 0.05, ''),
+            ])}
+            ${renderRangeField('Message Size', 'wl-cdm-p-toastMessageSize', p.toastMessageSize, 10, 22, 1, 'px')}
+            ${renderFieldRow([
+                renderRangeField('Line Height', 'wl-cdm-p-toastMessageLineHeight', p.toastMessageLineHeight, 1, 2, 0.05, ''),
+                renderColorField('Close Button', 'wl-cdm-p-toastCloseColor', p.toastCloseColor),
+            ])}
         </div>
     `;
 
@@ -2973,6 +3106,10 @@ function renderGeneralUiProps(p, activeSection) {
         scrollbars: {
             content: scrollbarFields,
             hint: 'Character-scoped styling for vertical and horizontal scrollbars throughout the interface.',
+        },
+        toasts: {
+            content: toastFields,
+            hint: 'Character-scoped styling for native SillyTavern notifications. Icon artwork and toast timing stay native.',
         },
     };
     if (isWeatherCycleBadgeAvailable()) {
@@ -3712,26 +3849,31 @@ function syncMessageActionConditionalFields(props) {
     });
 }
 
+function gradientType(props, id) {
+    const control = props.querySelector(`#${id}`);
+    return control?.checked ? 'gradient' : control?.dataset.wlGradientOff || 'solid';
+}
+
 function syncAvatarOverlayConditionalFields(props) {
-    const type = props.querySelector('#wl-cdm-p-avatarOverlayType')?.value;
+    const type = gradientType(props, 'wl-cdm-p-avatarOverlayType');
     props.querySelectorAll('[data-wl-avatar-overlay-conditional="gradient"]').forEach(field => {
         field.hidden = type !== 'gradient';
     });
 }
 
 function syncBannerOverlayConditionalFields(props) {
-    const type = props.querySelector('#wl-cdm-p-overlayType')?.value;
+    const type = gradientType(props, 'wl-cdm-p-overlayType');
     props.querySelectorAll('[data-wl-banner-overlay-conditional="gradient"]').forEach(field => {
         field.hidden = type !== 'gradient';
     });
 }
 
 function syncNameFillConditionalFields(props) {
-    const mode = props.querySelector('#wl-cdm-p-nameFillMode')?.value;
+    const mode = gradientType(props, 'wl-cdm-p-nameFillMode');
     props.querySelectorAll('[data-wl-name-fill-conditional="gradient"]').forEach(field => {
         field.hidden = mode !== 'gradient';
     });
-    const backgroundMode = props.querySelector('#wl-cdm-p-nameBackgroundFillMode')?.value;
+    const backgroundMode = gradientType(props, 'wl-cdm-p-nameBackgroundFillMode');
     props.querySelectorAll('[data-wl-name-background-conditional="gradient"]').forEach(field => {
         field.hidden = backgroundMode !== 'gradient';
     });
@@ -3780,23 +3922,31 @@ function syncGeneralUiConditionalFields(props) {
     const widthMode = mode('wl-cdm-p-topBarWidthMode');
     const heightMode = mode('wl-cdm-p-topBarHeightMode');
     const gapMode = mode('wl-cdm-p-chatGapMode');
+    const presetToggle = props.querySelector('#wl-cdm-p-topBarPresetUseCustom');
+    const preset = presetToggle?.checked
+        ? props.querySelector('#wl-cdm-p-topBarPreset')?.value
+        : 'theme';
+    const leftRail = preset === 'leftRail';
     const surfaceMode = mode('wl-cdm-p-topBarSurfaceMode');
-    const surfaceType = mode('wl-cdm-p-topBarSurfaceType');
+    const surfaceType = gradientType(props, 'wl-cdm-p-topBarSurfaceType');
+    const blurMode = mode('wl-cdm-p-topBarBlurMode');
+    const shadowMode = mode('wl-cdm-p-topBarShadowMode');
     const borderMode = mode('wl-cdm-p-topBarBorderMode');
     const inputSurfaceMode = mode('wl-cdm-p-inputAreaSurfaceMode');
-    const inputSurfaceType = mode('wl-cdm-p-inputAreaSurfaceType');
+    const inputSurfaceType = gradientType(props, 'wl-cdm-p-inputAreaSurfaceType');
     const inputBorderMode = mode('wl-cdm-p-inputAreaBorderMode');
     const inputLayoutMode = mode('wl-cdm-p-inputAreaLayoutMode');
     const inputTextMode = mode('wl-cdm-p-inputAreaTextMode');
     const inputIconMode = mode('wl-cdm-p-inputAreaIconMode');
     const qrButtonMode = mode('wl-cdm-p-qrButtonMode');
-    const qrButtonSurfaceType = mode('wl-cdm-p-qrButtonSurfaceType');
+    const qrButtonSurfaceType = gradientType(props, 'wl-cdm-p-qrButtonSurfaceType');
     const sizeMode = mode('wl-cdm-p-iconSizeMode');
     const spacingMode = mode('wl-cdm-p-iconSpacingMode');
     const colorMode = mode('wl-cdm-p-iconColorMode');
     const opacityMode = mode('wl-cdm-p-iconOpacityMode');
     const controlsMode = mode('wl-cdm-p-controlColorsMode');
     const scrollbarMode = mode('wl-cdm-p-scrollbarMode');
+    const toastMode = mode('wl-cdm-p-toastMode');
     const weatherMode = mode('wl-cdm-p-weatherBadgeMode');
     const weatherPalette = mode('wl-cdm-p-weatherBadgePalette');
     const chatTopBarSurfaceMode = mode('wl-cdm-p-chatTopBarSurfaceMode');
@@ -3807,10 +3957,16 @@ function syncGeneralUiConditionalFields(props) {
     const guidedGenerationsBorderMode = mode('wl-cdm-p-guidedGenerationsBorderMode');
     const guidedGenerationsRadiusMode = mode('wl-cdm-p-guidedGenerationsRadiusMode');
     props.querySelectorAll('[data-wl-general-ui-conditional="width"]').forEach(field => {
-        field.hidden = widthMode !== 'custom';
+        field.hidden = leftRail || widthMode !== 'custom';
     });
     props.querySelectorAll('[data-wl-general-ui-conditional="height"]').forEach(field => {
-        field.hidden = heightMode !== 'custom';
+        field.hidden = leftRail || heightMode !== 'custom';
+    });
+    props.querySelectorAll('[data-wl-general-ui-conditional="horizontal-layout"]').forEach(field => {
+        field.hidden = leftRail;
+    });
+    props.querySelectorAll('[data-wl-general-ui-conditional="rail-layout"]').forEach(field => {
+        field.hidden = !leftRail;
     });
     props.querySelectorAll('[data-wl-general-ui-conditional="chat-gap"]').forEach(field => {
         field.hidden = gapMode !== 'custom';
@@ -3820,6 +3976,12 @@ function syncGeneralUiConditionalFields(props) {
     });
     props.querySelectorAll('[data-wl-general-ui-conditional="surface-gradient"]').forEach(field => {
         field.hidden = surfaceType !== 'gradient';
+    });
+    props.querySelectorAll('[data-wl-general-ui-conditional="blur"]').forEach(field => {
+        field.hidden = blurMode !== 'custom';
+    });
+    props.querySelectorAll('[data-wl-general-ui-conditional="shadow"]').forEach(field => {
+        field.hidden = shadowMode !== 'custom';
     });
     props.querySelectorAll('[data-wl-general-ui-conditional="border"]').forEach(field => {
         field.hidden = borderMode !== 'custom';
@@ -3866,6 +4028,19 @@ function syncGeneralUiConditionalFields(props) {
     props.querySelectorAll('[data-wl-general-ui-conditional="scrollbars"]').forEach(field => {
         field.hidden = scrollbarMode !== 'custom';
     });
+    props.querySelectorAll('[data-wl-general-ui-conditional="toasts"]').forEach(field => {
+        field.hidden = toastMode !== 'custom';
+    });
+    for (const [key, fieldName] of [
+        ['scrollbarThumbFill', 'scrollbar-thumb-gradient'],
+        ['scrollbarThumbHoverFill', 'scrollbar-hover-gradient'],
+        ['scrollbarTrackFill', 'scrollbar-track-gradient'],
+    ]) {
+        const gradient = gradientType(props, `wl-cdm-p-${key}`) === 'gradient';
+        props.querySelectorAll(`[data-wl-general-ui-conditional="${fieldName}"]`).forEach(field => {
+            field.hidden = !gradient;
+        });
+    }
     props.querySelectorAll('[data-wl-general-ui-conditional="weather-custom"]').forEach(field => {
         field.hidden = weatherMode !== 'custom';
     });
@@ -3999,7 +4174,54 @@ function wirePropertyInputs(container, style) {
     if (!props) return;
     compactPropertyFields(props);
 
+    props.querySelector('#wl-cdm-toast-preview')?.addEventListener('click', () => {
+        const selectedType = props.querySelector('#wl-cdm-toast-preview-type')?.value;
+        const type = ['info', 'success', 'warning', 'error'].includes(selectedType) ? selectedType : 'info';
+        const showToast = globalThis.toastr?.[type];
+        if (typeof showToast !== 'function') return;
+
+        const previewCss = buildToastStyleCSS(style.properties, { preview: true });
+        let previewSheet = document.getElementById('wl-cdm-toast-preview-style');
+        if (previewCss) {
+            if (!previewSheet) {
+                previewSheet = document.createElement('style');
+                previewSheet.id = 'wl-cdm-toast-preview-style';
+                document.head.appendChild(previewSheet);
+            }
+            previewSheet.textContent = previewCss;
+        } else {
+            previewSheet?.remove();
+        }
+
+        const sample = globalThis.toastr[type]('This is a sample notification with enough text to check icon spacing.', 'Toast Preview', {
+            timeOut: 5000,
+            extendedTimeOut: 1000,
+            onHidden: () => {
+                setTimeout(() => {
+                    if (!document.querySelector('#toast-container > div.toast.wl-cdm-toast-preview')) {
+                        previewSheet?.remove();
+                    }
+                }, 0);
+            },
+        });
+        (sample?.[0] ?? sample)?.classList?.add('wl-cdm-toast-preview');
+    });
+
     if (style.element === 'container') wireThinkingPresetPicker(props, style);
+
+    props.querySelectorAll('.wl-cdm-gradient-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const propKey = checkbox.id.replace('wl-cdm-p-', '');
+            if (!propKey) return;
+            updateEditorProperty(style, propKey, checkbox.checked ? 'gradient' : checkbox.dataset.wlGradientOff || 'solid');
+            syncAvatarOverlayConditionalFields(props);
+            syncBannerOverlayConditionalFields(props);
+            syncNameFillConditionalFields(props);
+            syncGeneralUiConditionalFields(props);
+            syncScrollbarPreview(props);
+            refreshChatDesignCSSDebounced();
+        });
+    });
 
     props.querySelectorAll('.wl-cdm-mode-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', () => {
@@ -4147,6 +4369,7 @@ function wirePropertyInputs(container, style) {
                 if (valueKey) updateEditorProperty(style, valueKey, linkedSelect.value);
             }
             syncCustomToggleFields(props);
+            syncGeneralUiConditionalFields(props);
             refreshChatDesignCSSDebounced();
         });
     });

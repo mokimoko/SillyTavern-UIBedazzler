@@ -20,10 +20,9 @@ import {
 } from '../design/designUtils.js';
 import { buildGradientTextDeclarations } from '../design/designEffects.js';
 import { power_user } from '../../../../../power-user.js';
-import { user_avatar } from '../../../../../personas.js';
 import { extension_settings, getContext } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
-import { getAppearanceAvatar, getChatScope, isGroupContext } from './chatScope.js';
+import { getAppearanceAvatar, getChatScope } from './chatScope.js';
 import { sanitizeCustomCssDeclarations } from './customCss.js';
 
 const log = () => {};
@@ -135,6 +134,10 @@ function buildNameCSS(style, selector, properties = style.properties) {
         decls.push(`text-decoration-color: ${separatorColor} !important`);
         decls.push(`text-decoration-thickness: ${separatorWidth}px !important`);
         decls.push('text-underline-offset: 0.18em !important');
+    } else {
+        // A more-specific assigned style must clear an underline supplied by
+        // the default style instead of silently inheriting both separators.
+        decls.push('text-decoration-line: none !important');
     }
     if (p.fillMode === 'gradient') {
         const startColor = safeHexColor(p.fillStartColor, '#d49a74');
@@ -227,6 +230,12 @@ function buildNameCSS(style, selector, properties = style.properties) {
             '    box-sizing: border-box !important;\n' +
             '    padding-bottom: 4px !important;\n' +
             `    border-bottom: ${separatorWidth}px solid ${separatorColor} !important;\n` +
+            '}');
+    } else {
+        // Clear a full-width divider from a lower-priority default style.
+        rules.push(`${selector} .ch_name {\n` +
+            '    padding-bottom: 0 !important;\n' +
+            '    border-bottom: none !important;\n' +
             '}');
     }
     if (nameOffsetRule) rules.push(nameOffsetRule);
@@ -1264,9 +1273,14 @@ function buildUIFontCSS(style) {
         : !isDefaultFont(family);
 
     if (familyUsesCustom && !isDefaultFont(family)) {
-        // SillyTavern and its extensions commonly consume this variable rather
-        // than inheriting body font-family directly.
-        decls.unshift(`--mainFontFamily: ${getFontFamilyCSS(family)} !important`);
+        const familyCSS = getFontFamilyCSS(family);
+        // SillyTavern consumes --mainFontFamily, while several custom themes
+        // (including Gas-Station Divinity) use an inherited --uiFont token for
+        // headers and controls instead of inheriting body font-family.
+        decls.unshift(
+            `--mainFontFamily: ${familyCSS} !important`,
+            `--uiFont: ${familyCSS} !important`,
+        );
     }
 
     if (properties.uiTextColorUseCustom === true && /^#[0-9a-f]{6}$/i.test(properties.uiTextColor || '')) {
@@ -1282,8 +1296,9 @@ function buildUIFontCSS(style) {
 
 /**
  * Resolve the Fonts style that owns the current global interface typography.
- * Message/Dialogue rules remain per-message; only the Interface subsection is
- * resolved globally. Neutral UI settings do not mask a lower-priority style.
+ * The interface follows the active character, then falls back to the default.
+ * Persona assignments remain message-scoped and must not restyle the entire UI.
+ * Neutral UI settings do not mask a lower-priority style.
  */
 function resolveActiveUIFontStyle(styles) {
     const fontStyles = styles.filter(style =>
@@ -1291,8 +1306,6 @@ function resolveActiveUIFontStyle(styles) {
     if (fontStyles.length === 0) return null;
 
     const activeChar = getAppearanceAvatar() || null;
-    const activePersona = !isGroupContext() && user_avatar ? cleanAvatar(user_avatar) : null;
-
     let winner = null;
     let bestScore = -1;
     for (const style of fontStyles) {
@@ -1301,13 +1314,10 @@ function resolveActiveUIFontStyle(styles) {
 
         if (activeChar && (style.assignedCharacters || []).some(a => cleanAvatar(a) === activeChar)) {
             score = 4;
-        } else if (activePersona && (style.assignedPersonas || []).some(a => cleanAvatar(a) === activePersona)) {
-            score = 3;
         } else if ((style.assignedVerses || []).length > 0) {
             const targets = resolveStyleTargets(style);
             const matchesActiveContext = targets.some(target =>
-                (activeChar && target.charAvatar && cleanAvatar(target.charAvatar) === activeChar) ||
-                (activePersona && target.personaAvatar && cleanAvatar(target.personaAvatar) === activePersona));
+                activeChar && target.charAvatar && cleanAvatar(target.charAvatar) === activeChar);
             if (matchesActiveContext) score = 1;
         }
 

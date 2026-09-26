@@ -108,8 +108,8 @@ function renderFlyoutBody(panel) {
     const agents = getAgents();
     const groups = getGroups();
     const agentsById = new Map(agents.map(a => [a.id, a]));
-    const enabledCount = agents.filter(agent => agent.enabled).length;
     const enabledSet = getEnabledSetState();
+    const enabledCount = Number(enabledSet?.count) || 0;
     const setDisabled = !!enabledSet?.disabled;
     const savedCount = Number(enabledSet?.count) || 0;
     const enabledState = setDisabled
@@ -130,8 +130,8 @@ function renderFlyoutBody(panel) {
                 const n = (g.agentIds || []).length;
                 const name = esc(g.name || 'Group');
                 return `
-                <div class="bd-saf-pill ${active ? 'bd-saf-on' : 'bd-saf-off'}${running || paused ? ' bd-saf-busy' : ''}"
-                        role="button" tabindex="0" aria-disabled="${paused}"
+                <div class="bd-saf-pill ${active ? 'bd-saf-on' : 'bd-saf-off'}${running ? ' bd-saf-busy' : ''}"
+                        role="button" tabindex="0" aria-disabled="false"
                         data-group-id="${esc(g.id)}" data-name="${name}">
                     <i class="fa-solid ${esc(icon)}"></i>
                     <span class="bd-saf-pill-name">${name}</span>
@@ -140,7 +140,7 @@ function renderFlyoutBody(panel) {
                             data-group-run-id="${esc(g.id)}"
                             aria-label="Run ${name} on last message"
                             title="${active ? 'Run group on last message' : 'Enable a group agent before running'}"
-                            ${active && !running && !paused ? '' : 'disabled'}>
+                            ${active && !running ? '' : 'disabled'}>
                         <i class="fa-solid fa-play"></i>
                     </button>
                 </div>`;
@@ -154,16 +154,16 @@ function renderFlyoutBody(panel) {
                 const icon = resolveAgentIcon(a);
                 const name = esc(a.name || 'Unnamed');
                 return `
-                <div class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}${running || paused ? ' bd-saf-busy' : ''}"
+                <div class="bd-saf-icon ${a.enabled ? 'bd-saf-on' : 'bd-saf-off'}${running ? ' bd-saf-busy' : ''}"
                      role="button" tabindex="0"
-                     aria-disabled="${paused}"
+                     aria-disabled="false"
                      data-agent-id="${esc(a.id)}" data-name="${name}">
                     <i class="fa-solid ${esc(icon)}"></i>
                     <button type="button" class="bd-saf-run" tabindex="-1"
                             data-run-id="${esc(a.id)}"
                             aria-label="Run ${name} on last message"
                             title="${a.enabled ? 'Run on last message' : 'Enable this agent before running'}"
-                            ${a.enabled && !running && !paused ? '' : 'disabled'}>
+                            ${a.enabled && !running ? '' : 'disabled'}>
                         <i class="fa-solid fa-play"></i>
                     </button>
                 </div>`;
@@ -195,16 +195,16 @@ function renderFlyoutBody(panel) {
             </div>
             <div class="bd-saf-control-row bd-saf-pause-row">
                 <div class="bd-saf-control-copy">
-                    <span class="bd-saf-control-title">Pause all agents</span>
-                    <span class="bd-saf-control-state bd-saf-pause-state">${paused ? 'Paused — saved enabled states masked' : 'Agents run normally'}</span>
+                    <span class="bd-saf-control-title">Pause automatic agent calls</span>
+                    <span class="bd-saf-control-state bd-saf-pause-state">${paused ? 'Automatic calls paused; state stays in chat' : 'Automatic calls run normally'}</span>
                 </div>
                 <button type="button"
                         class="bd-saf-pause-toggle${paused ? ' is-paused' : ''}"
                         data-pause-toggle
                         role="switch"
                         aria-checked="${paused}"
-                        aria-label="${paused ? 'Resume all agents' : 'Pause all agents'}"
-                        title="${paused ? 'Resume previously enabled agents' : 'Pause all agents'}">
+                        aria-label="${paused ? 'Resume automatic agent calls' : 'Pause automatic agent calls'}"
+                        title="${paused ? 'Resume automatic agent calls' : 'Pause automatic agent calls'}">
                     <span class="bd-saf-pause-track" aria-hidden="true">
                         <span class="bd-saf-pause-knob"></span>
                     </span>
@@ -334,7 +334,7 @@ function wirePanelEvents(panel) {
             e.stopPropagation();
             // Single-flight: ignore the click if a run is already in progress
             // (the badge is styled disabled in that state as a visual cue).
-            if (runBtn.disabled || isRunActive() || isAgentsPaused()) return;
+            if (runBtn.disabled || isRunActive()) return;
             if (runBtn.dataset.groupRunId) runGroupOnLast(runBtn.dataset.groupRunId);
             else runAgentOnLast(runBtn.dataset.runId);
             // Reflect the now-busy state on the grid (badges dim out).
@@ -343,14 +343,12 @@ function wirePanelEvents(panel) {
         }
         const agentCell = e.target.closest('.bd-saf-icon');
         if (agentCell) {
-            if (isAgentsPaused()) return;
             toggleAgent(agentCell.dataset.agentId);
             renderFlyoutBody(panel);
             return;
         }
         const groupPill = e.target.closest('.bd-saf-pill');
         if (groupPill) {
-            if (isAgentsPaused()) return;
             toggleGroup(groupPill.dataset.groupId);
             renderFlyoutBody(panel);
             return;

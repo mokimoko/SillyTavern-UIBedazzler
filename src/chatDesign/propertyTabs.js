@@ -18,6 +18,7 @@ const PROPERTY_TABS = Object.freeze({
         Object.freeze({ id: 'qr-buttons', label: 'QR Buttons', group: 'native' }),
         Object.freeze({ id: 'controls', label: 'Controls', group: 'native' }),
         Object.freeze({ id: 'scrollbars', label: 'Scrollbars', group: 'native' }),
+        Object.freeze({ id: 'toasts', label: 'Toasts', group: 'native' }),
         Object.freeze({ id: 'weather-badge', label: 'Weather Badge', group: 'integrations', requiresWeatherBadge: true }),
         Object.freeze({ id: 'chat-top-bar', label: 'Chat Top Bar', group: 'integrations', requiresChatTopBar: true }),
         Object.freeze({ id: 'guided-generations', label: 'Guided Generations', group: 'integrations', requiresGuidedGenerations: true }),

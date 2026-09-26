@@ -24,6 +24,8 @@
 // shouldn't retype them) — memory of the UI, never a second truth: what
 // ST stores is always exactly the projection above.
 
+import { lastReplyCapture } from './simData.js';
+
 // getMaxContextSize is script.js's own answer to "how big is the AI's
 // attention right now" (the same number world-info.js is handed as
 // maxContext, audit §8). Resolved async like editorData's world-info
@@ -179,35 +181,18 @@ export function effectiveBudget() {
 }
 
 // ============================================================
-// Used tokens — ST's OWN number, the one its prompt viewer shows.
-//
-// Every generation, ST pushes an itemized prompt set onto its exported
-// `itemizedPrompts` array (script.js), keyed by mesId, and among the fields
-// is `worldInfoString`: the FULL assembled WI block that actually went into
-// the prompt. ST's own itemizer counts it with `worldInfoStringTokens:
-// getTokenCountAsync(worldInfoString)` (itemized-prompts.js). We do the
-// EXACT same thing — read the last set's worldInfoString, run ST's real
-// tokenizer over it — so our meter and ST's viewer can never disagree.
-//
-// WHY THIS BEATS the old WORLD_INFO_ACTIVATED + per-entry-sum approach:
-//  - It's ST's real tokenizer over the real assembled block (join chars,
-//    separators and all), not our chars/3.5 estimate over separate entries.
-//  - It needs no live event. itemizedPrompts PERSISTS on the array (and is
-//    saved per chat), so the meter reads the last gen's number whenever the
-//    drawer opens — the modal-drawer "you can't gen while open" problem just
-//    doesn't apply. Backfill is free: open after a gen from an hour ago and
-//    the number's still there.
-// The total is all the meter needs; per-entry counts already live in the
-// editor and in ST's native WI drawer, so there's nothing to reconstruct.
-//
-// getTokenCountAsync comes from the context (st-context exposes it);
-// itemizedPrompts comes from the script.js module we already imported for
-// getMaxContextSize. Either being unreadable → usedTokens() stays null and
-// the meter honestly says "up to N" instead of inventing a fill.
+// Used tokens — count the activated entries from the last real reply with
+// ST's tokenizer. The session capture includes every insertion position;
+// itemizedPrompts.worldInfoString only contains before/after entries, so it
+// can be empty even when depth/example/outlet entries were included. The
+// persisted itemized prompt is a useful fallback when no session capture is
+// available. Wait for script.js before reading either source: on first open
+// its dynamic import may still be pending.
 // ============================================================
 
 let lastUsedTokens = null;   // cache; null = nothing counted yet this session
 let onUsedChanged = null;    // meter poke, set while the drawer is open
+let usedRefreshId = 0;
 
 /** Synchronous read of the cached number (renderMeter stays sync). The
  *  cache is filled by refreshUsedTokens(), called on drawer open and after
@@ -217,19 +202,38 @@ export function usedTokens() { return lastUsedTokens; }
 /** Recompute from ST's last itemized prompt set, then poke the meter.
  *  Async (ST's tokenizer is async); safe to call and not await. */
 export async function refreshUsedTokens() {
+    const refreshId = ++usedRefreshId;
+    let next = null;
     try {
-        const sets = scriptMod?.itemizedPrompts;
-        const last = Array.isArray(sets) && sets.length ? sets[sets.length - 1] : null;
-        const wiString = last?.worldInfoString;
-        const count = ctx()?.getTokenCountAsync;
-        if (wiString == null || typeof count !== 'function') {
-            // No gen recorded yet, or tokenizer unreachable — honest null.
-            lastUsedTokens = null;
-        } else {
-            const n = await count(wiString);
-            lastUsedTokens = Number.isFinite(n) ? n : null;
+        const script = await scriptPromise;
+        const c = ctx();
+        const count = c?.getTokenCountAsync;
+        if (typeof count === 'function') {
+            const live = lastReplyCapture();
+            if (live?.complete && live.chatId != null && String(live.chatId) === String(c.chatId)) {
+                // One tokenizer call keeps this cheap even with many entries.
+                const contents = live.entries.map(entry => String(entry.content ?? '')).filter(Boolean).join('\n');
+                const n = await count(contents);
+                next = Number.isFinite(n) ? n : null;
+            } else {
+                const sets = script.itemizedPrompts;
+                const chat = Array.isArray(c.chat) ? c.chat : [];
+                const last = Array.isArray(sets) ? sets.findLast(set => {
+                    const id = Number(set?.mesId);
+                    return Number.isInteger(id) && id >= 0 && id < chat.length
+                        && !chat[id]?.is_user && !chat[id]?.is_system;
+                }) : null;
+                // An empty before/after string does not prove that no notes
+                // were used; they may all have gone to other positions.
+                if (last?.worldInfoString) {
+                    const n = await count(last.worldInfoString);
+                    next = Number.isFinite(n) ? n : null;
+                }
+            }
         }
-    } catch { lastUsedTokens = null; }
+    } catch { /* no reliable count available */ }
+    if (refreshId !== usedRefreshId) return;
+    lastUsedTokens = next;
     onUsedChanged?.();
 }
 

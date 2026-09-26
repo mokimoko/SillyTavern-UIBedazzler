@@ -6,7 +6,7 @@
 // Banner config namespaced under:
 //   data.extensions.wl_design.bannerMode, bannerUrl, bannerPosition
 //
-// CSS injected via <style id="wl-char-design-styles"> targeting [ch_name="CharName"] selectors.
+// CSS injected via <style id="wl-char-design-styles"> targeting avatar IDs.
 // Live preview updates CSS on every picker change.
 
 import { getContext } from '../../../../../extensions.js';
@@ -14,12 +14,13 @@ import { getDesignData, updateCharExtensions } from './storage.js';
 import {
     hexToRgb, rgbToHex, parseRgba,
     extractColorsFromImage, uploadBannerImage,
-    escapeCSSName, injectStyleElement, clearStyleElement,
+    cleanAvatar, escapeCSSName, injectStyleElement, clearStyleElement,
     normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { getCharacterAvatarUrl } from '../hostAdapter.js';
+import { startAvatarStamping, stopAvatarStamping } from '../chatDesign/avatarStamp.js';
 import {
-    buildDesignEffectsCSS, dialogueColorCSS, hasDesignEffects, normalizeDesignEffects,
+    buildDesignEffectsCSS, buildSolidTextDeclarations, dialogueColorCSS, hasDesignEffects, normalizeDesignEffects,
     migrateSharedGradientBases, renderNameColorCard, renderSharedGradientCard, wireDesignEffects,
 } from '../design/designEffects.js';
 
@@ -538,23 +539,17 @@ function rebuildLiveCSS(designOverride = null, avatarOverride = null) {
         }
     }
 
-    const css = buildAllCharacterCSS();
-    if (css) {
-        injectStyleElement(STYLE_ELEMENT_ID, css);
-    } else {
-        clearStyleElement(STYLE_ELEMENT_ID);
-    }
+    applyDesignCSS(buildAllCharacterCSS());
 }
 
 /**
  * Build CSS rules for a single character's design data.
- * @param {string} charName
  * @param {object} design
  * @param {string} avatarFile
  * @returns {string}
  */
-function buildCharacterCSS(charName, design, avatarFile) {
-    if (!charName) return '';
+function buildCharacterCSS(design, avatarFile) {
+    if (!avatarFile) return '';
 
     const safeDesign = normalizeDesign(design);
     const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = safeDesign;
@@ -565,11 +560,11 @@ function buildCharacterCSS(charName, design, avatarFile) {
 
     if (!hasAnyColor && !hasBanner && !hasEffects) return '';
 
-    const escapedName = escapeCSSName(charName);
+    const escapedAvatar = escapeCSSName(cleanAvatar(avatarFile));
     // Match Persona Design's role-qualified specificity. Without this,
     // Character Design's banner padding ties with a direct Chat Design rule
     // and loses by source order, while the equivalent persona rule wins.
-    const selector = `.mes[ch_name="${escapedName}"][is_user="false"]`;
+    const selector = `.mes[data-wl-avatar="${escapedAvatar}"][is_user="false"]`;
     const pos = bannerPosition;
     const rules = [];
 
@@ -577,7 +572,7 @@ function buildCharacterCSS(charName, design, avatarFile) {
         rules.push(`${selector} q { color: ${dialogueColorCSS(dialogueColor)}; }`);
     }
     if (nameColor) {
-        rules.push(`${selector} .name_text { color: ${nameColor}; }`);
+        rules.push(`#chat ${selector} .name_text {\n    ${buildSolidTextDeclarations(nameColor).join(';\n    ')};\n}`);
     }
     if (boxRgba) {
         rules.push(`#chat ${selector} {\n    background-color: ${boxRgba} !important;\n}`);
@@ -638,7 +633,7 @@ function buildAllCharacterCSS() {
     const allRules = ['/* WL Character Design */'];
 
     for (const [avatar, entry] of designCache) {
-        const css = buildCharacterCSS(entry.name, entry.design, avatar);
+        const css = buildCharacterCSS(entry.design, avatar);
         if (css) allRules.push(css);
     }
 
@@ -652,11 +647,18 @@ function buildAllCharacterCSS() {
  */
 export function injectDesignCSS() {
     buildDesignCache();
-    const css = buildAllCharacterCSS();
+    applyDesignCSS(buildAllCharacterCSS());
+}
+
+function applyDesignCSS(css) {
     if (css) {
-        injectStyleElement(STYLE_ELEMENT_ID, css);
+        startAvatarStamping(null, 'charDesign');
+        if (document.getElementById(STYLE_ELEMENT_ID)?.textContent !== css) {
+            injectStyleElement(STYLE_ELEMENT_ID, css);
+        }
         log('Design CSS injected for all styled characters');
     } else {
+        stopAvatarStamping('charDesign');
         clearStyleElement(STYLE_ELEMENT_ID);
     }
 }
@@ -669,5 +671,6 @@ export function removeDesignCSS() {
     liveCssFrame = null;
     queuedLiveDesign = null;
     queuedLiveAvatar = null;
+    stopAvatarStamping('charDesign');
     clearStyleElement(STYLE_ELEMENT_ID);
 }

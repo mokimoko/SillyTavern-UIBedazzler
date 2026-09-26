@@ -11,12 +11,11 @@ import { getContext } from '../../../../../extensions.js';
 const log = () => {};
 
 const SAVE_DEBOUNCE_MS = 2000;
+const MAX_RETRY_MS = 30000;
 const UNSET_SENTINEL = '__@@UNSET@@__';
 
-/** @type {Map<string, { timer: ReturnType<typeof setTimeout>, patch: object }>} */
+/** @type {Map<string, { timer: ReturnType<typeof setTimeout> | null, patch: object, inFlight: boolean, failures: number }>} */
 const pendingSaves = new Map();
-/** @type {Map<string, Promise<void>>} */
-const saveChains = new Map();
 
 let cachedRaw = null;
 let cachedData = null;
@@ -89,56 +88,64 @@ function writeJsonData(data, extensionPatch) {
 }
 
 function scheduleSave(avatar, extensionPatch) {
-    const existing = pendingSaves.get(avatar);
-    if (existing) {
-        clearTimeout(existing.timer);
-        mergePatch(existing.patch, extensionPatch);
-        existing.timer = setTimeout(() => enqueueSave(avatar), SAVE_DEBOUNCE_MS);
-        return;
+    let job = pendingSaves.get(avatar);
+    if (!job) {
+        job = { patch: {}, timer: null, inFlight: false, failures: 0 };
+        pendingSaves.set(avatar, job);
     }
-
-    const job = { patch: mergePatch({}, extensionPatch), timer: null };
-    job.timer = setTimeout(() => enqueueSave(avatar), SAVE_DEBOUNCE_MS);
-    pendingSaves.set(avatar, job);
+    mergePatch(job.patch, extensionPatch);
+    if (job.timer !== null) clearTimeout(job.timer);
+    job.timer = setTimeout(() => { void flushSave(avatar); }, SAVE_DEBOUNCE_MS);
 }
 
-function enqueueSave(avatar) {
+async function flushSave(avatar) {
     const job = pendingSaves.get(avatar);
     if (!job) return;
-    pendingSaves.delete(avatar);
+    job.timer = null;
+    if (job.inFlight) return;
 
-    // Preserve request order for a character if the server is slow while more
-    // edits are made. A stale request can never land after its newer successor.
-    const previous = saveChains.get(avatar) || Promise.resolve();
-    const next = previous
-        .catch(() => {})
-        .then(() => saveCharacterPatch(avatar, job.patch))
-        .finally(() => {
-            if (saveChains.get(avatar) === next) saveChains.delete(avatar);
-        });
-    saveChains.set(avatar, next);
+    const patch = job.patch;
+    job.patch = {};
+    job.inFlight = true;
+    try {
+        await saveCharacterPatch(avatar, patch);
+        job.failures = 0;
+    } catch (error) {
+        // An older failed patch must be replayed before any newer edits. Newer
+        // values win when both patches touch the same field.
+        job.patch = mergePatch(mergePatch({}, patch), job.patch);
+        job.failures++;
+        console.warn(`[BD] Could not save design data for ${avatar}; retrying.`, error);
+    } finally {
+        job.inFlight = false;
+        if (Object.keys(job.patch).length === 0) {
+            if (job.timer !== null) clearTimeout(job.timer);
+            pendingSaves.delete(avatar);
+        } else if (job.timer === null) {
+            const delay = job.failures
+                ? Math.min(MAX_RETRY_MS, SAVE_DEBOUNCE_MS * 2 ** Math.min(job.failures - 1, 4))
+                : 0;
+            job.timer = setTimeout(() => { void flushSave(avatar); }, delay);
+        }
+    }
 }
 
 /** Save only UIBedazzler-owned extension fields for one captured avatar. */
 async function saveCharacterPatch(avatar, extensionPatch) {
-    try {
-        const context = getContext();
-        const response = await fetch('/api/characters/merge-attributes', {
-            method: 'POST',
-            headers: context.getRequestHeaders(),
-            body: JSON.stringify({
-                avatars: [avatar],
-                data: { data: { extensions: extensionPatch } },
-            }),
-        });
+    const context = getContext();
+    const response = await fetch('/api/characters/merge-attributes', {
+        method: 'POST',
+        headers: context.getRequestHeaders(),
+        body: JSON.stringify({
+            avatars: [avatar],
+            data: { data: { extensions: extensionPatch } },
+        }),
+    });
 
-        if (!response.ok) throw new Error(`merge-attributes ${response.status}`);
-        const result = await response.json().catch(() => null);
-        if (result?.failed?.includes(avatar)) throw new Error('server rejected character merge');
-        log('Character design data saved to server');
-    } catch (error) {
-        console.warn(`[BD] Could not save design data for ${avatar}.`, error);
-    }
+    if (!response.ok) throw new Error(`merge-attributes ${response.status}`);
+    const result = await response.json().catch(() => null);
+    if (result?.failed?.includes(avatar)) throw new Error('server rejected character merge');
+    log('Character design data saved to server');
 }
 
 // ============================================================

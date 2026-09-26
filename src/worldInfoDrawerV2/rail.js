@@ -47,7 +47,8 @@ let allBooks = [];          // every book on disk
 let globalBooks = [];       // READ of #world_info at last refresh
 let chatBook = null;
 let personaBook = null;
-let charBooks = [];         // [{name, primary}]
+let charBooks = [];         // [{name, primary, owners}]
+let groupChat = false;
 let strategy = 'character_first';
 let openBook = null;        // §9.26/§9.30 — consumed by the listcol
 let bookListObserver = null;// watches #world_editor_select for book create/delete/rename/dup/import
@@ -96,7 +97,7 @@ function bindingOf(name) {
     if (name === chatBook) return 'this chat';
     if (name === personaBook) return 'your persona';
     if (globalBooks.includes(name)) return 'global';
-    if (charBooks.some(b => b.name === name)) return 'the character\u2019s';
+    if (charBooks.some(b => b.name === name)) return groupChat ? 'a group member\u2019s' : 'the character\u2019s';
     return null;
 }
 
@@ -121,13 +122,16 @@ const cnt = name => {
 };
 
 /** `ours` decides BOTH the dot's meaning and whether it's a control (mock). */
-const bookRow = (name, ours) =>
+const bookRow = (name, ours, detail = '', titleDetail = '') =>
     `<div class="wl-wi2-book on ${ours ? 'ours' : ''} ${name === openBook ? 'sel' : ''}"`
-    + ` data-book="${esc(name)}" title="${esc(name === openBook ? 'Open \u2014 you\u2019re editing this book' : 'Click to open this book')}">`
+    + ` data-book="${esc(name)}" title="${esc((name === openBook ? 'Open \u2014 you\u2019re editing this book' : 'Click to open this book') + titleDetail)}">`
     + `<span class="wl-wi2-dot ${ours ? 'lit' : ''}"${ours ? ` data-globaltoggle="${esc(name)}" title="Read as global \u2014 click to turn off"` : ''}></span>`
-    + `${esc(name)}<span class="wl-wi2-cnt" data-cnt="${esc(name)}">${cnt(name)}</span></div>`;
+    + `<span class="wl-wi2-book-name">${esc(name)}</span>${detail ? `<span class="wl-wi2-book-owner">${esc(detail)}</span>` : ''}`
+    + `<span class="wl-wi2-cnt" data-cnt="${esc(name)}">${cnt(name)}</span></div>`;
 
-const charRow = b => bookRow(b.name, false);
+const charRow = b => bookRow(b.name, false,
+    groupChat ? b.owners.join(', ') : '',
+    groupChat ? ` \u00b7 Used for replies by ${b.owners.join(', ')}` : '');
 const globalRow = name => bookRow(name, true);
 
 // ============================================================
@@ -146,14 +150,15 @@ function renderBindings() {
 function renderStrategy() {
     const el = railEl.querySelector('#wl-wi2-bindStrategy');
     const chars = charBooksRead();
-    const charPart = `<div class="wl-wi2-bind-sub">The character\u2019s</div>`
-        + (chars.length ? chars.map(charRow).join('') : `<div class="wl-wi2-rail-hint">None attached to this character.</div>`);
+    const charLabel = groupChat ? 'Group members \u00b7 when replying' : 'The character\u2019s';
+    const charPart = `<div class="wl-wi2-bind-sub">${charLabel}</div>`
+        + (chars.length ? chars.map(charRow).join('') : `<div class="wl-wi2-rail-hint">${groupChat ? 'None attached to enabled group members.' : 'None attached to this character.'}</div>`);
     const globalPart = `<div class="wl-wi2-bind-sub">Global</div>`
         + (globalBooks.length ? globalBooks.map(globalRow).join('') : `<div class="wl-wi2-rail-hint">None turned on.</div>`);
     let body;
     if (strategy === 'evenly') {
         const pooled = [...chars.map(charRow), ...globalBooks.map(globalRow)].join('');
-        body = `<div class="wl-wi2-bind-sub">Character + global \u2014 one pool, by rank</div>`
+        body = `<div class="wl-wi2-bind-sub">${groupChat ? 'Group member + global' : 'Character + global'} \u2014 one pool, by rank</div>`
             + (pooled || `<div class="wl-wi2-rail-hint">Nothing here yet.</div>`);
     }
     else if (strategy === 'global_first') body = globalPart + charPart;
@@ -187,9 +192,9 @@ function renderAllBooks() {
             //   bind     = where it's actually READ.
             const isGlobal = globalBooks.includes(name);
             const ours = isOurs(name);
-            const shadowed = charBooks.some(b => b.name === name) && bind && bind !== 'the character\u2019s';
+            const shadowed = charBooks.some(b => b.name === name) && bind && bind !== (groupChat ? 'a group member\u2019s' : 'the character\u2019s');
             const bindNote = !bind ? 'not read in this chat'
-                : shadowed ? `attached to this character, but read as ${bind} \u2014 it only counts once`
+                : shadowed ? `attached to ${groupChat ? 'a group member' : 'this character'}, but read as ${bind} \u2014 it only counts once`
                 : `read as ${bind}`;
             const title = `${name === openBook ? 'Open' : 'Click to open'} \u00b7 ${bindNote}`;
             return `<div class="wl-wi2-book ${bind ? 'on' : ''} ${ours ? 'ours' : ''} ${name === openBook ? 'sel' : ''}"
@@ -345,6 +350,7 @@ async function refreshState({ chatSwitched = false } = {}) {
     const nextChatBook = await getChatBookName();
     const nextPersonaBook = getPersonaBookName();
     const nextCharBooks = await getCharBooks();
+    const nextGroupChat = SillyTavern.getContext().groupId != null;
     const nextStrategy = await getStrategyKey();
 
     // A newer refresh superseded us while we awaited — drop this stale one.
@@ -356,6 +362,7 @@ async function refreshState({ chatSwitched = false } = {}) {
     chatBook = nextChatBook;
     personaBook = nextPersonaBook;
     charBooks = nextCharBooks;
+    groupChat = nextGroupChat;
     strategy = nextStrategy;
 
     resolveArrival(chatSwitched);

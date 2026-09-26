@@ -5,7 +5,7 @@
 //   { personaName, nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition }
 //
 // CSS injected via <style id="wl-persona-design-styles"> targeting
-//   .mes[ch_name="PersonaName"][is_user="true"] selectors.
+//   .mes[data-wl-avatar="AvatarFile"][is_user="true"] selectors.
 
 import { extension_settings } from '../../../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../../../script.js';
@@ -17,8 +17,9 @@ import {
     normalizeBannerUrl, serializeCssUrl,
 } from '../design/designUtils.js';
 import { refreshChatDesignCSSDebounced } from '../chatDesign/index.js';
+import { startAvatarStamping, stopAvatarStamping } from '../chatDesign/avatarStamp.js';
 import {
-    buildDesignEffectsCSS, dialogueColorCSS, hasDesignEffects,
+    buildDesignEffectsCSS, buildSolidTextDeclarations, dialogueColorCSS, hasDesignEffects,
     migrateSharedGradientBases, normalizeDesignEffects, renderNameColorCard,
     renderSharedGradientCard, wireDesignEffects,
 } from '../design/designEffects.js';
@@ -26,6 +27,8 @@ import {
 const log = () => {};
 
 const STYLE_ELEMENT_ID = 'wl-persona-design-styles';
+let personaCssCache = null;
+let liveCssFrame = null;
 
 // ============================================================
 // Storage Helpers
@@ -91,7 +94,7 @@ function updatePersonaDesignForAvatar(avatar, name, updates) {
     }
 
     saveSettingsDebounced();
-    rebuildLiveCSS();
+    rebuildLiveCSS(avatar);
     // Persona banners are ALSO drawn by Chat Design, whose ::before rule uses
     // !important and therefore wins over this tab's rule. Refresh it too so
     // banner position/image edits apply live instead of only after a chat
@@ -382,7 +385,7 @@ export function renderDesignTab(pane) {
                 saveSettingsDebounced();
             }
         }
-        rebuildLiveCSS();
+        rebuildLiveCSS(avatarKey);
         if (isStillCurrent()) renderDesignTab(pane);
         // Also refresh Chat Design so its persona banner rule drops the
         // just-removed position/image immediately.
@@ -398,24 +401,46 @@ export function renderDesignTab(pane) {
 /**
  * Rebuild and inject CSS for live preview.
  */
-function rebuildLiveCSS() {
-    const css = buildAllPersonaCSS();
+function applyPersonaCSS(css) {
     if (css) {
-        injectStyleElement(STYLE_ELEMENT_ID, css);
+        startAvatarStamping(null, 'personaDesign');
+        if (document.getElementById(STYLE_ELEMENT_ID)?.textContent !== css) {
+            injectStyleElement(STYLE_ELEMENT_ID, css);
+        }
     } else {
+        stopAvatarStamping('personaDesign');
         clearStyleElement(STYLE_ELEMENT_ID);
     }
 }
 
+function cssFromCache() {
+    return personaCssCache?.size
+        ? `/* WL Persona Design */\n\n${[...personaCssCache.values()].join('\n\n')}`
+        : '';
+}
+
+function rebuildLiveCSS(avatarFile) {
+    if (!personaCssCache) buildAllPersonaCSS();
+    const design = extension_settings[MODULE_NAME]?.personaDesigns?.[avatarFile];
+    const css = design ? buildPersonaCSS(design, avatarFile) : '';
+    if (css) personaCssCache.set(avatarFile, css);
+    else personaCssCache.delete(avatarFile);
+
+    if (liveCssFrame !== null) return;
+    liveCssFrame = requestAnimationFrame(() => {
+        liveCssFrame = null;
+        applyPersonaCSS(cssFromCache());
+    });
+}
+
 /**
  * Build CSS rules for a single persona's design data.
- * @param {string} personaName
  * @param {object} design
- * @param {string} avatarFile — for banner "Use Avatar" mode
+ * @param {string} avatarFile — unique persona key and banner avatar
  * @returns {string}
  */
-function buildPersonaCSS(personaName, design, avatarFile) {
-    if (!personaName) return '';
+function buildPersonaCSS(design, avatarFile) {
+    if (!avatarFile) return '';
 
     const { nameColor, dialogueColor, boxColor, bannerMode, bannerUrl, bannerPosition } = design;
     const boxRgba = boxColor && (boxColor.startsWith('rgba') || boxColor.startsWith('rgb')) ? boxColor : null;
@@ -425,8 +450,8 @@ function buildPersonaCSS(personaName, design, avatarFile) {
 
     if (!hasAnyColor && !hasBanner && !hasEffects) return '';
 
-    const escapedName = escapeCSSName(personaName);
-    const selector = `.mes[ch_name="${escapedName}"][is_user="true"]`;
+    const escapedAvatar = escapeCSSName(avatarFile);
+    const selector = `.mes[data-wl-avatar="${escapedAvatar}"][is_user="true"]`;
     // Extensions such as SimpleSummarizer mark ordinary hidden persona rows as
     // is_system=true. They are still persona messages and must retain the same
     // banner geometry as their visible neighbors.
@@ -438,7 +463,7 @@ function buildPersonaCSS(personaName, design, avatarFile) {
         rules.push(`${selector} q { color: ${dialogueColorCSS(dialogueColor)}; }`);
     }
     if (nameColor) {
-        rules.push(`${selector} .name_text { color: ${nameColor}; }`);
+        rules.push(`#chat ${selector} .name_text {\n    ${buildSolidTextDeclarations(nameColor).join(';\n    ')};\n}`);
     }
     if (boxRgba) {
         rules.push(`#chat ${selector} {\n    background-color: ${boxRgba} !important;\n}`);
@@ -493,17 +518,14 @@ ${bannerSelector} .mesAvatarWrapper {
  */
 function buildAllPersonaCSS() {
     const designs = extension_settings[MODULE_NAME]?.personaDesigns || {};
-    const allRules = ['/* WL Persona Design */'];
+    personaCssCache = new Map();
 
     for (const [avatarFile, design] of Object.entries(designs)) {
-        const name = design.personaName;
-        if (!name) continue;
-
-        const css = buildPersonaCSS(name, design, avatarFile);
-        if (css) allRules.push(css);
+        const css = buildPersonaCSS(design, avatarFile);
+        if (css) personaCssCache.set(avatarFile, css);
     }
 
-    return allRules.length > 1 ? allRules.join('\n\n') : '';
+    return cssFromCache();
 }
 
 /**
@@ -511,18 +533,19 @@ function buildAllPersonaCSS() {
  * Called on CHAT_CHANGED, persona change, and feature enable.
  */
 export function injectDesignCSS() {
-    const css = buildAllPersonaCSS();
-    if (css) {
-        injectStyleElement(STYLE_ELEMENT_ID, css);
-        log('Design CSS injected for all styled personas');
-    } else {
-        clearStyleElement(STYLE_ELEMENT_ID);
-    }
+    if (liveCssFrame !== null) cancelAnimationFrame(liveCssFrame);
+    liveCssFrame = null;
+    applyPersonaCSS(buildAllPersonaCSS());
+    log('Design CSS injected for all styled personas');
 }
 
 /**
  * Remove all injected persona design CSS.
  */
 export function removeDesignCSS() {
+    if (liveCssFrame !== null) cancelAnimationFrame(liveCssFrame);
+    liveCssFrame = null;
+    personaCssCache = null;
+    stopAvatarStamping('personaDesign');
     clearStyleElement(STYLE_ELEMENT_ID);
 }

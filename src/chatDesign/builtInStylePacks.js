@@ -1,11 +1,15 @@
 // Asset-backed built-in Style Packs. This module is imported only when Add Pack is opened.
 
+import { prepareStylePackTheme } from './stylePackTheme.js';
+
 const BUILT_IN_PACKS = Object.freeze([
     Object.freeze({ name: 'Seraphina', folder: 'seraphina' }),
     Object.freeze({ name: 'Anomalous', folder: 'anomalous' }),
+    Object.freeze({ name: 'Modern', folder: 'modern' }),
 ]);
 
 const manifestPromises = new Map();
+const previewThemePromises = new Map();
 
 function assetUrl(pack, path) {
     return new URL(`../../assets/style-packs/${pack.folder}/${path}`, import.meta.url);
@@ -32,6 +36,26 @@ async function getManifest(pack) {
 /** Return mutable summaries while keeping bundled assets action-only and lazy. */
 export async function getBuiltInStylePacks() {
     return Promise.all(BUILT_IN_PACKS.map(getManifest));
+}
+
+/** Load and validate only the selected pack's bundled theme for its isolated preview. */
+export async function getBuiltInStylePackPreviewTheme(name) {
+    const definition = BUILT_IN_PACKS.find(pack => pack.name === name);
+    if (!definition) throw new Error(`Unknown built-in Style Pack: ${name}`);
+    if (!previewThemePromises.has(definition.name)) {
+        previewThemePromises.set(definition.name, (async () => {
+            const pack = await getManifest(definition);
+            const resource = pack.resources?.theme;
+            if (!resource?.path) return null;
+            const entries = new Map([[resource.path, await readAsset(definition, resource.path)]]);
+            return prepareStylePackTheme(resource, entries);
+        })().catch(error => {
+            previewThemePromises.delete(definition.name);
+            throw error;
+        }));
+    }
+    const theme = await previewThemePromises.get(definition.name);
+    return theme ? JSON.parse(JSON.stringify(theme)) : null;
 }
 
 /** Return one built-in in the same prepared shape as an imported archive. */

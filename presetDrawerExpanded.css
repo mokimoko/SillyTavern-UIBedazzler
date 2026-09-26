@@ -312,6 +312,68 @@
     font-family: inherit;
 }
 
+/* ── TauriTavern 2.3 / ST 1.19 parameter controls ───────────
+   Mirror the compact takeover's remove-button layout in the expanded overview.
+   This stays CSS-only so TT continues to own the controls and their behavior. */
+#wl-pe-root #wl-pe-overview-slot .tt-gp-compact > .tt-gp-remove {
+    order: -1;
+    flex: 0 0 auto;
+    margin: 0 6px 0 0;
+}
+
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block.inline-drawer > .inline-drawer-header {
+    position: relative;
+    padding-left: 24px;
+}
+
+#wl-pe-root #wl-pe-overview-slot .tt-gp-block.inline-drawer {
+    position: relative;
+}
+
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block.inline-drawer > .tt-gp-remove,
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block.inline-drawer > .inline-drawer-header .tt-gp-remove {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer):has(> .tt-gp-remove),
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer) :has(> .tt-gp-remove) {
+    position: relative;
+}
+
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer) .tt-gp-remove {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+#wl-pe-root #wl-pe-overview-slot
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer)
+    :is(.range-block-title, .checkbox_label, label):has(+ .tt-gp-remove) {
+    box-sizing: border-box;
+    padding-left: 26px;
+    text-align: left;
+}
+
 #wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center)
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
 #wl-pe-root :is(.wl-pe-col-left, .wl-pe-col-center) select,

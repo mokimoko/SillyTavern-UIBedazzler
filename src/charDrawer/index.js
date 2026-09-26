@@ -8,7 +8,13 @@
 import { eventSource, event_types } from '../../../../../../script.js';
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
-import { takeoverDrawer, restoreDrawer, isTakeoverActive, getActiveTab } from './drawerUI.js';
+import {
+    takeoverDrawer,
+    restoreDrawer,
+    isTakeoverActive,
+    getActiveTab,
+    isClassicPopupVisible,
+} from './drawerUI.js';
 import { injectDesignCSS, removeDesignCSS, renderDesignTab } from './designTab.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
 import { initDialogueColorPicker } from './dialogueColorPicker.js';
@@ -150,12 +156,10 @@ function teardownDrawerWatcher() {
 }
 
 function isPopupVisible(popup) {
-    if (!popup) return false;
-    // Avoid getComputedStyle — it forces synchronous style recalculation
-    // inside MutationObserver callbacks. Check inline style and classes instead.
-    if (popup.style.display === 'none' || popup.style.visibility === 'hidden') return false;
-    if (popup.classList.contains('displayNone') || popup.classList.contains('hidden')) return false;
-    return true;
+    // This observer only watches the popup itself, so the occasional rendered-
+    // state check is cheap and avoids treating its stylesheet display:none as
+    // open before SillyTavern has ever toggled it.
+    return isClassicPopupVisible(popup);
 }
 
 function applyIfPopupOpen() {

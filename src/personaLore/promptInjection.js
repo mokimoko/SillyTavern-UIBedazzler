@@ -15,6 +15,17 @@ const log = () => {};
 // ============================================================
 
 /**
+ * Escape dynamic text used inside a double-quoted XML attribute.
+ */
+function escapeXmlAttribute(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
  * Resolve the set of character avatars actually present in the current chat.
  *
  * Solo chats expose `characterId` (index into context.characters) with a null
@@ -89,8 +100,11 @@ function buildNarratorLoreXML() {
 
     // Sort entries into visibility buckets
     const narratorOnly = [];
-    // Map: characterName → [entries]
-    const sharedByChar = new Map();
+    // Map: canonical audience signature → { characterNames, entries }
+    const sharedByAudience = new Map();
+    const characterNamesByAvatar = new Map(
+        allCharacters.map(char => [cleanAvatar(char.avatar), char.name || char.avatar]),
+    );
 
     for (const entry of entries) {
         if (!entry.knownBy || entry.knownBy.length === 0) {
@@ -108,21 +122,34 @@ function buildNarratorLoreXML() {
             continue;
         }
 
-        // Group by each present character who knows this entry
-        for (const charAvatar of knownByPresent) {
-            const char = allCharacters.find(c => cleanAvatar(c.avatar) === cleanAvatar(charAvatar));
-            const charName = char?.name || charAvatar;
+        // Canonicalize the audience so identical sets share one block even if
+        // their characters were selected in a different order.
+        const fallbackNamesByAvatar = new Map(
+            knownByPresent.map(charAvatar => [cleanAvatar(charAvatar), charAvatar]),
+        );
+        const audienceAvatars = [...new Set(knownByPresent.map(cleanAvatar).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
 
-            if (!sharedByChar.has(charName)) {
-                sharedByChar.set(charName, []);
-            }
-            sharedByChar.get(charName).push(entry.content);
+        if (audienceAvatars.length === 0) {
+            narratorOnly.push(entry.content);
+            continue;
         }
+
+        const audienceKey = JSON.stringify(audienceAvatars);
+
+        if (!sharedByAudience.has(audienceKey)) {
+            sharedByAudience.set(audienceKey, {
+                characterNames: audienceAvatars.map(charAvatar =>
+                    characterNamesByAvatar.get(charAvatar) || fallbackNamesByAvatar.get(charAvatar) || charAvatar),
+                entries: [],
+            });
+        }
+        sharedByAudience.get(audienceKey).entries.push(entry.content);
     }
 
     // Build XML
     const lines = [];
-    lines.push(`<narrator_lore persona="${personaName}">`);
+    lines.push(`<narrator_lore persona="${escapeXmlAttribute(personaName)}">`);
 
     if (narratorOnly.length > 0) {
         lines.push('<narrator_context>');
@@ -131,10 +158,11 @@ function buildNarratorLoreXML() {
         lines.push('</narrator_context>');
     }
 
-    for (const [charName, charEntries] of sharedByChar) {
-        lines.push(`<shared_context character="${charName}">`);
-        lines.push(`${charName} is aware of the following about {{user}}.`);
-        charEntries.forEach(c => lines.push(`- ${c}`));
+    for (const { characterNames, entries: sharedEntries } of sharedByAudience.values()) {
+        const characters = characterNames.map(escapeXmlAttribute).join('; ');
+        lines.push(`<shared_context characters="${characters}">`);
+        lines.push('The listed characters are aware of the following about {{user}}.');
+        sharedEntries.forEach(c => lines.push(`- ${c}`));
         lines.push('</shared_context>');
     }
 

@@ -136,7 +136,7 @@ function snapshotMessages() {
 // atomically (old one lived until this moment) and promote its scanAux.
 function onWorldInfoActivated(arg) {
     const entries = Array.isArray(arg) ? arg : [];
-    capture = { entries, complete: true };
+    capture = { entries, complete: true, chatId: ctx()?.chatId };
     captureMsgs = snapshotMessages();   // the text the scan read, for the left column
     scanAux = pendingAux;   // promote the aux gathered during THIS gen's scan
     gotActivationThisGen = true;
@@ -158,7 +158,7 @@ function onGenEnd() {
     // an explicit empty capture so the view honestly says "nothing came up"
     // — replacing any stale prior capture. If it DID fire, we keep what
     // onWorldInfoActivated set (never overwrite a fresh good capture).
-    if (!gotActivationThisGen) { capture = { entries: [], complete: true }; captureMsgs = snapshotMessages(); scanAux = null; }
+    if (!gotActivationThisGen) { capture = { entries: [], complete: true, chatId: ctx()?.chatId }; captureMsgs = snapshotMessages(); scanAux = null; }
 }
 
 // ============================================================
@@ -511,6 +511,13 @@ async function rowsFromEntries(entries, tense, aux) {
  *  captured" (which would hide that the capture is working). */
 export function hasLastReply() {
     return !!(capture && capture.complete);
+}
+
+/** Last real activation set, including entries placed outside the normal
+ * before/after World Info string. The chat id keeps other chats' captures out
+ * of the topbar meter. */
+export function lastReplyCapture() {
+    return capture;
 }
 
 /** Rows for "what happened last reply" — real, from the captured activation

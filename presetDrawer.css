@@ -133,3 +133,107 @@ body.bd-pd-tabbed #left-nav-panel:not(:has(#wl-pd-container)) .range-block:has(#
 .wl-pd-tab-pane[data-tab="sections"] {
     padding-top: 4px;
 }
+
+/* ============================================
+   TauriTavern 2.3 / ST 1.19 compatibility
+   ============================================ */
+
+/* TT's parameter manager injects each remove/exclude button immediately after
+   the setting label. Its compact slider rows already have a single flex line,
+   so ordering is sufficient there. */
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-compact > .tt-gp-remove {
+    order: -1;
+    flex: 0 0 auto;
+    margin: 0 6px 0 0;
+}
+
+/* Drawer headings are different: Character Names and Continue Postfix have a
+   deliberately wrapping inner header, while Quick/Utility Prompts use a flat
+   one. Remove the injected button from either flex calculation and reserve a
+   small label gutter for it, keeping the X on the heading's first line. */
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block.inline-drawer > .inline-drawer-header {
+    position: relative;
+    padding-left: 24px;
+}
+
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block.inline-drawer {
+    position: relative;
+}
+
+/* TT inserts these after the entire header, as a direct drawer child. Keep a
+   nested fallback too in case a later TT build corrects that insertion point. */
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block.inline-drawer > .tt-gp-remove,
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block.inline-drawer > .inline-drawer-header .tt-gp-remove {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+/* Regular blocks (Seed, checkbox settings, text settings, etc.) also wrap the
+   injected button onto a separate row. Anchor it to either the block itself or
+   a nested label parent, then give the label enough left padding for the icon. */
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer):has(> .tt-gp-remove),
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer) :has(> .tt-gp-remove) {
+    position: relative;
+}
+
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer) .tt-gp-remove {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+body.bd-pd-tabbed:not(.wl-pe-open) #wl-pd-container
+    .tt-gp-block:not(.tt-gp-compact):not(.inline-drawer)
+    :is(.range-block-title, .checkbox_label, label):has(+ .tt-gp-remove) {
+    box-sizing: border-box;
+    padding-left: 26px;
+    text-align: left;
+}
+
+/* ST 1.19 lets the prompt editor participate in the popup's full-height flex
+   layout. Long prompts can consequently make the textarea (and the popup's
+   outer scroll area) grow with their content. Restore a bounded editor with
+   its own scrollbar so selection-dragging scrolls inside the prompt and the
+   Close/Reset/Save row stays nearby. The expanded takeover owns a separate
+   docked editor and is intentionally excluded by the body selector. */
+body.bd-pd-tabbed:not(.wl-pe-open):has(#wl-pd-container)
+    #completion_prompt_manager_popup
+    .completion_prompt_manager_popup_entry_form_control:has(#completion_prompt_manager_popup_entry_form_prompt) {
+    flex: 0 0 auto;
+    min-height: 0;
+}
+
+body.bd-pd-tabbed:not(.wl-pe-open):has(#wl-pd-container)
+    #completion_prompt_manager_popup_entry_form_prompt {
+    box-sizing: border-box;
+    field-sizing: fixed !important;
+    flex: 0 0 auto !important;
+    width: 100%;
+    height: clamp(220px, 36dvh, 340px) !important;
+    min-height: 180px !important;
+    max-height: 340px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    resize: vertical;
+}

@@ -29,6 +29,8 @@ Tabs in the persona drawer and in the character drawer's Advanced section let yo
 
 Open Chat Design from the extension settings or context menu. Create reusable looks for chat text, containers, banners, avatars, backgrounds, cursors, and the surrounding UI, then assign them to characters or personas. Start with a built-in Style Pack, or import and export your own. Local fonts must be installed on every device and need a reload; themes and icon sets are character-only.
 
+Top Bar styling includes a desktop Left Rail layout that moves the native controls to the left edge while keeping chat, native drawers, and Chat Top Bar aligned beside it. Smaller screens retain the horizontal layout.
+
 ## Light Theme Compatibility
 
 Enable **Light Theme Compatibility** under **Interface** to automatically adapt SillyTavern's native drawer headers, form fields, dropdowns, and text shadows when the active UI tint is light. Dark themes are left unchanged.

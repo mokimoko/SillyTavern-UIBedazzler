@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-label="Banner preview placeholder">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#25272d"/>
+      <stop offset="0.52" stop-color="#434957"/>
+      <stop offset="1" stop-color="#1e2025"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="70%" cy="34%" r="58%">
+      <stop offset="0" stop-color="#94a8ca" stop-opacity=".68"/>
+      <stop offset="1" stop-color="#94a8ca" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#fff" stroke-opacity=".055"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="420" fill="url(#base)"/>
+  <rect width="1200" height="420" fill="url(#glow)"/>
+  <rect width="1200" height="420" fill="url(#grid)"/>
+  <circle cx="835" cy="135" r="112" fill="#bac8df" fill-opacity=".16" stroke="#dbe4f3" stroke-opacity=".32" stroke-width="3"/>
+  <path d="M0 350 225 205l154 91 160-148 193 144 142-93 326 151v70H0z" fill="#121419" fill-opacity=".72"/>
+  <path d="M0 350 225 205l154 91 160-148 193 144 142-93 326 151" fill="none" stroke="#dce4ef" stroke-opacity=".26" stroke-width="4"/>
+  <g fill="#f4f6fa" fill-opacity=".72" font-family="system-ui, sans-serif" letter-spacing="8">
+    <text x="54" y="76" font-size="22">BANNER PREVIEW</text>
+  </g>
+</svg>

@@ -12,9 +12,9 @@
 //  - "messages, not exchanges" heads off the counting misread (§9.36).
 //
 // DELIBERATE divergences from the mock (each an honesty upgrade, §9.33):
-//  - The fill is REAL: WORLD_INFO_ACTIVATED's entries, honestly estimated
-//    (~chars/3.5). Before any generation the label says "up to N tokens"
-//    and the bar sits empty — the mock painted a demo 1,400.
+//  - The fill counts the last reply's activated entries with ST's tokenizer.
+//    Before any generation the label says "up to N tokens" and the bar sits
+//    empty — the mock painted a demo 1,400.
 //  - The AI's attention is the live getMaxContextSize(); when it can't be
 //    read the label falls back to the % claim alone, no invented total.
 //  - Popovers get a ONE-per-init document closer (the editor's pattern),
@@ -29,7 +29,7 @@ import {
     scanState, setScanDepthGlobal, setScanMode, setScanField,
     budgetState, setBudgetPct, setBudgetCap, setBudgetWarn,
     attention, effectiveBudget, usedTokens,
-    initTopbarData, teardownTopbarData,
+    initTopbarData, teardownTopbarData, refreshUsedTokens,
 } from './topbarData.js';
 // Lorebook toolbar (New · Rename · Duplicate · Export · Import · Delete). The
 // per-book actions target the validated rail selection; New + Import are
@@ -68,8 +68,8 @@ function renderMeter() {
     else label = `<b>${pct}%</b> of the AI\u2019s attention \u2014 the notes\u2019 share`;
     root.querySelector('#wl-wi2-meterLabel').innerHTML = label;
 
-    const fill = (eff != null && used != null)
-        ? Math.min(100, Math.round(used / eff * 100)) : 0;
+    const fill = (eff > 0 && used != null)
+        ? Math.min(100, used > 0 ? Math.max(1, Math.round(used / eff * 100)) : 0) : 0;
     root.querySelector('#wl-wi2-meterFill').style.width = fill + '%';
 
     // The popover's derived note
@@ -291,6 +291,7 @@ export function refreshTopbar() {
     updateBookActions();
     renderMeter();
     renderScan();
+    void refreshUsedTokens();
 }
 
 export function initTopbar(rootEl) {

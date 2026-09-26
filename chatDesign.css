@@ -2277,7 +2277,7 @@ button.wl-sp-candidate {
 .wl-sp-candidate.wl-sp-pack-choice .wl-sp-chips { justify-content: flex-start; }
 .wl-sp-pack-preview-pane {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--bd-border);
@@ -2301,14 +2301,6 @@ button.wl-sp-candidate {
     height: 360px;
     min-width: 0;
     overflow: hidden;
-}
-.wl-sp-pack-preview-pane > p {
-    margin: 0;
-    padding: 8px 11px;
-    border-top: 1px solid var(--bd-border);
-    color: var(--bd-text-dim);
-    font-size: 10px;
-    line-height: 1.4;
 }
 .wl-sp-candidate:hover,
 .wl-sp-candidate:has(input:checked) {

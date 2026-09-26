@@ -64,14 +64,20 @@ function clearPanelPosition(id) {
 // GEOMETRY
 // ============================================================
 
+function getLeftViewportInset() {
+    const value = getComputedStyle(document.body).getPropertyValue('--bd-left-rail-space');
+    return Math.max(0, Number.parseFloat(value) || 0);
+}
+
 /** Clamp x/y so the panel stays fully within the viewport. */
 function clampToViewport(x, y, el) {
     const width = el.offsetWidth || 320;
     const height = el.offsetHeight || 120;
-    const maxX = Math.max(0, window.innerWidth - width);
+    const minX = getLeftViewportInset();
+    const maxX = Math.max(minX, window.innerWidth - width);
     const maxY = Math.max(0, window.innerHeight - height);
     return {
-        x: Math.max(0, Math.min(x, maxX)),
+        x: Math.max(minX, Math.min(x, maxX)),
         y: Math.max(0, Math.min(y, maxY)),
     };
 }
@@ -84,8 +90,9 @@ function clampToViewport(x, y, el) {
 function resolveAnchor(anchor, el) {
     const width = el.offsetWidth || 320;
     const height = el.offsetHeight || 120;
+    const leftInset = getLeftViewportInset();
     const right = window.innerWidth - width - EDGE_GAP;
-    const left = EDGE_GAP;
+    const left = leftInset + EDGE_GAP;
     const bottom = window.innerHeight - height - EDGE_GAP;
     const top = EDGE_GAP;
     const middle = Math.max(EDGE_GAP, (window.innerHeight - height) / 2);
@@ -178,8 +185,9 @@ function wireDrag(el, cfg, handle, persist) {
 
             // Snap to LEFT/RIGHT edges only (skip top/bottom — chat input + topbar).
             if (cfg.snapToEdges) {
-                if (rect.left <= SNAP_THRESHOLD) {
-                    finalX = SNAP_GAP;
+                const leftInset = getLeftViewportInset();
+                if ((rect.left - leftInset) <= SNAP_THRESHOLD) {
+                    finalX = leftInset + SNAP_GAP;
                 } else if ((window.innerWidth - rect.right) <= SNAP_THRESHOLD) {
                     finalX = window.innerWidth - rect.width - SNAP_GAP;
                 }

@@ -86,3 +86,12 @@ Use SillyTavern's built-in extension installer:
 ## Credits
 
 This was inspired by features I've liked in other extensions, like [WorldInfoPresets](https://github.com/LenAnderson/SillyTavern-WorldInfoPresets) and [AvatarBanners](https://github.com/city-unit/SillyTavern-AvatarBanners) (which was itself inspired by banner CSS by the creator of [MoonlitEchoes](https://www.chub.ai/users/MoonlitEchoes)).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+

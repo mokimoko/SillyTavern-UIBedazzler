@@ -25,6 +25,13 @@ function escapeXmlAttribute(value) {
         .replace(/>/g, '&gt;');
 }
 
+function escapeXmlText(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 /**
  * Resolve the set of character avatars actually present in the current chat.
  *
@@ -84,11 +91,9 @@ function buildNarratorLoreXML() {
     const entries = getLoreEntries(avatarId);
     if (!entries.length) return '';
 
-    // Get persona name for the root tag attribute
-    const personaName = power_user.personas?.[avatarId] || '{{user}}';
-
     // Get current characters for resolving knownBy names
     const context = getContext();
+    const personaName = power_user.personas?.[avatarId] || context.name1 || 'the user';
     const allCharacters = context.characters || [];
 
     // Who's actually in this chat. null = couldn't resolve; treat every
@@ -161,7 +166,7 @@ function buildNarratorLoreXML() {
     for (const { characterNames, entries: sharedEntries } of sharedByAudience.values()) {
         const characters = characterNames.map(escapeXmlAttribute).join('; ');
         lines.push(`<shared_context characters="${characters}">`);
-        lines.push('The listed characters are aware of the following about {{user}}.');
+        lines.push(`The listed characters are aware of the following about ${escapeXmlText(personaName)}.`);
         sharedEntries.forEach(c => lines.push(`- ${c}`));
         lines.push('</shared_context>');
     }

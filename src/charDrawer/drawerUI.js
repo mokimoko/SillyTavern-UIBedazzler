@@ -248,6 +248,10 @@ function closeOnOutsidePointer(event) {
     }
     if (popup.contains(event.target) || event.target.closest(NATIVE_POPUP_OPENER_SELECTOR)) return;
 
+    // Expanded text editors live in body-level native dialogs. Let the dialog
+    // own both editor and backdrop clicks without closing the drawer beneath it.
+    if (document.querySelector('dialog[open]')) return;
+
     event.preventDefault();
     event.stopImmediatePropagation();
     closeClassicPopup();

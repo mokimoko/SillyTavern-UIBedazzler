@@ -31,6 +31,8 @@ Open Chat Design from the extension settings or context menu. Create reusable lo
 
 Top Bar styling includes a desktop Left Rail layout that moves the native controls to the left edge while keeping chat, native drawers, and Chat Top Bar aligned beside it. Smaller screens retain the horizontal layout.
 
+**Fonts → Text Tags** lets you style selected words or passages. Add a custom tag such as `my-effect`, paste CSS, and copy `<my-effect>Your text here</my-effect>` for your own prompts or messages. Complete CSS effect snippets and `@keyframes` are supported; their style blocks are applied to that tag instead of their original selectors. Tags follow the Fonts style's assignments. Conversion affects display only, and animations respect reduced-motion preferences. Turn off **Show `<tags>` in responses** in SillyTavern to render the markup.
+
 ## Light Theme Compatibility
 
 Enable **Light Theme Compatibility** under **Interface** to automatically adapt SillyTavern's native drawer headers, form fields, dropdowns, and text shadows when the active UI tint is light. Dark themes are left unchanged.

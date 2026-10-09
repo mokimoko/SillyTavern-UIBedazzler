@@ -24,6 +24,7 @@ import { extension_settings, getContext } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { getAppearanceAvatar, getChatScope } from './chatScope.js';
 import { sanitizeCustomCssDeclarations } from './customCss.js';
+import { buildTextTagsCSS } from './textTags.js';
 
 const log = () => {};
 
@@ -313,6 +314,9 @@ function buildFontsCSS(style, selector) {
     if (dialogueRules.length > 0) {
         rules.push(`${selector} .mes_text q {\n    ${dialogueRules.join(';\n    ')};\n}`);
     }
+
+    const textTagsCSS = buildTextTagsCSS(style, selector);
+    if (textTagsCSS) rules.push(textTagsCSS);
 
     return rules.join('\n');
 }

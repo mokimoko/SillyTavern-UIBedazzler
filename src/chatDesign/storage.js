@@ -135,6 +135,7 @@ export const ELEMENT_DEFAULTS = {
         nameCustomCss: '',
         messageCustomCss: '',
         dialogueCustomCss: '',
+        textTags: [],
         uiFontFamilyUseCustom: false,
         uiFontFamily: 'Default (Theme)',
         uiFontSize: '1em',

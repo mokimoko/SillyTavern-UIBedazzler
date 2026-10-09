@@ -55,6 +55,7 @@ import { isChatTopBarAvailable } from './chatTopBarStyle.js';
 import { isGuidedGenerationsAvailable } from './guidedGenerationsStyle.js';
 import { uploadDesignImage } from '../design/designUtils.js';
 import { buildToastStyleCSS } from './toastStyle.js';
+import { renderTextTags, wireTextTags } from './textTagUi.js';
 
 const log = () => {};
 const ASSIGNMENT_PERSONA_CACHE_MS = 60_000;
@@ -1990,6 +1991,10 @@ function renderFontsProps(p, activeSection) {
             content: `${renderFontFields(p)}${renderAdvancedCssField(p)}`,
             hint: 'Typography for text rendered inside dialogue/quote tags.',
         },
+        'text-tags': {
+            content: renderTextTags(p),
+            hint: 'Reusable effects for selected words or passages, with optional CSS animation.',
+        },
         'sillytavern-ui': {
             content: `
                 ${renderFontFields(p, 'ui')}
@@ -3701,7 +3706,7 @@ function wireEditorEvents(container, style) {
 function rerenderPropertiesPanel(container, style) {
     const props = container.querySelector('#wl-cdm-props');
     if (!props) return;
-    const openGroups = [...props.querySelectorAll('details[open]')]
+    const openGroups = [...props.querySelectorAll('details[open]:not([data-text-tag-index])')]
         .map(group => group.querySelector('summary span')?.textContent)
         .filter(Boolean);
     const propertyTabs = getEditorPropertyTabsForStyle(style);
@@ -3714,7 +3719,7 @@ function rerenderPropertiesPanel(container, style) {
         props.removeAttribute('role');
         props.removeAttribute('aria-labelledby');
     }
-    props.querySelectorAll('details').forEach(group => {
+    props.querySelectorAll('details:not([data-text-tag-index])').forEach(group => {
         const label = group.querySelector('summary span')?.textContent;
         if (openGroups.includes(label)) group.open = true;
     });
@@ -4173,6 +4178,11 @@ function wirePropertyInputs(container, style) {
     const props = container.querySelector('#wl-cdm-props');
     if (!props) return;
     compactPropertyFields(props);
+    wireTextTags(container, style, {
+        save: entries => updateEditorProperty(style, 'textTags', entries),
+        rerender: () => rerenderPropertiesPanel(container, style),
+        refresh: refreshChatDesignCSSDebounced,
+    });
 
     props.querySelector('#wl-cdm-toast-preview')?.addEventListener('click', () => {
         const selectedType = props.querySelector('#wl-cdm-toast-preview-type')?.value;

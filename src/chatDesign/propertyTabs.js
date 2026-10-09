@@ -5,6 +5,7 @@ const PROPERTY_TABS = Object.freeze({
         Object.freeze({ id: 'name', label: 'Name' }),
         Object.freeze({ id: 'message-text', label: 'Message Text' }),
         Object.freeze({ id: 'dialogue', label: 'Dialogue' }),
+        Object.freeze({ id: 'text-tags', label: 'Text Tags' }),
         Object.freeze({ id: 'sillytavern-ui', label: 'SillyTavern UI' }),
     ]),
     avatar: Object.freeze([

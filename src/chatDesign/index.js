@@ -8,7 +8,8 @@
 
 import { eventSource, event_types } from '../../../../../../script.js';
 import { getContext } from '../../../../../extensions.js';
-import { isChatDesignEnabled } from './storage.js';
+import { getAllStyles, isChatDesignEnabled } from './storage.js';
+import { syncTextTagRuntime } from './textTagRuntime.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
 import { refreshCursorDiscovery } from './cursors.js';
 import { scheduleCSSRebuild } from '../cssScheduler.js';
@@ -36,6 +37,7 @@ function hasActiveChatContext() {
 }
 
 function injectForCurrentContext(options = {}) {
+    syncTextTagRuntime(getAllStyles(), isChatDesignEnabled());
     injectChatDesignCSS({
         includeMessageStyles: hasActiveChatContext(),
         ...options,
@@ -168,6 +170,7 @@ export function onChatDesignToggleChanged(enabled) {
         injectForCurrentContext();
         discoverCursorsForActiveDesign();
     } else {
+        syncTextTagRuntime([], false);
         removeChatDesignCSS();
         refreshWeatherCycleBadgePosition();
         refreshStoryAppsDockPosition();

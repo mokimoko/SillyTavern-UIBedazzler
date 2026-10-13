@@ -8,6 +8,8 @@ Enjoy! ;) - Moki
 
 ## Compatibility
 
+- **Easthaven** — Chat Design pauses while its native VN is active so the eye button and main controls remain reachable. Your saved setting is retained and resumes when you leave or use ordinary chat mode.
+
 - **TauriTavern** — Recent Chats keeps exact avatar identities for characters that share the same display name.
 - **[Guided Generations](https://github.com/Samueras/GuidedGenerations-Extension)** — Chat Design integration.
 - **[TopInfoBar](https://github.com/SillyTavern/Extension-TopInfoBar)** — Chat Design integration.
@@ -32,6 +34,8 @@ Open Chat Design from the extension settings or context menu. Create reusable lo
 Top Bar styling includes a desktop Left Rail layout that moves the native controls to the left edge while keeping chat, native drawers, and Chat Top Bar aligned beside it. Smaller screens retain the horizontal layout.
 
 **Fonts → Text Tags** lets you style selected words or passages. Add a custom tag such as `my-effect`, paste CSS, and copy `<my-effect>Your text here</my-effect>` for your own prompts or messages. Complete CSS effect snippets and `@keyframes` are supported; their style blocks are applied to that tag instead of their original selectors. Tags follow the Fonts style's assignments. Conversion affects display only, and animations respect reduced-motion preferences. Turn off **Show `<tags>` in responses** in SillyTavern to render the markup.
+
+Check **Ignore surrounding text colors** on a Text Tag to bypass message and dialogue colors and gradients. The tag uses its own CSS color, or the theme's text color when its CSS does not specify one.
 
 ## Light Theme Compatibility
 

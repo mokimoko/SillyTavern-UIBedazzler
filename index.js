@@ -116,6 +116,7 @@ function buildSettingsHTML() {
                                 <span>Enable Chat Design</span>
                                 <i class="fa-solid fa-circle-info bd-info-icon"></i>
                             </label>
+                            <small id="bd-chat-design-paused" hidden>Chat Design is temporarily paused while Easthaven’s VN is active. It resumes when you leave or use ordinary chat mode.</small>
                             <div class="bd-chat-design-btn-row">
                                 <button type="button" class="menu_button menu_button_icon bd-open-chat-design" id="bd-open-chat-design" title="Open Chat Design editor">
                                     <i class="fa-solid fa-palette"></i>

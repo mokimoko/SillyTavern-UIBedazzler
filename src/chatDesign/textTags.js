@@ -56,6 +56,10 @@ export function compileTextTagCss(entry, styleId = '') {
         collect(sheet.cssRules);
         const declarations = (style, frames = false) => {
             const values = [];
+            // Theme shadows paint over transparent gradient glyphs. Clear
+            // that default while retaining any shadow the snippet specifies.
+            if (!frames && style.getPropertyValue('background-clip').split(',').some(clip => clip.trim() === 'text')
+                && !style.getPropertyValue('text-shadow')) values.push('text-shadow: none;');
             for (let index = 0; index < style.length; index++) {
                 const property = style.item(index);
                 let value = style.getPropertyValue(property).trim();
@@ -101,8 +105,33 @@ export function buildTextTagsCSS(style, selector) {
         const className = textTagClass(entry.tag);
         const target = `${selector} .mes_text :is(.${className}, .custom-${className})`;
         const { css } = compileTextTagCss(entry, style.id);
-        rules.push(`${target} { display: inline-block; }`);
+        const colorReset = entry.ignoreTextColors === true ? `
+            --bdz-dialogue-gradient: none;
+            --bdz-dialogue-gradient-clip: border-box;
+            color: var(--SmartThemeBodyColor, #cccccc);
+            -webkit-text-stroke: 0;
+        ` : '';
+        // Own paint survives opacity/transform compositing inside gradient
+        // dialogue. Normal priority lets pasted colors/gradients override it.
+        rules.push(`${target} { display: inline-block;
+            ${colorReset}
+            background-image: var(--bdz-dialogue-gradient, none);
+            background-clip: var(--bdz-dialogue-gradient-clip, border-box);
+            -webkit-background-clip: var(--bdz-dialogue-gradient-clip, border-box);
+            -webkit-text-fill-color: currentColor;
+            text-shadow: inherit;
+        }`);
         if (css) rules.push(css.replaceAll(TARGET, target));
+        rules.push(`${target} :where(a, em, strong, b, i, u, s, del) { text-shadow: inherit !important; }`);
+        if (colorReset) {
+            // Design Tab clears formatted text inside gradient quotes. Restore
+            // inheritance here so nested emphasis uses the tag's chosen paint.
+            rules.push(`${target} :where(a, em, strong, b, i, u, s, del) {
+                color: inherit !important;
+                -webkit-text-fill-color: inherit !important;
+                -webkit-text-stroke: inherit !important;
+            }`);
+        }
         rules.push(`@media (prefers-reduced-motion: reduce) { ${target} { animation: none !important; } }`);
     }
     return rules.join('\n');

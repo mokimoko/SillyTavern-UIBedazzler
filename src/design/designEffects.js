@@ -190,6 +190,10 @@ export function buildDesignEffectsCSS(selector, design) {
         const normalized = { ...dialogueGradient, opacity: 1 };
         const fallbackStart = gradientStop(normalized, normalized.start);
         const backgroundImage = gradientCSS(normalized, dialogueColorCSS(fallbackStart));
+        // Animated inline blocks cannot use the quote's clipped background.
+        // Text Tags consume these inherited values to paint their own glyphs.
+        dialogue.push(`--bdz-dialogue-gradient: ${backgroundImage} !important`,
+            '--bdz-dialogue-gradient-clip: text !important');
         dialogue.push(...buildGradientTextDeclarations(backgroundImage));
         dialogueInlinePaint = buildGradientInlinePaintDeclarations(
             dialogueColorCSS(fallbackStart),

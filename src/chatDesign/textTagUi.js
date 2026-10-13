@@ -27,6 +27,8 @@ function card(entry, index) {
                 <input class="wl-cdm-input" data-tag-field="tag" maxlength="48" value="${esc(entry.tag)}" placeholder="my-effect" spellcheck="false">
             </label>
             <div class="wl-cdm-field-hint">Enter the name without angle brackets. It applies only within messages using this Fonts style.</div>
+            <label class="wl-cdm-checkbox-item"><input type="checkbox" data-tag-field="ignoreTextColors" ${entry.ignoreTextColors === true ? 'checked' : ''}> Ignore surrounding text colors</label>
+            <div class="wl-cdm-field-hint">Skip message and dialogue colors and gradients for this tag. Use its CSS color, or the theme's text color if none is set.</div>
             <label class="wl-cdm-field"><span class="wl-cdm-field-label">CSS</span>
                 <textarea class="wl-cdm-input wl-cdm-css-input bdz-text-tag-css" data-tag-field="css" maxlength="16000" spellcheck="false" placeholder="color: pink;&#10;font-weight: 700;">${esc(entry.css)}</textarea>
             </label>
@@ -111,8 +113,8 @@ export function wireTextTags(container, style, { save, rerender, refresh }) {
         });
         element.querySelectorAll('[data-tag-field]').forEach(input => {
             const field = input.dataset.tagField;
-            input.addEventListener(field === 'tag' || field === 'enabled' ? 'change' : 'input', () => {
-                const value = field === 'enabled' ? input.checked : input.value;
+            input.addEventListener(field === 'tag' || input.type === 'checkbox' ? 'change' : 'input', () => {
+                const value = input.type === 'checkbox' ? input.checked : input.value;
                 entry[field] = field === 'tag' ? value.trim().toLowerCase() : value;
                 if (field === 'tag') input.value = entry.tag;
                 persist();

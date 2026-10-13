@@ -9,6 +9,7 @@
 import { eventSource, event_types } from '../../../../../../script.js';
 import { getContext } from '../../../../../extensions.js';
 import { getAllStyles, isChatDesignEnabled } from './storage.js';
+import { isEasthavenChatDesignPaused, observeEasthavenChatDesign } from './easthavenCompat.js';
 import { syncTextTagRuntime } from './textTagRuntime.js';
 import { injectChatDesignCSS, removeChatDesignCSS } from './cssGenerator.js';
 import { refreshCursorDiscovery } from './cursors.js';
@@ -29,6 +30,10 @@ import {
 const log = () => {};
 let initialized = false;
 
+function isChatDesignActive() {
+    return isChatDesignEnabled() && !isEasthavenChatDesignPaused();
+}
+
 function hasActiveChatContext() {
     const context = getContext();
     return context?.characterId != null
@@ -37,7 +42,8 @@ function hasActiveChatContext() {
 }
 
 function injectForCurrentContext(options = {}) {
-    syncTextTagRuntime(getAllStyles(), isChatDesignEnabled());
+    if (!isChatDesignActive()) return;
+    syncTextTagRuntime(getAllStyles(), isChatDesignActive());
     injectChatDesignCSS({
         includeMessageStyles: hasActiveChatContext(),
         ...options,
@@ -53,17 +59,18 @@ function applyGlobalAppearance() {
 }
 
 function discoverCursorsForActiveDesign() {
-    if (!isChatDesignEnabled()) return;
+    if (!isChatDesignActive()) return;
     refreshCursorDiscovery()
         .then(() => {
-            if (isChatDesignEnabled()) injectForCurrentContext({ refreshMessageStyles: false });
+            if (isChatDesignActive()) injectForCurrentContext({ refreshMessageStyles: false });
         })
         .catch(() => {});
 }
 
 function scheduleChatDesignInjection(refreshMessageStyles) {
-    if (!isChatDesignEnabled()) return;
+    if (!isChatDesignActive()) return;
     scheduleCSSRebuild('chatDesign', () => {
+        if (!isChatDesignActive()) return;
         injectForCurrentContext({ refreshMessageStyles });
     });
 }
@@ -83,13 +90,14 @@ function onAvatarStamped(avatar, messageElement) {
 export function initChatDesign() {
     if (initialized) return;
     initialized = true;
+    observeEasthavenChatDesign(() => onChatDesignToggleChanged(isChatDesignEnabled()));
     resetChatScope();
     applyGlobalAppearance();
 
     // The welcome screen has no message UI. Keep global choices such as cursor
     // and interface typography, but defer message CSS, chat observation, and
     // chat-font loading until a character or group chat actually opens.
-    if (isChatDesignEnabled()) {
+    if (isChatDesignActive()) {
         if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
         injectForCurrentContext();
     }
@@ -102,14 +110,14 @@ export function initChatDesign() {
     // Batched via cssScheduler so all three CSS modules update in one frame
     eventSource.on(event_types.CHAT_CHANGED, () => {
         resetChatScope();
-        if (isChatDesignEnabled()) {
+        if (isChatDesignActive()) {
             if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
             else stopAvatarStamping();
             scheduleChatDesignInjection(true);
         }
 
         // Per-character UI theme switching. Deliberately OUTSIDE the
-        // isChatDesignEnabled() guard: auto-theming is its own feature (driven
+        // isChatDesignActive() guard: auto-theming is its own feature (driven
         // by its own assignment map + default), independent of whether the
         // Chat Design CSS overrides are enabled. Self-guards internally — no-ops
         // when nothing is assigned and no default is set. This handler only runs
@@ -151,7 +159,7 @@ export function initChatDesign() {
     // Re-inject on verse change (verse styles may target different characters)
     // VERSE_CHANGED is a custom event fired by VerseManager
     eventSource.on('VERSE_CHANGED', () => {
-        if (isChatDesignEnabled()) {
+        if (isChatDesignActive()) {
             // Small delay to let verse character lists update
             setTimeout(injectForCurrentContext, 150);
         }
@@ -164,7 +172,7 @@ export function initChatDesign() {
  * Called when the Chat Design enable toggle changes.
  */
 export function onChatDesignToggleChanged(enabled) {
-    if (enabled) {
+    if (enabled && !isEasthavenChatDesignPaused()) {
         resetChatScope();
         if (hasActiveChatContext()) startAvatarStamping(onAvatarStamped);
         injectForCurrentContext();
@@ -183,7 +191,7 @@ export function onChatDesignToggleChanged(enabled) {
  * Use for save/toggle operations where delay is undesirable.
  */
 export function refreshChatDesignCSS() {
-    if (isChatDesignEnabled()) {
+    if (isChatDesignActive()) {
         injectForCurrentContext();
     }
 }

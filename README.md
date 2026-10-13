@@ -8,8 +8,6 @@ Enjoy! ;) - Moki
 
 ## Compatibility
 
-- **Easthaven** — Chat Design pauses while its native VN is active so the eye button and main controls remain reachable. Your saved setting is retained and resumes when you leave or use ordinary chat mode.
-
 - **TauriTavern** — Recent Chats keeps exact avatar identities for characters that share the same display name.
 - **[Guided Generations](https://github.com/Samueras/GuidedGenerations-Extension)** — Chat Design integration.
 - **[TopInfoBar](https://github.com/SillyTavern/Extension-TopInfoBar)** — Chat Design integration.

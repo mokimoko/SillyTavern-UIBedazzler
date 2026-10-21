@@ -18,6 +18,7 @@
 import { extension_settings } from '../../../../../extensions.js';
 import { MODULE_NAME } from '../settings.js';
 import { ensureFeatureStyle } from '../featureStyles.js';
+import { initGroupMemberPagination } from './groupMemberPagination.js';
 
 const log = () => {};
 const ROOT_ID = 'wl-cb-root';
@@ -52,6 +53,7 @@ export function isCharBrowserEnabled() {
 
 export function initCharBrowser() {
     registerSlashCommand();
+    initGroupMemberPagination(isCharBrowserEnabled);
     log('Initialized');
 }
 

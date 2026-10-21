@@ -197,6 +197,7 @@ export function initCharDrawerExpanded() {
     // Installed here when the parent toggle is on; the toggle handler reconciles
     // it live, and the watcher self-gates per mutation on BOTH toggles. Mirrors
     // WI v2's setupOpenExpandedWatcher (src/worldInfoDrawerV2/index.js).
+    setupStartupDrawerRestore();
     setupOpenExpandedWatcher();
 
     log('Initialized');
@@ -461,6 +462,57 @@ const CHAR_DRAWER_ICON_ID = 'rightNavDrawerIcon';
 
 let openOnClickObserver = null;
 let redirecting = false;
+let startupRestorePending = false;
+
+/** Close a restored empty drawer; choosing a surface remains a user action. */
+function closeRestoredEmptyDrawer() {
+    if (!startupRestorePending || !isOpenOnClickEnabled() || !isCharBrowserEnabled()) return false;
+    if (isExpandedActive() || isCharBrowserActive()) return false;
+    const host = document.getElementById(CHAR_PANEL_ID);
+    if (!host?.classList.contains('openDrawer')) return false;
+    try {
+        const context = SillyTavern.getContext();
+        if (!context || context.characterId != null || context.groupId != null || context.menuType === 'create') return false;
+    } catch { return false; }
+    return closeNativeCharacterDrawer();
+}
+
+function setupStartupDrawerRestore() {
+    if (!isOpenOnClickEnabled() || !isCharBrowserEnabled()) return;
+    startupRestorePending = true;
+    let timer;
+    const finish = () => {
+        startupRestorePending = false;
+        clearTimeout(timer);
+        document.removeEventListener('click', onUserOpen, true);
+        document.removeEventListener('keydown', onUserOpen, true);
+    };
+    const onUserOpen = event => {
+        if (!event.isTrusted || !event.target.closest?.(`#${CHAR_DRAWER_ICON_ID}`)) return;
+        if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+        finish();
+    };
+    document.addEventListener('click', onUserOpen, true);
+    document.addEventListener('keydown', onUserOpen, true);
+    // Native pinned-panel restoration is delayed. Bound the startup handling,
+    // including on older hosts where APP_READY may have already been emitted.
+    timer = setTimeout(finish, 3000);
+    if (event_types.APP_READY) eventSource.once(event_types.APP_READY, () => {
+        if (!startupRestorePending) return;
+        closeRestoredEmptyDrawer();
+        clearTimeout(timer);
+        timer = setTimeout(finish, 500);
+    });
+    closeRestoredEmptyDrawer();
+}
+
+function closeNativeCharacterDrawer() {
+    const icon = document.getElementById(CHAR_DRAWER_ICON_ID);
+    if (!icon) return false;
+    if (typeof $ !== 'undefined' && $(icon).trigger) $(icon).trigger('click');
+    else icon.dispatchEvent(new Event('click', { bubbles: true }));
+    return true;
+}
 
 /**
  * True when BOTH gates for "open on top-bar click" hold: the base Expanded
@@ -488,12 +540,7 @@ function redirectNativeOpenToOurs() {
         // toggles it shut (ST's doNavbarIconClick). Guard the element lookup —
         // if the icon isn't present, we still open our surface below so the user
         // isn't left with nothing.
-        const icon = document.getElementById(CHAR_DRAWER_ICON_ID);
-        if (icon && typeof $ !== 'undefined' && $(icon).trigger) {
-            $(icon).trigger('click');
-        } else if (icon) {
-            icon.dispatchEvent(new Event('click', { bubbles: true }));
-        }
+        closeNativeCharacterDrawer();
         // Open our surface, deferred a tick so ST finishes its own close
         // bookkeeping (class flips, pin restore) before the overlay lands —
         // avoids interleaving our takeover with ST's teardown.
@@ -542,6 +589,7 @@ function setupOpenExpandedWatcher() {
         if (redirecting) return;
         if (!isOpenOnClickEnabled()) return;
         if (isExpandedActive() || isCharBrowserActive()) return;
+        if (closeRestoredEmptyDrawer()) return;
         // Only redirect when we actually have a surface to open AND redirecting
         // is the right call. Stand down for:
         //   'disabled' — no hostable char and the browser is off (nothing to open);

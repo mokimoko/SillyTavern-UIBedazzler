@@ -191,7 +191,7 @@ export function buildDesignEffectsCSS(selector, design) {
         const fallbackStart = gradientStop(normalized, normalized.start);
         const backgroundImage = gradientCSS(normalized, dialogueColorCSS(fallbackStart));
         // Animated inline blocks cannot use the quote's clipped background.
-        // Text Tags consume these inherited values to paint their own glyphs.
+        // Nested spans and Text Tags use these values to paint their own glyphs.
         dialogue.push(`--bdz-dialogue-gradient: ${backgroundImage} !important`,
             '--bdz-dialogue-gradient-clip: text !important');
         dialogue.push(...buildGradientTextDeclarations(backgroundImage));
@@ -206,6 +206,15 @@ export function buildDesignEffectsCSS(selector, design) {
     if (dialogue.length) rules.push(`#chat ${selector} q {\n    ${dialogue.join(';\n    ')};\n}`);
     if (dialogueInlinePaint) {
         rules.push(`#chat ${selector} q :is(a, em, strong, b, i, u, s, del) {\n    ${dialogueInlinePaint};\n}`);
+        // Regex animations can composite spans separately from the quote.
+        // Low priority lets their own CSS colors/backgrounds and Text Tags win.
+        rules.push(`#chat ${selector} q :where(span) {
+    background-image: var(--bdz-dialogue-gradient, none);
+    background-clip: var(--bdz-dialogue-gradient-clip, border-box);
+    -webkit-background-clip: var(--bdz-dialogue-gradient-clip, border-box);
+    -webkit-text-fill-color: currentColor;
+    text-shadow: inherit;
+}`);
     }
     if (boxGradient) {
         // A transparent base avoids applying the legacy box opacity twice.

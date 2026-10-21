@@ -55,6 +55,7 @@ let callbacks = {
     onChanged: null,     // () => void — a group was fav'd/deleted; shell refreshes nav
 };
 let active = false;
+let detailSuspended = false;
 let data = [];              // group view-models from charData
 
 // ============================================================
@@ -76,6 +77,7 @@ export function initGroupHub(opts) {
     };
     hubState = { query: '', sort: 'name_asc', selectedId: null, page: 1 };
     active = false;
+    detailSuspended = false;
     data = [];
     cardsEl = pagerEl = countEl = null;
 }
@@ -84,6 +86,7 @@ export function teardownGroupHub() {
     hostEl = detailBodyEl = detailEmptyEl = cardsEl = pagerEl = countEl = null;
     callbacks = { onOpenGroup: null, onEditMember: null, onNewGroup: null, onChanged: null };
     active = false;
+    detailSuspended = false;
     data = [];
 }
 
@@ -91,6 +94,11 @@ export function teardownGroupHub() {
  *  this to guard the grid's onSelect (see drawerUI). */
 export function isGroupHubActive() {
     return active;
+}
+
+/** Let group creation own the right column while keeping the gallery live. */
+export function setGroupHubDetailSuspended(suspended) {
+    detailSuspended = suspended;
 }
 
 /** Enter hub mode: (re)build the hub chrome and paint the cards from fresh
@@ -116,6 +124,7 @@ export function deactivateGroupHub() {
 export function refreshGroupHub() {
     if (!active || !hostEl || !cardsEl) return;
     deriveData();
+    if (!recordFor(hubState.selectedId)) hubState.selectedId = viewList()[0]?.id || null;
     renderCards();
     renderSelectionDetail();
 }
@@ -468,7 +477,7 @@ function cssEscape(s) {
  * Empty selection shows a gentle prompt.
  */
 function renderSelectionDetail() {
-    if (!detailBodyEl) return;
+    if (!active || detailSuspended || !detailBodyEl) return;
     const rec = recordFor(hubState.selectedId);
     if (detailEmptyEl) detailEmptyEl.style.display = 'none';
     detailBodyEl.innerHTML = '';

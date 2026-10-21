@@ -55,10 +55,12 @@ import {
     deactivateGroupHub,
     refreshGroupHub,
     isGroupHubActive,
+    setGroupHubDetailSuspended,
 } from './groupHub.js';
 import { openMostRecentChat, openSpecificChat, editCharacter, openGroup } from './actions.js';
 import { bulkFavorite, bulkTag, bulkDuplicate, bulkPersona, bulkDelete, teardownBulkActionWatchers } from './bulkActions.js';
 import { openCardMenu, closeCardMenu } from './cardMenu.js';
+import { enhanceGroupCreateControls } from './groupCreateControls.js';
 // New Character → expanded drawer in CREATE mode. Same import direction
 // actions.js already uses (browser → CDE), so no new cycle risk.
 import { takeoverExpanded, isExpandedActive } from '../charDrawerExpanded/index.js';
@@ -103,6 +105,7 @@ let relocatedElements = [];
 // the mode (or the whole browser) closes before creation completes.
 let groupCreateActive = false;
 let groupWatchAbort = null;
+let restoreGroupCreateControls = null;
 
 // ============================================================
 // Public state
@@ -276,6 +279,7 @@ export function takeoverCharBrowser(opts = {}) {
     initNav({
         navEl: container.querySelector('#wl-cb-nav'),
         onFilter: (navId) => {
+            if (groupCreateActive) exitGroupCreateMode(true);
             if (navId === 'tags-hub') {
                 enterTagHubMode();
                 return;
@@ -754,17 +758,16 @@ function onNewGroupClick() {
  * Every native handler rides along — the Add Members list mutates ST's
  * newGroupMembers, the checkmark (#rm_group_submit) runs createGroup(), avatar
  * picking, tags, strategy selects, all untouched. The character detail that
- * was in the column is simply dropped; exit re-renders it via reassertSelection.
+ * was in the column is restored from the active gallery on exit.
  *
  * If the Tag Hub owns the center/detail, exit it first (the hub and this mode
  * both write into the shared detail body).
  */
 function enterGroupCreateMode() {
     if (!container || groupCreateActive) return;
-    // The Tag Hub / Groups Hub both write into the shared detail column that
-    // this mode takes over — leave whichever is active first.
+    // Keep the Groups gallery and its selection; only lend its detail column
+    // to creation. Other hub views retain their existing exit behavior.
     if (isTagHubActive()) exitTagHubMode();
-    if (isGroupHubActive()) exitGroupHubMode();
 
     const detailBody = container.querySelector('#wl-cb-detail-body');
     const detailEmpty = container.querySelector('#wl-cb-detail-empty');
@@ -772,6 +775,7 @@ function enterGroupCreateMode() {
     if (!detailBody || !block) return;
 
     groupCreateActive = true;
+    setGroupHubDetailSuspended(isGroupHubActive());
     if (detailEmpty) detailEmpty.style.display = 'none';
     detailBody.innerHTML = '';
 
@@ -793,6 +797,7 @@ function enterGroupCreateMode() {
     // Host the whole native panel (one node, every handler intact). Rides the
     // shared ledger, so a browser close mid-create also restores it.
     relocate(block, wrap.querySelector('#wl-cb-gc-slot'));
+    restoreGroupCreateControls = enhanceGroupCreateControls(block);
 
     // Creation watcher — delegated on OUR wrap so it dies with the mode. The
     // native handler on #rm_group_submit (same click) runs createGroup(); we
@@ -827,7 +832,7 @@ function enterGroupCreateMode() {
  * the (hidden) right nav, optionally click ST's own back button to reset the
  * native menu state (cancel path — the post-create path skips it because ST
  * already navigated), drop our authored wrap, and hand the detail column back
- * to the selected character.
+ * to the selected group or character in the active gallery.
  *
  * @param {boolean} clickBack  true on user cancel; false after a successful create
  */
@@ -835,6 +840,8 @@ function exitGroupCreateMode(clickBack) {
     if (!container || !groupCreateActive) return;
     groupCreateActive = false;
     if (groupWatchAbort) { groupWatchAbort(); groupWatchAbort = null; }
+    restoreGroupCreateControls?.();
+    restoreGroupCreateControls = null;
 
     // Targeted restore: pull the block's record out of the shared ledger and
     // apply it now (most-recent match wins — it's the one this mode pushed).
@@ -857,7 +864,9 @@ function exitGroupCreateMode(clickBack) {
     if (clickBack) document.getElementById('rm_button_back_from_group')?.click();
 
     container.querySelector('#wl-cb-groupcreate')?.remove();
-    reassertSelection();
+    setGroupHubDetailSuspended(false);
+    if (isGroupHubActive()) refreshGroupHub();
+    else reassertSelection();
 }
 
 /**
@@ -904,6 +913,8 @@ export function restoreCharBrowser() {
     // Group natively. Consistent, so we leave it.
     groupCreateActive = false;
     if (groupWatchAbort) { groupWatchAbort(); groupWatchAbort = null; }
+    restoreGroupCreateControls?.();
+    restoreGroupCreateControls = null;
 
     // Close any open card context menu (it lives on <body>, outside the
     // container, so it won't die with container.remove()).

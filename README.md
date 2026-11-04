@@ -12,6 +12,7 @@ Enjoy! ;) - Moki
 - **[Guided Generations](https://github.com/Samueras/GuidedGenerations-Extension)** — Chat Design integration.
 - **[TopInfoBar](https://github.com/SillyTavern/Extension-TopInfoBar)** — Chat Design integration.
 - **[MemoryBooks](https://github.com/aikohanasaki/SillyTavern-MemoryBooks)** — Side button support.
+- **[Notebook](https://github.com/SillyTavern/Extension-Notebook)** — Side button support. Install Notebook and enable **Side Buttons** to show its book icon.
 - **[Weather Cycle](https://github.com/nullara/st-weather-cycle)** — Side button support and a few tweaks.
 - **[Aspect: Evolutia](https://github.com/Vectricity/st-aspect-evolutia)** — Character and persona drawer integration.
 

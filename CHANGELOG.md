@@ -4,6 +4,10 @@ Earlier releases were not recorded here.
 
 ## Unreleased
 
+## 0.1.11 — 2026-11-04
+
+- Added a Notebook side button that toggles the installed Notebook extension's editor. The original trigger is restored when Side Buttons is turned off.
+
 ## 0.1.10 — 2026-10-21
 
 - Kept the Groups gallery visible when creating a group from Groups in the expanded character browser. Cancel restores the selected group's details and preserves the gallery's search, sorting, and page.

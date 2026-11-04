@@ -118,6 +118,17 @@ const BUTTON_REGISTRY = [
         wandMenuLabel: 'Story Manager',
     },
     {
+        id: 'notebook',
+        label: 'Notebook',
+        icon: '<i class="fa-solid fa-book"></i>',
+        detect: () => document.getElementById('openNotebookButton'),
+        trigger: () => document.getElementById('openNotebookButton')?.click(),
+        // Notebook can mount its trigger outside the wand menu. Hide by ID
+        // so either location is restored when side buttons are disabled.
+        hideOriginal: '#openNotebookButton',
+        wandMenuLabel: null,
+    },
+    {
         id: 'scenario-crafter',
         label: 'Scenario Crafter',
         icon: '<i class="fa-solid fa-wand-magic-sparkles"></i>',
@@ -186,7 +197,7 @@ let detectedSignature = '';
 let lateExtensionScanFrame = null;
 let chatVisibilityListenerInstalled = false;
 const STARTUP_POLL_DELAYS = [250, 500, 1000, 2000, 4000, 8000, 16000, 30000];
-const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #st-weather-cycle-toggle, #stmb-memory-boundary-jump, #audio_open_modal_btn, #scp-dock-icon, #extensionsMenu';
+const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #st-weather-cycle-toggle, #stmb-memory-boundary-jump, #audio_open_modal_btn, #scp-dock-icon, #openNotebookButton, #extensionsMenu';
 
 /** Return a stable key for the registry entries currently available. */
 function getDetectedSignature() {

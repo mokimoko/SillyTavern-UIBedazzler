@@ -4,6 +4,8 @@ Earlier releases were not recorded here.
 
 ## Unreleased
 
+## 0.1.11 — 2026-11-04
+
 - Added a Notebook side button that toggles the installed Notebook extension's editor. The original trigger is restored when Side Buttons is turned off.
 
 ## 0.1.10 — 2026-10-21

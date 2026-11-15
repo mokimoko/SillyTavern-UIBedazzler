@@ -4,7 +4,8 @@
 // Managed entirely by UI Bedazzler; other extensions need no changes.
 
 import { eventSource, event_types } from '../../../../../script.js';
-import { getSetting } from './settings.js';
+import { getSetting, setSetting } from './settings.js';
+import { orderSideButtons } from './sideButtonLayout.js';
 import { openChatDesignModal } from './chatDesign/modalLoader.js';
 import { openAuthorsNoteModal } from './authorsNote/index.js';
 import { attachSAFlyout, destroySAFlyout } from './saFlyout.js';
@@ -67,6 +68,25 @@ const BUTTON_REGISTRY = [
         trigger: () => openChatDesignModal(),
         hideOriginal: null,
         wandMenuLabel: 'Chat Design',
+    },
+    {
+        id: 'illustration-studio',
+        label: 'Illustration Studio',
+        icon: '<i class="fa-solid fa-image"></i>',
+        detect: () => document.getElementById('illustration-studio-cg-menu'),
+        trigger: () => document.getElementById('illustration-studio-cg-menu')?.click(),
+        hideOriginal: null,
+        wandMenuLabel: 'Illustration Studio',
+        defaultBefore: 'sprite-variation',
+    },
+    {
+        id: 'sprite-variation',
+        label: 'Sprite Variations',
+        icon: '<i class="fa-solid fa-shirt"></i>',
+        detect: () => typeof window.CELocalClassifierBridge?.openSpriteVariations === 'function',
+        trigger: () => window.CELocalClassifierBridge?.openSpriteVariations(),
+        hideOriginal: null,
+        wandMenuLabel: null,
     },
     {
         id: 'super-agents',
@@ -182,6 +202,24 @@ const BUTTON_REGISTRY = [
     },
 ];
 
+export function getSideButtonChoices() {
+    return orderSideButtons(BUTTON_REGISTRY, getSetting('sideButtonOrder')).map(def => {
+        let available = false;
+        try { available = !!def.detect(); } catch { /* extension may still be loading */ }
+        return { id: def.id, label: def.label, available };
+    });
+}
+
+export function setSideButtonOrder(ids) {
+    setSetting('sideButtonOrder', orderSideButtons(BUTTON_REGISTRY, ids).map(def => def.id));
+    if (isActive) buildButtonStrip();
+}
+
+export function setSideButtonOrientation(value) {
+    setSetting('sideButtonOrientation', value === 'horizontal' ? 'horizontal' : 'vertical');
+    if (isActive) buildButtonStrip();
+}
+
 let isActive = false;
 let observers = [];
 let detachSideButtonDrag = null;
@@ -197,7 +235,7 @@ let detectedSignature = '';
 let lateExtensionScanFrame = null;
 let chatVisibilityListenerInstalled = false;
 const STARTUP_POLL_DELAYS = [250, 500, 1000, 2000, 4000, 8000, 16000, 30000];
-const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #st-weather-cycle-toggle, #stmb-memory-boundary-jump, #audio_open_modal_btn, #scp-dock-icon, #openNotebookButton, #extensionsMenu';
+const EXTENSION_TRIGGER_SELECTOR = '#wl-trigger-btn, #st-weather-cycle-toggle, #stmb-memory-boundary-jump, #audio_open_modal_btn, #scp-dock-icon, #openNotebookButton, #illustration-studio-cg-menu, #extensionsMenu, .ce-local-bridge-settings';
 
 /** Return a stable key for the registry entries currently available. */
 function getDetectedSignature() {
@@ -264,6 +302,7 @@ function buildButtonStrip() {
 
     const container = document.createElement('div');
     container.id = CONTAINER_ID;
+    container.classList.toggle('bd-side-buttons-horizontal', getSetting('sideButtonOrientation') === 'horizontal');
     const dragHandles = ['top', 'bottom'].map(edge => {
         const handle = document.createElement('button');
         handle.type = 'button';
@@ -276,12 +315,25 @@ function buildButtonStrip() {
     });
     const scroller = document.createElement('div');
     scroller.className = 'bd-side-buttons-scroll';
+    if (container.classList.contains('bd-side-buttons-horizontal')) {
+        scroller.addEventListener('wheel', event => {
+            if (event.ctrlKey || event.metaKey) return;
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || scroller.scrollWidth <= scroller.clientWidth) return;
+            const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientWidth : 1;
+            const next = Math.max(0, Math.min(scroller.scrollWidth - scroller.clientWidth,
+                scroller.scrollLeft + event.deltaY * scale));
+            if (next === scroller.scrollLeft) return;
+            event.preventDefault();
+            scroller.scrollLeft = next;
+        }, { passive: false });
+    }
     container.appendChild(scroller);
 
     let count = 0;
     let weatherButton = null;
+    let superAgentsButton = null;
 
-    for (const def of BUTTON_REGISTRY) {
+    for (const def of orderSideButtons(BUTTON_REGISTRY, getSetting('sideButtonOrder'))) {
         if (!def.detect()) continue;
 
         const btn = document.createElement('div');
@@ -303,6 +355,10 @@ function buildButtonStrip() {
             if (orig) orig.classList.add('bd-side-btn-hidden');
         }
 
+        if (def.id === 'st-copilot') {
+            document.body.classList.add('bd-side-copilot-replaced');
+        }
+
         // Mirror White Lotus preset-active indicator
         if (def.id === 'white-lotus') {
             mirrorWLActiveState(btn);
@@ -312,7 +368,7 @@ function buildButtonStrip() {
         // flyout (groups + per-agent icon toggles). Clicking still opens the
         // full manager via def.trigger().
         if (def.id === 'super-agents') {
-            attachSAFlyout(btn);
+            superAgentsButton = btn;
         }
 
         // Weather Cycle: retain its own panel and event handlers, but anchor
@@ -325,6 +381,7 @@ function buildButtonStrip() {
     if (count > 0) {
         document.body.appendChild(container);
         detachSideButtonDrag = attachSideButtonDrag(container, dragHandles);
+        if (superAgentsButton) attachSAFlyout(superAgentsButton);
         // The anchor must be mounted before the adapter measures its viewport
         // rect. This matters when the strip rebuilds while the panel is open.
         if (weatherButton) attachWeatherCyclePanel(weatherButton);
@@ -454,6 +511,7 @@ function destroy() {
     detachSideButtonDrag = null;
     const container = document.getElementById(CONTAINER_ID);
     if (container) container.remove();
+    document.body.classList.remove('bd-side-copilot-replaced');
 
     // Tear down the Super Agents hover flyout (panel + timers)
     destroySAFlyout();

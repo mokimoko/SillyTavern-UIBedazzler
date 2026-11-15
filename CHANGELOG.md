@@ -4,6 +4,23 @@ Earlier releases were not recorded here.
 
 ## Unreleased
 
+## 0.1.12 — 2026-11-15
+
+- Added horizontal Side Buttons with sideways scrolling and drag grips at each end. Choose the orientation in extension settings or Chat Design.
+- Preserved browser zoom gestures over horizontal Side Buttons instead of treating them as sideways scrolling.
+- Added saved Side Button ordering with drag handles, arrow controls, and a reset option. Orientation and order apply to all characters; unavailable extensions keep their place in saved orders.
+- Kept Side Buttons in place through browser zoom and window resizing. Strips near an edge keep their gap, freely placed strips keep their relative position, and temporary screen constraints no longer overwrite the preferred placement. Existing saved positions migrate automatically.
+- Kept Side Buttons visible and clickable when placed over chat messages. Weather Cycle and Super Agents panels now adapt to the strip's orientation and available screen space.
+- Kept open Weather Cycle and Super Agents panels attached to their buttons while scrolling the strip or resizing the window.
+- Added an Illustration Studio side button when its extension is available, initially before Sprite Variations in the button order. Its duplicate Extensions-menu entry is hidden while Side Buttons is enabled and restored when disabled.
+- Added a Sprite Variations side button when the Character Expressions Local Classifier Bridge provides it.
+- Fixed ST-CoPilot's floating icon reappearing when opening or minimizing its window while the replacement side button is active.
+- Added clear-all controls for topic tags and condition words in expanded worldbook entries.
+- Made “Read for this chat” in the expanded worldbook drawer remember whether it is collapsed after reopening the drawer or reloading the app.
+- Added separate Grab and Grabbing custom-cursor support, including open/closed-hand filename recognition, without confusing them with the pointing Hand cursor.
+- Expanded custom-cursor targets and manual overrides for Help, Wait, Progress, Crosshair, Zoom In/Out, and Alias. Improved coverage for cropper tools, sliders, resize handles, drag handles, sortable rows, and scrollbar thumbs.
+- Added t-shirt, floppy disk, mountain/sun, home, mouse pointer, square, icons, heart, and theatre-mask mappings across all six general UI icon sets, including their Font Awesome aliases.
+
 ## 0.1.11 — 2026-11-04
 
 - Added a Notebook side button that toggles the installed Notebook extension's editor. The original trigger is restored when Side Buttons is turned off.

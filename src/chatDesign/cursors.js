@@ -81,21 +81,77 @@ const TEXT_SELECTORS = [
     'textarea', '[contenteditable="true"]', '[contenteditable=""]', '.editable',
 ].join(', ');
 
+const GRAB_TARGETS = [
+    '.drag-grabber', '.drag-handle', '.ui-sortable-handle', '.dragAnchor',
+    '[draggable="true"]', '.prompt_order > div', '#sheldheader',
+    '.completion_prompt_manager_prompt_draggable',
+    '.bd-side-buttons-drag-handle', '.bd-side-order-grip', '.bd-an-titlebar',
+    '#st-weather-cycle-badge', '.wl-cdm-header',
+];
+const GRAB_SELECTORS = [...GRAB_TARGETS, '*::-webkit-scrollbar-thumb'].join(', ');
+const GRABBING_SELECTORS = [
+    ...GRAB_TARGETS.map(selector => selector + ':active'), '*::-webkit-scrollbar-thumb:active',
+    '.ui-sortable-helper', '[aria-grabbed="true"]',
+    '#bd-side-buttons.bd-side-buttons-dragging .bd-side-buttons-drag-handle',
+    '#st-weather-cycle-badge.bd-weather-cycle-badge-dragging',
+    '.wl-cdm-modal-dragging .wl-cdm-header',
+].join(', ');
+
+const withCursorChildren = selectors => selectors.flatMap(selector => [selector, selector + ' *']).join(', ');
+const HELP_SELECTORS = withCursorChildren([
+    '.tooltip', '.assets-install-hint-link', '.dynevt-requirement-badge',
+    '.sd_comfy_workflow_editor_placeholder_list > li > .notes-link',
+    '.autoComplete-details > .specs > .head > .name', '.autoComplete-details > .specs > .name',
+    '.autoComplete-details > .specs > .head > .rawQuotes', '.autoComplete-details > .specs > .head > .source',
+    '.autoComplete-details > .specs .argument', '.autoComplete-details > .specs .argument-name',
+    '.autoComplete-details > .specs .argument-types', '.autoComplete-details > .specs .argument-enums',
+    '.autoComplete-details > .specs .argument-default', '.autoComplete-details > .specs .returns',
+]);
+const WAIT_SELECTORS = withCursorChildren([
+    '#qr--modal-execute.qr--busy', '.sm-page-download-ebook:disabled', '.sm-eb-button-busy',
+    '.pb-debug-action-btn:disabled', '.sa-wt-header-actions button:disabled',
+    '.sa-gc-roster-tools button:disabled', '.sa-gc-delete-message:disabled',
+    '.sa-gc-mentions button:disabled', '.sa-gc-composer > button:disabled',
+    '.sa-gc-composer textarea:disabled', '.sa-gc-plain-button:disabled',
+    '.sa-gc-detail-settings input:disabled', '.sa-gc-detail-settings select:disabled',
+]);
+const PROGRESS_SELECTORS = withCursorChildren([
+    '.wl-cb-act.wl-cb-busy', '.wl-cb-th-top-open.wl-cb-busy', '.dynevt-time-skip-busy',
+    '.tavernary-companion-refresh.is-refreshing',
+]);
+const CROSSHAIR_SELECTORS = [
+    '.cropper-crop', '.cm-content[style*="cursor: crosshair"]', '.cm-content[style*="cursor:crosshair"]',
+    '.cm-content[style*="cursor: crosshair"] *', '.cm-content[style*="cursor:crosshair"] *',
+].join(', ');
+// Reuse each axis image for native one-direction resize handles, without tracking the pointer.
+const resizeSelectors = (directions, extra = []) => [
+    ...directions.flatMap(direction => [
+        '.ui-resizable-' + direction, '.wl-cdm-resize-' + direction,
+        '.sa-panel-rh-' + direction, '.cursor-' + direction + '-resize',
+        '.cropper-container:not(.cropper-disabled) .cropper-line.line-' + direction,
+        '.cropper-container:not(.cropper-disabled) .cropper-point.point-' + direction,
+    ]), ...extra,
+].join(', ');
+
 export const CURSOR_TYPES = [
     { key: 'default',     label: 'Default (Arrow)',        keyword: 'auto',        selectors: '*' },
     { key: 'pointer',     label: 'Pointer / Link (Hand)',  keyword: 'pointer',     selectors: POINTER_SELECTORS },
     { key: 'text',        label: 'Text (I-Beam)',          keyword: 'text',        selectors: TEXT_SELECTORS },
-    { key: 'not-allowed', label: 'Disabled (No)',          keyword: 'not-allowed', selectors: '[disabled], .disabled, button:disabled, .menu_button.disabled' },
-    { key: 'move',        label: 'Move (SizeAll)',         keyword: 'move',        selectors: '.drag-grabber, .ui-sortable-handle, .dragAnchor, [draggable="true"]' },
-    { key: 'ns-resize',   label: 'Resize vertical (SizeNS)',    keyword: 'ns-resize',   selectors: '.ui-resizable-n, .ui-resizable-s' },
-    { key: 'ew-resize',   label: 'Resize horizontal (SizeWE)',  keyword: 'ew-resize',   selectors: '.ui-resizable-e, .ui-resizable-w' },
-    { key: 'nwse-resize', label: 'Resize ↘ (SizeNWSE)',    keyword: 'nwse-resize', selectors: '.ui-resizable-se, .ui-resizable-nw' },
-    { key: 'nesw-resize', label: 'Resize ↙ (SizeNESW)',    keyword: 'nesw-resize', selectors: '.ui-resizable-ne, .ui-resizable-sw' },
-    // Recognized in sets but no dependable ST target — shown as "no target".
-    { key: 'crosshair',   label: 'Crosshair (Cross)',      keyword: 'crosshair',   selectors: null },
-    { key: 'wait',        label: 'Wait (Wait)',            keyword: 'wait',        selectors: null },
-    { key: 'help',        label: 'Help (Help)',            keyword: 'help',        selectors: null },
-    { key: 'progress',    label: 'Progress (AppStarting)', keyword: 'progress',    selectors: null },
+    { key: 'not-allowed', label: 'Disabled (No)',          keyword: 'not-allowed', selectors: '[disabled], .disabled, button:disabled, .menu_button.disabled, .cropper-disabled .cropper-drag-box, .cropper-disabled .cropper-face, .cropper-disabled .cropper-line, .cropper-disabled .cropper-point' },
+    { key: 'move',        label: 'Move (SizeAll)',         keyword: 'move',        selectors: '.drag-grabber, .ui-sortable-handle, .dragAnchor, [draggable="true"], .cropper-container:not(.cropper-disabled) .cropper-move' },
+    { key: 'grab',        label: 'Grab (Open hand)',       keyword: 'grab',        selectors: GRAB_SELECTORS },
+    { key: 'grabbing',    label: 'Grabbing (Closed hand)', keyword: 'grabbing',    selectors: GRABBING_SELECTORS },
+    { key: 'ns-resize',   label: 'Resize vertical (SizeNS)',    keyword: 'ns-resize',   selectors: resizeSelectors(['n', 's'], ['.cursor-ns-resize', '.ttas-run-resize-handle']) },
+    { key: 'ew-resize',   label: 'Resize horizontal (SizeWE)',  keyword: 'ew-resize',   selectors: resizeSelectors(['e', 'w'], ['.cursor-ew-resize', '.neo-range-slider', 'input[type="range"]', '#qr--resizeHandle']) },
+    { key: 'nwse-resize', label: 'Resize ↘ (SizeNWSE)',    keyword: 'nwse-resize', selectors: resizeSelectors(['se', 'nw']) },
+    { key: 'nesw-resize', label: 'Resize ↙ (SizeNESW)',    keyword: 'nesw-resize', selectors: resizeSelectors(['ne', 'sw']) },
+    { key: 'alias',       label: 'Alias / Shortcut',       keyword: 'alias',       selectors: '.tag.placeholder-expander, .tag.placeholder-expander *' },
+    { key: 'zoom-in',     label: 'Zoom in',               keyword: 'zoom-in',     selectors: '.img_enlarged:not(.zoomed)' },
+    { key: 'zoom-out',    label: 'Zoom out',              keyword: 'zoom-out',    selectors: '.img_enlarged.zoomed' },
+    { key: 'crosshair',   label: 'Crosshair (Cross)',      keyword: 'crosshair',   selectors: CROSSHAIR_SELECTORS },
+    { key: 'wait',        label: 'Wait (Wait)',            keyword: 'wait',        selectors: WAIT_SELECTORS },
+    { key: 'help',        label: 'Help (Help)',            keyword: 'help',        selectors: HELP_SELECTORS },
+    { key: 'progress',    label: 'Progress (AppStarting)', keyword: 'progress',    selectors: PROGRESS_SELECTORS },
 ];
 
 const TYPE_BY_KEY = new Map(CURSOR_TYPES.map(t => [t.key, t]));
@@ -114,13 +170,17 @@ const FILENAME_TO_TYPE = {
     // "pointer" in a Windows cursor pack is the NORMAL arrow (Windows names the
     // arrow "Pointer"), so it maps to `default`; the hand is "hand"/"link".
     hand: 'pointer', pointer: 'default', link: 'pointer',
+    grab: 'grab', openhand: 'grab', handopen: 'grab', handgrab: 'grab',
+    grabbing: 'grabbing', closedhand: 'grabbing', handclosed: 'grabbing', handgrabbing: 'grabbing', grabbed: 'grabbing', dragging: 'grabbing',
     ibeam: 'text', beam: 'text', text: 'text',
     no: 'not-allowed', unavailable: 'not-allowed', notallowed: 'not-allowed',
     sizeall: 'move', move: 'move',
-    sizens: 'ns-resize', nsresize: 'ns-resize',
-    sizewe: 'ew-resize', ewresize: 'ew-resize',
-    sizenwse: 'nwse-resize', nwseresize: 'nwse-resize',
-    sizenesw: 'nesw-resize', neswresize: 'nesw-resize',
+    sizens: 'ns-resize', nsresize: 'ns-resize', nresize: 'ns-resize', sresize: 'ns-resize',
+    sizewe: 'ew-resize', ewresize: 'ew-resize', eresize: 'ew-resize', wresize: 'ew-resize',
+    sizenwse: 'nwse-resize', nwseresize: 'nwse-resize', nwresize: 'nwse-resize', seresize: 'nwse-resize',
+    sizenesw: 'nesw-resize', neswresize: 'nesw-resize', neresize: 'nesw-resize', swresize: 'nesw-resize',
+    zoomin: 'zoom-in', magnifyin: 'zoom-in', zoomout: 'zoom-out', magnifyout: 'zoom-out',
+    alias: 'alias', shortcut: 'alias',
     cross: 'crosshair', crosshair: 'crosshair', precision: 'crosshair',
     wait: 'wait', busy: 'wait', hourglass: 'wait',
     help: 'help',
@@ -169,7 +229,9 @@ const CURSOR_PATTERNS = [
     // Text.
     [/\bibeam|\bbeam|\btext|\bcaret|\binsert|\btyping/, 'text'],
     // Link / hand → pointer (a bare "pointer" is the arrow, handled by default).
-    [/\blink|\bhand|\bfinger|\bgrab|\bclickable/, 'pointer'],
+    [/\bgrabbing\b|\bgrabbed\b|\bclosed ?hand\b|\bhand ?closed\b|\bdragging\b/, 'grabbing'],
+    [/\bgrab\b|\bopen ?hand\b|\bhand ?open\b/, 'grab'],
+    [/\blink|\bhand|\bfinger|\bclickable/, 'pointer'],
     // Unavailable / no.
     [/\bunavail|\bunavali|\bunav\b|\bnotallow|\bno drop\b|\bnodrop\b|\bforbidden|\bdenied|\bblocked|\bno\b/, 'not-allowed'],
     // Diagonal resizes (before the straight ns/we rules).
@@ -180,6 +242,9 @@ const CURSOR_PATTERNS = [
     [/\bsize ?we\b|\bwe resize\b|\bhorizontal|\bhorizonta|\bhoriz|\bhorz\b|\bleftright\b|\beast/, 'ew-resize'],
     // Move.
     [/\bsizeall\b|\bsize all\b|\bmove|\ballscroll\b|\ball scroll\b|\bfleur|\bdrag/, 'move'],
+    [/\bzoom ?in\b|\bmagnify ?in\b/, 'zoom-in'],
+    [/\bzoom ?out\b|\bmagnify ?out\b/, 'zoom-out'],
+    [/\balias\b|\bshortcut\b/, 'alias'],
     // Crosshair / precision.
     [/\bcrosshair|\bcross|\bprecision|\breticle|\baim\b/, 'crosshair'],
     // Help.

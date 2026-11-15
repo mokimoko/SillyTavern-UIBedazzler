@@ -1,6 +1,10 @@
 // Persistent pointer dragging for the floating side-button strip.
 
 import { getSetting, setSetting } from './settings.js';
+import {
+    getSideButtonPositionRange, clampSideButtonToRange,
+    captureSideButtonPosition, resolveSideButtonPosition,
+} from './sideButtonPosition.js';
 
 const SETTING_KEY = 'sideButtonPosition';
 const VIEWPORT_GAP = 8;
@@ -17,12 +21,8 @@ export function clampSideButtonPosition(
     minimumX = VIEWPORT_GAP,
     minimumY = VIEWPORT_GAP,
 ) {
-    const minX = Math.max(VIEWPORT_GAP, Number(minimumX) || 0);
-    const minY = Math.max(VIEWPORT_GAP, Number(minimumY) || 0);
-    return {
-        x: Math.max(minX, Math.min(Number(x) || 0, Math.max(minX, viewportWidth - width - VIEWPORT_GAP))),
-        y: Math.max(minY, Math.min(Number(y) || 0, Math.max(minY, viewportHeight - height - VIEWPORT_GAP))),
-    };
+    const range = getSideButtonPositionRange({ width, height, minimumX, minimumY }, viewportWidth, viewportHeight);
+    return clampSideButtonToRange({ x, y }, range);
 }
 
 export function calculateSideButtonScrollerHeight(viewportHeight, topBarSafeY, outerChrome = 0) {
@@ -87,55 +87,64 @@ function adjustSavedXForLeftRail(x) {
     return translateLegacyChatEdgeX(x, legacyChatRight, chatRect.right);
 }
 
-function updateScrollableHeight(element) {
+function updateScrollableSize(element) {
     const scroller = element.querySelector('.bd-side-buttons-scroll');
     if (!scroller) return;
 
     const style = getComputedStyle(element);
-    const outerChrome = [
-        style.paddingTop,
-        style.paddingBottom,
-        style.borderTopWidth,
-        style.borderBottomWidth,
-    ].reduce((total, value) => total + (Number.parseFloat(value) || 0), 0);
+    const horizontal = element.classList.contains('bd-side-buttons-horizontal');
+    const outerChrome = (horizontal ? [
+        style.paddingLeft, style.paddingRight, style.borderLeftWidth, style.borderRightWidth,
+    ] : [
+        style.paddingTop, style.paddingBottom, style.borderTopWidth, style.borderBottomWidth,
+    ]).reduce((total, value) => total + (Number.parseFloat(value) || 0), 0);
     const safeOrigin = getTopBarSafeOrigin();
-    const maxHeight = calculateSideButtonScrollerHeight(
-        window.innerHeight,
-        safeOrigin.y,
+    const maxSize = calculateSideButtonScrollerHeight(
+        horizontal ? window.innerWidth : window.innerHeight,
+        horizontal ? safeOrigin.x : safeOrigin.y,
         outerChrome,
     );
-    const value = `${Math.floor(maxHeight)}px`;
-    if (element.style.getPropertyValue('--bd-side-buttons-max-height') !== value) {
-        element.style.setProperty('--bd-side-buttons-max-height', value);
+    const value = `${Math.floor(maxSize)}px`;
+    const property = horizontal ? '--bd-side-buttons-max-width' : '--bd-side-buttons-max-height';
+    if (element.style.getPropertyValue(property) !== value) {
+        element.style.setProperty(property, value);
     }
 }
 
-function clampForElement(x, y, element) {
+function getDragBounds(element) {
     const rect = element.getBoundingClientRect();
     const safeOrigin = getTopBarSafeOrigin();
-    return clampSideButtonPosition(
-        x,
-        y,
-        rect.width || element.offsetWidth || 40,
-        (rect.height || element.offsetHeight || 40) + HANDLE_CLEARANCE,
-        window.innerWidth,
-        window.innerHeight,
-        safeOrigin.x,
-        safeOrigin.y + HANDLE_CLEARANCE,
-    );
+    const horizontal = element.classList.contains('bd-side-buttons-horizontal');
+    const insetX = horizontal ? HANDLE_CLEARANCE : 0;
+    const insetY = horizontal ? 0 : HANDLE_CLEARANCE;
+    return {
+        width: (rect.width || element.offsetWidth || 40) + insetX,
+        height: (rect.height || element.offsetHeight || 40) + insetY,
+        minimumX: safeOrigin.x + insetX,
+        minimumY: safeOrigin.y + insetY,
+    };
+}
+
+function getPositionRange(element) {
+    return getSideButtonPositionRange(getDragBounds(element), window.innerWidth, window.innerHeight);
 }
 
 function applyPosition(element) {
-    updateScrollableHeight(element);
+    if (element.classList.contains('bd-side-buttons-dragging')) return;
+    updateScrollableSize(element);
     const saved = readPosition();
-    const rect = element.getBoundingClientRect();
-    const safeOrigin = getTopBarSafeOrigin();
-    const baseX = saved?.x ?? rect.left;
-    const position = clampForElement(
-        saved ? adjustSavedXForLeftRail(baseX) : baseX,
-        saved?.y ?? Math.max(rect.top, safeOrigin.y),
-        element,
-    );
+    const range = getPositionRange(element);
+    let position = resolveSideButtonPosition(saved, range);
+    if (!position) {
+        const rect = element.getBoundingClientRect();
+        position = clampSideButtonToRange({
+            x: saved ? adjustSavedXForLeftRail(saved.x) : rect.left,
+            y: saved?.y ?? rect.top,
+        }, range);
+        // Migrate legacy coordinates once, or remember the initial/default
+        // placement. Resizes only resolve this preference; they never rewrite it.
+        setSetting(SETTING_KEY, captureSideButtonPosition(position, range));
+    }
     element.style.left = `${position.x}px`;
     element.style.top = `${position.y}px`;
     element.style.right = 'auto';
@@ -172,16 +181,12 @@ export function attachSideButtonDrag(element, handles) {
     const onPointerDown = event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         const rect = element.getBoundingClientRect();
-        const safeOrigin = getTopBarSafeOrigin();
         drag = {
             pointerId: event.pointerId,
             handle: event.currentTarget,
             offsetX: event.clientX - rect.left,
             offsetY: event.clientY - rect.top,
-            width: rect.width || element.offsetWidth || 40,
-            height: (rect.height || element.offsetHeight || 40) + HANDLE_CLEARANCE,
-            minimumX: safeOrigin.x,
-            minimumY: safeOrigin.y + HANDLE_CLEARANCE,
+            ...getDragBounds(element),
             position: null,
             moved: false,
         };
@@ -218,7 +223,9 @@ export function attachSideButtonDrag(element, handles) {
         drag = null;
         element.classList.remove('bd-side-buttons-dragging');
         if (!moved || !position) return;
-        setSetting(SETTING_KEY, { x: Math.round(position.x), y: Math.round(position.y) });
+        updateScrollableSize(element);
+        setSetting(SETTING_KEY, captureSideButtonPosition(position, getPositionRange(element), readPosition()));
+        applyPosition(element);
     };
 
     const onDoubleClick = event => {

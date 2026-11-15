@@ -35,6 +35,7 @@ import { refreshTopbar } from './topbar.js';
 import { openBookMenu, closeBookMenu } from './bookMenu.js';
 import { renameBook, duplicateBook, exportBook, deleteBook } from './bookActions.js';
 import { onBookRenamed } from './subjectStore.js';
+import { getSetting, setSetting } from '../settings.js';
 
 const log = () => {};
 
@@ -507,11 +508,15 @@ export function initRail(rootEl) {
     // how long ST's dialog stayed open.
     watchBookList();
 
-    // Collapse (§9.25). Default OPEN (§9.27) — primary navigation.
+    // Start open unless the user previously collapsed this section.
     const head = railEl.querySelector('#wl-wi2-activeHead');
+    const collapsed = getSetting('wiReadForChatCollapsed') === true;
+    railEl.classList.toggle('wl-wi2-active-closed', collapsed);
+    head.setAttribute('aria-expanded', String(!collapsed));
     head.addEventListener('click', () => {
         const closed = railEl.classList.toggle('wl-wi2-active-closed');
         head.setAttribute('aria-expanded', String(!closed));
+        setSetting('wiReadForChatCollapsed', closed);
     });
 
     // Library filter — re-render just the list it narrows.

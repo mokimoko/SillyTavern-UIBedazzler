@@ -58,6 +58,7 @@ import { initAuthorsNote } from './src/authorsNote/index.js';
 import { setChatDesignEnabled, isChatDesignEnabled } from './src/chatDesign/storage.js';
 import { initCuteLoader } from './src/cuteLoader.js';
 import { initSideButtons, onSideButtonsToggleChanged } from './src/sideButtons.js';
+import { mountSideButtonLayoutSettings } from './src/sideButtonSettingsUi.js';
 import {
     initWeatherCycleBadge,
     resetWeatherCycleBadgePosition,
@@ -206,7 +207,7 @@ function buildSettingsHTML() {
                         </div>
                         <div class="bd-sec-body" style="display:none;">
                             <div class="bd-rowwrap" data-bd-parent="sideButtons">
-                                <label class="bd-row" title="Floating quick-access buttons on the right side for installed extensions.">
+                                <label class="bd-row" title="Movable quick-access buttons for installed extensions.">
                                     <span class="bd-row-name">Side Buttons</span>
                                     <input type="checkbox" class="bd-switch" data-bd-key="sideButtons">
                                 </label>
@@ -216,6 +217,7 @@ function buildSettingsHTML() {
                                         ${getSideButtonStyleChoices().map(({ id, label }) => `<option value="${id}">${label}</option>`).join('')}
                                     </select>
                                 </label>
+                                <div class="bd-subrow" id="bd-side-button-layout"></div>
                             </div>
                             <div class="bd-row" id="bd-weather-badge-position-row" hidden>
                                 <span class="bd-row-name">Weather Badge Position</span>
@@ -334,6 +336,7 @@ function wireSettingsEvents() {
         });
     });
 
+    mountSideButtonLayoutSettings(container.querySelector('#bd-side-button-layout'));
     const sideButtonStyleSelect = container.querySelector('#bd-side-button-style');
     if (sideButtonStyleSelect) {
         sideButtonStyleSelect.value = getDefaultSideButtonStyle();

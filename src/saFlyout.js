@@ -13,6 +13,7 @@
 // gracefully: if SuperAgents isn't present, nothing is attached.
 
 import { makeDebug } from './debug.js';
+import { getSideButtonPanelPosition } from './sideButtonLayout.js';
 const log = makeDebug('[UIBedazzler:SAFlyout]');
 
 const FLYOUT_ID = 'bd-sa-flyout';
@@ -20,6 +21,8 @@ const CLOSE_DELAY = 220; // ms grace so moving cursor button→panel doesn't clo
 
 let closeTimer = null;
 let boundBtn = null;
+let boundScroller = null;
+let positionFrame = null;
 let runStateBound = false;
 let pauseStateBound = false;
 
@@ -214,12 +217,26 @@ function renderFlyoutBody(panel) {
     `;
 }
 
-// ── Position the panel to the left of the anchor button ────────────
+// ── Position beside the strip, keeping the panel inside the viewport ──
 function positionFlyout(panel, anchor) {
     const r = anchor.getBoundingClientRect();
-    // Anchor by the right edge so it grows leftward, vertically aligned to btn.
-    panel.style.top = `${Math.max(8, Math.round(r.top))}px`;
-    panel.style.right = `${Math.round(window.innerWidth - r.left + 8)}px`;
+    // offset sizes exclude the panel's entry-animation transform.
+    const { left, top } = getSideButtonPanelPosition(
+        r, panel.offsetWidth, panel.offsetHeight, window.innerWidth, window.innerHeight,
+        !!anchor.closest('.bd-side-buttons-horizontal'),
+    );
+    panel.style.top = `${top}px`;
+    panel.style.left = `${left}px`;
+    panel.style.right = 'auto';
+}
+
+function queueFlyoutPosition() {
+    if (positionFrame !== null || !document.getElementById(FLYOUT_ID)) return;
+    positionFrame = requestAnimationFrame(() => {
+        positionFrame = null;
+        const panel = document.getElementById(FLYOUT_ID);
+        if (panel?.classList.contains('bd-saf-visible') && boundBtn?.isConnected) positionFlyout(panel, boundBtn);
+    });
 }
 
 // ── Keep the grid's busy/idle state honest ─────────────────────────
@@ -275,7 +292,12 @@ function showFlyout(anchor) {
     renderFlyoutBody(panel);
     positionFlyout(panel, anchor);
     // next frame → enables the CSS transition from hidden→shown
-    requestAnimationFrame(() => panel.classList.add('bd-saf-visible'));
+    requestAnimationFrame(() => {
+        if (!panel.isConnected || boundBtn !== anchor) return;
+        // Scrolling or resizing can move the anchor before this reveal frame.
+        positionFlyout(panel, anchor);
+        panel.classList.add('bd-saf-visible');
+    });
 }
 
 function scheduleHide() {
@@ -362,12 +384,20 @@ export function attachSAFlyout(btnEl) {
     boundBtn = btnEl;
     btnEl.addEventListener('mouseenter', () => showFlyout(btnEl));
     btnEl.addEventListener('mouseleave', scheduleHide);
+    window.addEventListener('resize', queueFlyoutPosition);
+    boundScroller = btnEl.closest('.bd-side-buttons-scroll');
+    boundScroller?.addEventListener('scroll', queueFlyoutPosition, { passive: true });
     log('Flyout attached to Super Agents button');
 }
 
 // ── Public: tear down (called on strip rebuild/destroy) ────────────
 export function destroySAFlyout() {
     cancelHide();
+    window.removeEventListener('resize', queueFlyoutPosition);
+    boundScroller?.removeEventListener('scroll', queueFlyoutPosition);
+    boundScroller = null;
+    if (positionFrame !== null) cancelAnimationFrame(positionFrame);
+    positionFrame = null;
     const panel = document.getElementById(FLYOUT_ID);
     if (panel) panel.remove();
     boundBtn = null;

@@ -32,6 +32,17 @@
 }
 
 /* ---- 2. Shared rule: re-point FA ::before at Phosphor ------ */
+body.phosphor-on .fa-house::before,
+body.phosphor-on .fa-home::before,
+body.phosphor-on .fa-home-alt::before,
+body.phosphor-on .fa-home-lg-alt::before,
+body.phosphor-on .fa-arrow-pointer::before,
+body.phosphor-on .fa-mouse-pointer::before,
+body.phosphor-on .fa-square::before,
+body.phosphor-on .fa-icons::before,
+body.phosphor-on .fa-heart::before,
+body.phosphor-on .fa-masks-theater::before,
+body.phosphor-on .fa-theater-masks::before,
 body.phosphor-on .fa-circle-info::before,
 body.phosphor-on .fa-info-circle::before,
 body.phosphor-on .fa-circle-question::before,
@@ -50,6 +61,9 @@ body.phosphor-on .fa-pencil::before,
 body.phosphor-on .fa-pen-to-square::before,
 body.phosphor-on .fa-edit::before,
 body.phosphor-on .fa-user-pen::before,
+body.phosphor-on .fa-shirt::before,
+body.phosphor-on .fa-tshirt::before,
+body.phosphor-on .fa-floppy-disk::before,
 body.phosphor-on .fa-save::before,
 body.phosphor-on .fa-clock-rotate-left::before,
 body.phosphor-on .fa-grip::before,
@@ -75,6 +89,7 @@ body.phosphor-on .fa-comment::before,
 body.phosphor-on .fa-comment-slash::before,
 body.phosphor-on .fa-link::before,
 body.phosphor-on .fa-link-slash::before,
+body.phosphor-on .fa-mountain-sun::before,
 body.phosphor-on .fa-image::before,
 body.phosphor-on .fa-images::before,
 body.phosphor-on .fa-lightbulb::before,
@@ -240,6 +255,7 @@ body.phosphor-on .fa-pencil::before          { content: "\e3b4"; }  /* pencil-si
 body.phosphor-on .fa-pen-to-square::before,
 body.phosphor-on .fa-edit::before            { content: "\e34c"; }  /* note-pencil */
 body.phosphor-on .fa-user-pen::before        { content: "\e4c6"; }  /* user-circle-gear */
+body.phosphor-on .fa-floppy-disk::before,
 body.phosphor-on .fa-save::before            { content: "\e248"; }  /* floppy-disk */
 body.phosphor-on .fa-clock-rotate-left::before { content: "\e1a0"; }  /* clock-counter-clockwise */
 body.phosphor-on .fa-grip::before            { content: "\e794"; }  /* dots-six */
@@ -265,6 +281,7 @@ body.phosphor-on .fa-comment::before         { content: "\e15c"; }  /* chat */
 body.phosphor-on .fa-comment-slash::before   { content: "\e15e"; }  /* chat-slash */
 body.phosphor-on .fa-link::before            { content: "\e2e2"; }  /* link */
 body.phosphor-on .fa-link-slash::before      { content: "\e2e4"; }  /* link-break */
+body.phosphor-on .fa-mountain-sun::before,
 body.phosphor-on .fa-image::before,
 body.phosphor-on .fa-image-portrait::before,
 body.phosphor-on .fa-panorama::before        { content: "\e2ca"; }  /* image */
@@ -405,6 +422,21 @@ body.phosphor-on .fa-headphones-simple::before { content: "\e2a6"; }  /* headpho
 body.phosphor-on .fa-toggle-off::before       { content: "\e674"; }  /* toggle-left */
 body.phosphor-on .fa-code-compare::before     { content: "\e27c"; }  /* git-diff */
 body.phosphor-on .fa-people-group::before     { content: "\e68c"; }  /* users-four */
+
+body.phosphor-on .fa-shirt::before,
+body.phosphor-on .fa-tshirt::before { content: "\e670"; }  /* t-shirt */
+
+body.phosphor-on .fa-house::before,
+body.phosphor-on .fa-home::before,
+body.phosphor-on .fa-home-alt::before,
+body.phosphor-on .fa-home-lg-alt::before { content: "\e2c2"; }  /* house */
+body.phosphor-on .fa-arrow-pointer::before,
+body.phosphor-on .fa-mouse-pointer::before { content: "\e1dc"; }  /* cursor */
+body.phosphor-on .fa-square::before { content: "\e45e"; }  /* square */
+body.phosphor-on .fa-icons::before { content: "\ec5e"; }  /* shapes */
+body.phosphor-on .fa-heart::before { content: "\e2a8"; }  /* heart */
+body.phosphor-on .fa-masks-theater::before,
+body.phosphor-on .fa-theater-masks::before { content: "\e9f4"; }  /* mask-happy */
 
 /* ============================================================
    End of mapping table. ~150 FA classes covered.

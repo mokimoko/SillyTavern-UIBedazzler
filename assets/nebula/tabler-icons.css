@@ -8,7 +8,7 @@
    Gated on body.bd-icons-tabler. CSS masks over inlined SVG,
    so currentColor and font-size sizing both still work.
 
-   156 of 156 concepts mapped. The rest keep their
+   164 of 164 concepts mapped. The rest keep their
    stock Font Awesome glyph on purpose — a missing icon still
    reads correctly, a wrongly-guessed one doesn't.
 
@@ -17,6 +17,17 @@
    ============================================================ */
 
 /* ---- Shared mask rule -------------------------------------- */
+body.bd-icons-tabler .fa-house::before,
+body.bd-icons-tabler .fa-home::before,
+body.bd-icons-tabler .fa-home-alt::before,
+body.bd-icons-tabler .fa-home-lg-alt::before,
+body.bd-icons-tabler .fa-arrow-pointer::before,
+body.bd-icons-tabler .fa-mouse-pointer::before,
+body.bd-icons-tabler .fa-square::before,
+body.bd-icons-tabler .fa-icons::before,
+body.bd-icons-tabler .fa-heart::before,
+body.bd-icons-tabler .fa-masks-theater::before,
+body.bd-icons-tabler .fa-theater-masks::before,
 body.bd-icons-tabler .fa-circle-info::before,
 body.bd-icons-tabler .fa-info-circle::before,
 body.bd-icons-tabler .fa-circle-question::before,
@@ -36,6 +47,9 @@ body.bd-icons-tabler .fa-pencil::before,
 body.bd-icons-tabler .fa-pen-to-square::before,
 body.bd-icons-tabler .fa-edit::before,
 body.bd-icons-tabler .fa-user-pen::before,
+body.bd-icons-tabler .fa-shirt::before,
+body.bd-icons-tabler .fa-tshirt::before,
+body.bd-icons-tabler .fa-floppy-disk::before,
 body.bd-icons-tabler .fa-save::before,
 body.bd-icons-tabler .fa-clock-rotate-left::before,
 body.bd-icons-tabler .fa-grip::before,
@@ -61,6 +75,7 @@ body.bd-icons-tabler .fa-comment::before,
 body.bd-icons-tabler .fa-comment-slash::before,
 body.bd-icons-tabler .fa-link::before,
 body.bd-icons-tabler .fa-link-slash::before,
+body.bd-icons-tabler .fa-mountain-sun::before,
 body.bd-icons-tabler .fa-image::before,
 body.bd-icons-tabler .fa-image-portrait::before,
 body.bd-icons-tabler .fa-panorama::before,
@@ -229,6 +244,7 @@ body.bd-icons-tabler .fa-pencil::before { --bd-icon: url("data:image/svg+xml,%3C
 body.bd-icons-tabler .fa-pen-to-square::before,
 body.bd-icons-tabler .fa-edit::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M7%207H6a2%202%200%200%200-2%202v9a2%202%200%200%200%202%202h9a2%202%200%200%200%202-2v-1%22%2F%3E%3Cpath%20d%3D%22M20.385%206.585a2.1%202.1%200%200%200-2.97-2.97L9%2012v3h3zM16%205l3%203%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* edit */
 body.bd-icons-tabler .fa-user-pen::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M8%207a4%204%200%201%200%208%200a4%204%200%200%200-8%200M6%2021v-2a4%204%200%200%201%204-4h2.5m4.501%204a2%202%200%201%200%204%200a2%202%200%201%200-4%200m2-3.5V17m0%204v1.5m3.031-5.25l-1.299.75m-3.463%202l-1.3.75m0-3.5l1.3.75m3.463%202l1.3.75%22%2F%3E%3C%2Fsvg%3E"); }  /* user-cog */
+body.bd-icons-tabler .fa-floppy-disk::before,
 body.bd-icons-tabler .fa-save::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%204h10l4%204v10a2%202%200%200%201-2%202H6a2%202%200%200%201-2-2V6a2%202%200%200%201%202-2%22%2F%3E%3Cpath%20d%3D%22M10%2014a2%202%200%201%200%204%200a2%202%200%201%200-4%200m4-10v4H8V4%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* device-floppy */
 body.bd-icons-tabler .fa-clock-rotate-left::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M12%208v4l2%202%22%2F%3E%3Cpath%20d%3D%22M3.05%2011a9%209%200%201%201%20.5%204m-.5%205v-5h5%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* history */
 body.bd-icons-tabler .fa-grip::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M4%209a1%201%200%201%200%202%200a1%201%200%201%200-2%200m0%206a1%201%200%201%200%202%200a1%201%200%201%200-2%200m7-6a1%201%200%201%200%202%200a1%201%200%201%200-2%200m0%206a1%201%200%201%200%202%200a1%201%200%201%200-2%200m7-6a1%201%200%201%200%202%200a1%201%200%201%200-2%200m0%206a1%201%200%201%200%202%200a1%201%200%201%200-2%200%22%2F%3E%3C%2Fsvg%3E"); }  /* grip-horizontal */
@@ -254,6 +270,7 @@ body.bd-icons-tabler .fa-comment::before { --bd-icon: url("data:image/svg+xml,%3
 body.bd-icons-tabler .fa-comment-slash::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M8%209h1m4%200h3m-8%204h5M8%204h10a3%203%200%200%201%203%203v8c0%20.577-.163%201.116-.445%201.573M18%2018h-5l-5%203v-3H6a3%203%200%200%201-3-3V7c0-1.085.576-2.036%201.439-2.562M3%203l18%2018%22%2F%3E%3C%2Fsvg%3E"); }  /* message-off */
 body.bd-icons-tabler .fa-link::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22m9%2015l6-6m-4-3l.463-.536a5%205%200%200%201%207.071%207.072L18%2013m-5%205l-.397.534a5.07%205.07%200%200%201-7.127%200a4.97%204.97%200%200%201%200-7.071L6%2011%22%2F%3E%3C%2Fsvg%3E"); }  /* link */
 body.bd-icons-tabler .fa-link-slash::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M17%2022v-2m-8-5l6-6m-4-3l.463-.536a5%205%200%200%201%207.071%207.072L18%2013m-5%205l-.397.534a5.07%205.07%200%200%201-7.127%200a4.97%204.97%200%200%201%200-7.071L6%2011m14%206h2M2%207h2m3-5v2%22%2F%3E%3C%2Fsvg%3E"); }  /* unlink */
+body.bd-icons-tabler .fa-mountain-sun::before,
 body.bd-icons-tabler .fa-image::before,
 body.bd-icons-tabler .fa-image-portrait::before,
 body.bd-icons-tabler .fa-panorama::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M15%208h.01M3%206a3%203%200%200%201%203-3h12a3%203%200%200%201%203%203v12a3%203%200%200%201-3%203H6a3%203%200%200%201-3-3z%22%2F%3E%3Cpath%20d%3D%22m3%2016l5-5c.928-.893%202.072-.893%203%200l5%205%22%2F%3E%3Cpath%20d%3D%22m14%2014l1-1c.928-.893%202.072-.893%203%200l3%203%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* photo */
@@ -392,3 +409,16 @@ body.bd-icons-tabler .fa-headphones-simple::before { --bd-icon: url("data:image/
 body.bd-icons-tabler .fa-toggle-off::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%2012a2%202%200%201%200%204%200a2%202%200%201%200-4%200%22%2F%3E%3Cpath%20d%3D%22M2%2012a6%206%200%200%201%206-6h8a6%206%200%200%201%206%206a6%206%200%200%201-6%206H8a6%206%200%200%201-6-6%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* toggle-left */
 body.bd-icons-tabler .fa-code-compare::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M4%206a2%202%200%201%200%204%200a2%202%200%201%200-4%200m12%2012a2%202%200%201%200%204%200a2%202%200%201%200-4%200%22%2F%3E%3Cpath%20d%3D%22M11%206h5a2%202%200%200%201%202%202v8%22%2F%3E%3Cpath%20d%3D%22m14%209l-3-3l3-3m-1%2015H8a2%202%200%200%201-2-2V8%22%2F%3E%3Cpath%20d%3D%22m10%2015l3%203l-3%203%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }  /* git-compare */
 body.bd-icons-tabler .fa-people-group::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221em%22%20height%3D%221em%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M5%207a4%204%200%201%200%208%200a4%204%200%201%200-8%200M3%2021v-2a4%204%200%200%201%204-4h4a4%204%200%200%201%204%204v2m1-17.87a4%204%200%200%201%200%207.75M21%2021v-2a4%204%200%200%200-3-3.85%22%2F%3E%3C%2Fsvg%3E"); }  /* users */
+body.bd-icons-tabler .fa-shirt::before,
+body.bd-icons-tabler .fa-tshirt::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M15%204l6%202v5h-3v8a1%201%200%200%201%20-1%201h-10a1%201%200%200%201%20-1%20-1v-8h-3v-5l6%20-2a3%203%200%200%200%206%200%22%20%2F%3E%3C%2Fsvg%3E"); }  /* shirt */
+body.bd-icons-tabler .fa-house::before,
+body.bd-icons-tabler .fa-home::before,
+body.bd-icons-tabler .fa-home-alt::before,
+body.bd-icons-tabler .fa-home-lg-alt::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M5%2012l-2%200l9%20-9l9%209l-2%200%22%20%2F%3E%3Cpath%20d%3D%22M5%2012v7a2%202%200%200%200%202%202h10a2%202%200%200%200%202%20-2v-7%22%20%2F%3E%3Cpath%20d%3D%22M9%2021v-6a2%202%200%200%201%202%20-2h2a2%202%200%200%201%202%202v6%22%20%2F%3E%3C%2Fsvg%3E"); }  /* home */
+body.bd-icons-tabler .fa-arrow-pointer::before,
+body.bd-icons-tabler .fa-mouse-pointer::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M7.904%2017.563a1.2%201.2%200%200%200%202.228%20.308l2.09%20-3.093l4.907%204.907a1.067%201.067%200%200%200%201.509%200l1.047%20-1.047a1.067%201.067%200%200%200%200%20-1.509l-4.907%20-4.907l3.113%20-2.09a1.2%201.2%200%200%200%20-.309%20-2.228l-13.582%20-3.904l3.904%2013.563%22%20%2F%3E%3C%2Fsvg%3E"); }  /* pointer */
+body.bd-icons-tabler .fa-square::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M3%205a2%202%200%200%201%202%20-2h14a2%202%200%200%201%202%202v14a2%202%200%200%201%20-2%202h-14a2%202%200%200%201%20-2%20-2v-14%22%20%2F%3E%3C%2Fsvg%3E"); }  /* square */
+body.bd-icons-tabler .fa-icons::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M3%206.5a3.5%203.5%200%201%200%207%200a3.5%203.5%200%201%200%20-7%200%22%20%2F%3E%3Cpath%20d%3D%22M2.5%2021h8l-4%20-7l-4%207%22%20%2F%3E%3Cpath%20d%3D%22M14%203l7%207%22%20%2F%3E%3Cpath%20d%3D%22M14%2010l7%20-7%22%20%2F%3E%3Cpath%20d%3D%22M14%2014h7v7h-7l0%20-7%22%20%2F%3E%3C%2Fsvg%3E"); }  /* icons */
+body.bd-icons-tabler .fa-heart::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M19.5%2012.572l-7.5%207.428l-7.5%20-7.428a5%205%200%201%201%207.5%20-6.566a5%205%200%201%201%207.5%206.572%22%20%2F%3E%3C%2Fsvg%3E"); }  /* heart */
+body.bd-icons-tabler .fa-masks-theater::before,
+body.bd-icons-tabler .fa-theater-masks::before { --bd-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20%3E%3Cpath%20d%3D%22M13.192%209h6.616a2%202%200%200%201%201.992%202.183l-.567%206.182a4%204%200%200%201%20-3.983%203.635h-1.5a4%204%200%200%201%20-3.983%20-3.635l-.567%20-6.182a2%202%200%200%201%201.992%20-2.183%22%20%2F%3E%3Cpath%20d%3D%22M15%2013h.01%22%20%2F%3E%3Cpath%20d%3D%22M18%2013h.01%22%20%2F%3E%3Cpath%20d%3D%22M15%2016.5c1%20.667%202%20.667%203%200%22%20%2F%3E%3Cpath%20d%3D%22M8.632%2015.982a4.037%204.037%200%200%201%20-.382%20.018h-1.5a4%204%200%200%201%20-3.983%20-3.635l-.567%20-6.182a2%202%200%200%201%201.992%20-2.183h6.616a2%202%200%200%201%202%202%22%20%2F%3E%3Cpath%20d%3D%22M6%208h.01%22%20%2F%3E%3Cpath%20d%3D%22M9%208h.01%22%20%2F%3E%3Cpath%20d%3D%22M6%2012c.764%20-.51%201.528%20-.63%202.291%20-.36%22%20%2F%3E%3C%2Fsvg%3E"); }  /* masks-theater */

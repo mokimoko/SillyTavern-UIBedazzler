@@ -43,6 +43,8 @@ const DEFAULT_SETTINGS = {
     // Off by default. Entry points: the /bdz-widrawer command and an
     // expand button injected into ST's native World Info drawer header.
     worldInfoDrawerExpanded: false,
+    // Remember the expanded worldbook drawer's "Read for this chat" fold state.
+    wiReadForChatCollapsed: false,
 
     // --- "Open as expanded on top-bar click" behaviors ---
     // Sub-toggles of the three expanded-drawer takeovers. When both the parent
@@ -90,6 +92,8 @@ const DEFAULT_SETTINGS = {
     // --- Side Buttons ---
     sideButtons: true,
     sideButtonStyle: 'default',
+    sideButtonOrientation: 'vertical',
+    sideButtonOrder: [],
     sideButtonPosition: null,
     weatherBadgePosition: null,
 

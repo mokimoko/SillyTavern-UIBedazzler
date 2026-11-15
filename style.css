@@ -385,7 +385,7 @@
     position: fixed;
     top: calc(var(--topBarBlockSize, 40px) + max(var(--tt-inset-top, 0px), 0px) + 28px);
     right: 20px;
-    z-index: 25; /* below Variable Viewer popup (#vv--root, z-index 30) */
+    z-index: 100; /* above chat, below native drawers and floating panels */
     pointer-events: none;
     overflow: visible;
 }
@@ -463,6 +463,164 @@
     cursor: grabbing;
 }
 
+#bd-side-buttons.bd-side-buttons-horizontal {
+    width: max-content;
+}
+
+#bd-side-buttons.bd-side-buttons-horizontal .bd-side-buttons-scroll {
+    flex-direction: row;
+    max-width: var(--bd-side-buttons-max-width, calc(100vw - 56px));
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-sizing: border-box;
+}
+
+#bd-side-buttons.bd-side-buttons-horizontal .bd-side-buttons-drag-handle {
+    top: 50%;
+    bottom: auto;
+    width: 20px;
+    height: 28px;
+    transform: translateY(-50%);
+}
+
+#bd-side-buttons.bd-side-buttons-horizontal .bd-side-buttons-drag-handle-top {
+    left: -20px;
+    right: auto;
+}
+
+#bd-side-buttons.bd-side-buttons-horizontal .bd-side-buttons-drag-handle-bottom {
+    left: auto;
+    right: -20px;
+}
+
+#bd-side-buttons.bd-side-buttons-horizontal .bd-side-buttons-drag-handle > i {
+    transform: none;
+}
+
+/* Shared layout settings in the extension drawer and Chat Design. */
+.bd-side-layout-settings {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    min-width: 0;
+    margin-top: 10px;
+    color: var(--bd-text);
+    cursor: default;
+}
+
+.bd-side-layout-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.bd-side-layout-field .bd-side-orientation {
+    width: auto;
+    min-width: 120px;
+    margin: 0;
+}
+
+.bd-side-order-details > summary {
+    cursor: pointer;
+    color: var(--bd-text-dim);
+}
+
+.bd-side-layout-hint {
+    margin: 8px 0;
+    font-size: 12px;
+    color: var(--bd-text-dim);
+    line-height: 1.5;
+}
+
+.bd-side-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 340px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-bottom: 8px;
+    padding: 3px;
+}
+
+.bd-side-order-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid var(--bd-border);
+    border-radius: 6px;
+    background: var(--bd-surface-2);
+}
+
+.bd-side-order-name {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+}
+
+.bd-side-order-name small {
+    display: block;
+    font-size: 10px;
+    color: var(--bd-text-dim);
+}
+
+.bd-side-order-grip,
+.bd-side-order-arrow {
+    flex: 0 0 28px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--bd-text-dim);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.bd-side-order-grip { cursor: grab; }
+.bd-side-order-arrow:disabled { opacity: 0.3; cursor: default; }
+.bd-side-order-grip:hover,
+.bd-side-order-arrow:hover:not(:disabled) {
+    color: var(--bd-accent);
+    background: var(--bd-surface);
+    border-color: var(--bd-border);
+}
+.bd-side-order-grip:focus-visible,
+.bd-side-order-arrow:focus-visible {
+    outline: 2px solid var(--bd-accent);
+    outline-offset: 1px;
+}
+.bd-side-order-dragging { opacity: 0.45; }
+.bd-side-order-before::before,
+.bd-side-order-after::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--bd-accent);
+    pointer-events: none;
+}
+.bd-side-order-before::before { top: -4px; }
+.bd-side-order-after::after { bottom: -4px; }
+.bd-side-layout-settings .bd-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
 .bd-side-btn {
     flex: 0 0 auto;
     pointer-events: auto;
@@ -513,6 +671,12 @@
 /* Hide original floating triggers when side buttons replace them */
 .bd-side-btn-hidden {
     display: none !important;
+}
+
+/* CoPilot rewrites its inline display with !important when its window toggles. */
+body.bd-side-copilot-replaced #scp-dock-icon {
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 /* Hide wand menu entries for extensions with active side buttons */
@@ -690,6 +854,17 @@ body.bd-side-buttons-edge-tabs .bd-side-btn:is(:hover, .bd-side-btn-active) {
     color: var(--bd-accent);
     opacity: 1;
     transform: none;
+}
+
+body.bd-side-buttons-edge-tabs #bd-side-buttons.bd-side-buttons-horizontal .bd-side-btn {
+    border-right: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 9px 9px 0 0;
+}
+
+body.bd-side-buttons-edge-tabs #bd-side-buttons.bd-side-buttons-horizontal .bd-side-btn:is(:hover, .bd-side-btn-active) {
+    border-bottom-color: var(--bd-accent);
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bd-accent) 11%, transparent));
 }
 
 /* Soft Tiles — compact low-contrast squares without floating depth. */

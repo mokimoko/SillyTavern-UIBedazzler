@@ -48,7 +48,7 @@ import {
     NUM_LOGIC, LOGIC_NUM, POS_NUM, SOURCE_KEYS,
     setTitle, setContent, setType, setMode,
     setClause, clearClause,
-    addTopic, renameTopic, removeTopic,
+    addTopic, renameTopic, removeTopic, clearTopics,
     addTerm, renameTerm, removeTerm,
     setSticky, setCooldown, setDelay, seedTiming, clearTiming,
     setPlacement, setDepth, setRole, setOutlet,
@@ -192,7 +192,11 @@ function editChips(terms, group, cls) {
     const input = `<input class="wl-wi2-chip-input" data-chipadd="${group}" type="text"
         placeholder="${hint}" title="Type and press Enter to add \u00b7 comma also adds"
         autocomplete="off" spellcheck="false">`;
-    return chips + ' ' + input;
+    const label = group === 'topic' ? 'Clear all topics' : 'Clear all condition words';
+    const clear = terms.length ? `<button type="button" class="wl-wi2-chip-clear"
+        data-chipclear="${group}" title="${label}" aria-label="${label}">
+        <i class="fa-solid fa-eraser" aria-hidden="true"></i></button>` : '';
+    return chips + ' ' + input + clear;
 }
 
 // ============================================================
@@ -883,6 +887,19 @@ function wireEditor() {
     const chipRemove = (group, val) =>
         group === 'topic' ? removeTopic(e, val) : removeTerm(e, val);
 
+    $$('[data-chipclear]').forEach(button => {
+        // Keep an unfinished add-input from blurring and repainting before the click.
+        button.addEventListener('mousedown', ev => ev.preventDefault());
+        button.addEventListener('click', ev => {
+            ev.stopPropagation();
+            const group = button.dataset.chipclear;
+            const input = $(`.wl-wi2-chip-input[data-chipadd="${group}"]`);
+            if (input) input.value = '';
+            if (group === 'topic') clearTopics(e); else clearClause(e);
+            rerender({ list: true, refocus: group });
+            if (group === 'term') $('#wl-wi2-modeBtn')?.focus();
+        });
+    });
     $$('[data-chiprm]').forEach(x => x.addEventListener('click', ev => {
         ev.stopPropagation();                     // don't also trigger rename
         chipRemove(x.dataset.chiprm, x.dataset.val);

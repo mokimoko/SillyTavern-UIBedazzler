@@ -36,6 +36,18 @@ Top Bar styling includes a desktop Left Rail layout that moves the native contro
 
 Check **Ignore surrounding text colors** on a Text Tag to bypass message and dialogue colors and gradients. The tag uses its own CSS color, or the theme's text color when its CSS does not specify one.
 
+Custom cursors support separate Grab and Grabbing artwork, along with Help, Wait, Progress, Crosshair, Zoom In/Out, and Alias overrides. Cursor sets recognize open- and closed-hand filenames separately from the pointing Hand.
+
+## Side Buttons
+
+Under **Interface → Side Buttons** in UI Bedazzler's settings, choose a vertical or horizontal strip and open **Button order** to rearrange buttons with drag handles or arrows. The same controls are available in **Chat Design → Side Buttons**. These choices apply to all characters and are saved automatically.
+
+When Illustration Studio is installed, its image icon opens the scene dialog from the strip, initially before Sprite Variations in the button order. Its Extensions-menu entry is hidden while Side Buttons is enabled and restored when disabled. Sprite Variations appears when the Character Expressions Local Classifier Bridge provides it. You can reorder both buttons normally.
+
+Use the grips at either end of the live strip to move it. If a horizontal strip is wider than the screen, scroll through it with the mouse wheel or trackpad. **Reset button order** restores the default sequence without changing its position or style.
+
+The strip adjusts automatically when you zoom the browser or resize its window. Near an edge, it keeps its gap from that edge; elsewhere, it keeps its relative position. The strip and its grips stay within the usable screen area.
+
 ## Light Theme Compatibility
 
 Enable **Light Theme Compatibility** under **Interface** to automatically adapt SillyTavern's native drawer headers, form fields, dropdowns, and text shadows when the active UI tint is light. Dark themes are left unchanged.

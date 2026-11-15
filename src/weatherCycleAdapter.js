@@ -2,17 +2,18 @@
 // The extension does not expose a public API, so its native toggle remains the
 // source of truth and UIBedazzler only replaces its placement/presentation.
 
+import { getSideButtonPanelPosition } from './sideButtonLayout.js';
+
 const TOGGLE_ID = 'st-weather-cycle-toggle';
 const PANEL_ID = 'st-weather-cycle-panel';
 const ADAPTED_CLASS = 'bd-weather-cycle-panel-adapted';
-const PANEL_GAP = 8;
-const VIEWPORT_GAP = 8;
 
 let boundButton = null;
 let panelObserver = null;
 let buttonClickHandler = null;
 let outsidePointerHandler = null;
 let resizeHandler = null;
+let boundScroller = null;
 let positionFrame = null;
 let adaptedPanel = null;
 let originalPanelPosition = null;
@@ -51,15 +52,10 @@ function positionPanel() {
 
     const anchorRect = anchor.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const left = Math.max(
-        VIEWPORT_GAP,
-        Math.round(anchorRect.left - panelRect.width - PANEL_GAP),
+    const { left, top } = getSideButtonPanelPosition(
+        anchorRect, panelRect.width, panelRect.height, window.innerWidth, window.innerHeight,
+        !!anchor.closest('.bd-side-buttons-horizontal'),
     );
-    const maxTop = Math.max(
-        VIEWPORT_GAP,
-        window.innerHeight - panelRect.height - VIEWPORT_GAP,
-    );
-    const top = Math.min(Math.max(VIEWPORT_GAP, Math.round(anchorRect.top)), maxTop);
 
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
@@ -129,8 +125,11 @@ export function attachWeatherCyclePanel(button) {
     });
     panelObserver.observe(panel, { attributes: true, attributeFilter: ['style'] });
 
-    resizeHandler = () => positionPanel();
+    // The strip moves in an animation frame on resize; measure it afterwards.
+    resizeHandler = queuePanelPosition;
     window.addEventListener('resize', resizeHandler);
+    boundScroller = button.closest('.bd-side-buttons-scroll');
+    boundScroller?.addEventListener('scroll', queuePanelPosition, { passive: true });
     syncPanelState();
 }
 
@@ -152,6 +151,8 @@ export function destroyWeatherCyclePanel() {
 
     if (resizeHandler) window.removeEventListener('resize', resizeHandler);
     resizeHandler = null;
+    boundScroller?.removeEventListener('scroll', queuePanelPosition);
+    boundScroller = null;
 
     if (positionFrame !== null) cancelAnimationFrame(positionFrame);
     positionFrame = null;

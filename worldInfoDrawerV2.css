@@ -737,6 +737,21 @@
 #wl-wi2-root .wl-wi2-chip-edit { cursor: text; }
 #wl-wi2-root .wl-wi2-chip-edit:hover { border-color: var(--sage); }
 #wl-wi2-root .wl-wi2-chip-edit.neg:hover { border-color: var(--danger); }
+
+#wl-wi2-root .wl-wi2-chip-clear {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0; margin-left: 3px; vertical-align: middle;
+    background: none; border: 1px solid transparent; border-radius: 4px;
+    color: var(--muted); font-size: 11px; cursor: pointer; opacity: .55;
+    transition: opacity .12s, color .12s, border-color .12s;
+}
+#wl-wi2-root .wl-wi2-chip-clear:hover,
+#wl-wi2-root .wl-wi2-chip-clear:focus-visible {
+    opacity: 1; color: var(--danger); border-color: var(--border);
+}
+#wl-wi2-root .wl-wi2-chip-clear:focus-visible {
+    outline: 1px solid var(--gold-dim); outline-offset: 2px;
+}
 #wl-wi2-root .wl-wi2-chip-ph { opacity: .5; font-style: italic; }
 /* Inline add-input: reads as a ghost chip until focused. Type + Enter (or
    comma) commits; it grows a little on focus so there's room to type. */

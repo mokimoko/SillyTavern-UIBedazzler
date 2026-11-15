@@ -50,6 +50,7 @@ import {
     applySideButtonStyleForActiveChar,
 } from './sideButtonStyleSwitch.js';
 import { resetSideButtonPosition } from '../sideButtonDrag.js';
+import { mountSideButtonLayoutSettings } from '../sideButtonSettingsUi.js';
 import { isWeatherCycleBadgeAvailable } from '../weatherCycleBadge.js';
 import { isChatTopBarAvailable } from './chatTopBarStyle.js';
 import { isGuidedGenerationsAvailable } from './guidedGenerationsStyle.js';
@@ -1087,7 +1088,8 @@ function renderSideButtonStylesView(container) {
                     ${options(defaultStyle)}
                 </select>
             </label>
-            <div class="wl-cdm-field-hint">Use the small grip beside the live strip to drag it. The strip stays below the top bar automatically.</div>
+            <div class="wl-cdm-sb-layout"></div>
+            <div class="wl-cdm-field-hint">Use the small grip beside the live strip to drag it. The strip stays below the top bar automatically. Orientation and button order apply to all characters.</div>
             <button type="button" class="wl-cdm-btn wl-cdm-btn-ghost" id="wl-cdm-sb-reset-position">
                 <i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i>
                 Reset strip position
@@ -1118,6 +1120,7 @@ function renderSideButtonStylesView(container) {
 }
 
 function wireSideButtonStylesView(container) {
+    mountSideButtonLayoutSettings(container.querySelector('.wl-cdm-sb-layout'));
     container.querySelector('#wl-cdm-sb-reset-position')?.addEventListener('click', () => {
         resetSideButtonPosition();
     });

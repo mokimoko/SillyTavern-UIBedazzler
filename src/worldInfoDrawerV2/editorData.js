@@ -332,6 +332,7 @@ export function removeTopic(e, v) {
     e.key = cur.filter(x => x !== v);
     scheduleSave();
 }
+export function clearTopics(e) { e.key = []; scheduleSave(); }
 
 /** Add a term to the note's single condition. Replaces a lone '…' placeholder
  *  rather than sitting beside it, so a fresh condition never keeps matching on
